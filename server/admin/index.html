@@ -307,13 +307,36 @@ async function adminLogin() {
     document.getElementById('login-err').textContent = 'Wrong username or password';
   }
 }
-function logout() { token = ''; localStorage.removeItem('admin_token'); location.reload(); }
+function logout() {
+  token = '';
+  localStorage.removeItem('admin_token');
+  showLogin();
+}
+
+function showLogin() {
+  const loginView = document.getElementById('login-view');
+  const appView = document.getElementById('app-view');
+  if (loginView) loginView.style.display = 'flex';
+  if (appView) appView.style.display = 'none';
+  const errEl = document.getElementById('login-err');
+  if (errEl) errEl.textContent = '';
+  const passEl = document.getElementById('login-pass');
+  if (passEl) passEl.value = '';
+}
+
 function showApp() {
-  document.getElementById('login-view').style.display = 'none';
-  document.getElementById('app-view').style.display = 'block';
+  const loginView = document.getElementById('login-view');
+  const appView = document.getElementById('app-view');
+  if (loginView) loginView.style.display = 'none';
+  if (appView) appView.style.display = 'block';
   switchTab('dashboard');
 }
-if (token) showApp();
+
+if (token) {
+  showApp();
+} else {
+  showLogin();
+}
 document.getElementById('login-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') adminLogin(); });
 
 // ---------- navigation ----------

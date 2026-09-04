@@ -81,7 +81,12 @@ const isVercel = !!(process.env.VERCEL || process.env.NOW_REGION);
 const uploadsDir = isVercel ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
 app.use('/uploads', express.static(uploadsDir));
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
-app.get('/', (req, res) => res.redirect('/admin/'));
+app.get(['/admin', '/admin/'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin', 'index.html'));
+});
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin', 'index.html'));
+});
 
 // JSON error handler
 app.use((err, req, res, next) => {
