@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: elaraby-workforce
+    runtime: node
+    plan: free
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_USER
+        value: admin
+      - key: ADMIN_PASS
+        value: elaraby2026
+      - key: CORS_ORIGIN
+        value: '*'

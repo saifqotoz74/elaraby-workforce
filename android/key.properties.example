@@ -1,0 +1,10 @@
+# Instructions for Release Signing:
+# 1. Generate a keystore file if you don't have one:
+#    keytool -genkey -v -keystore elaraby-release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias elaraby-key
+# 2. Copy this file to android/key.properties
+# 3. Fill in the values below with your keystore path and passwords:
+
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=elaraby-key
+storeFile=../elaraby-release.jks

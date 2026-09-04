@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elaraby Connect — HR Admin</title>
+<style>
+  :root {
+    --primary: #0B63B4; --primary-dark: #084a87; --primary-soft: #E8F1FA;
+    --navy: #0A1A2F; --navy-2: #102842;
+    --bg: #F2F5F9; --surface: #fff; --text: #16233A; --muted: #7A8699;
+    --border: #E5EAF1; --green: #16A34A; --green-soft: #EAF8F0;
+    --red: #DC2626; --red-soft: #FEECEC; --amber: #D97706; --amber-soft: #FFF7ED;
+    --shadow: 0 2px 12px rgba(16, 40, 66, .06);
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, sans-serif; }
+  body { background: var(--bg); color: var(--text); }
+
+  /* ================= LOGIN ================= */
+  #login-view { min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--navy) 0%, var(--primary-dark) 55%, var(--primary) 100%); padding: 20px; }
+  .login-card { background: var(--surface); border-radius: 24px; box-shadow: 0 24px 60px rgba(0,0,0,.35); padding: 44px 38px; width: 400px; max-width: 100%; }
+  .login-logo { width: 56px; height: 56px; border-radius: 16px; background: linear-gradient(135deg, var(--primary), #3E8FD9);
+    display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 24px; margin-bottom: 18px; }
+  .login-card h1 { font-size: 24px; margin-bottom: 4px; }
+  .login-card > p { color: var(--muted); font-size: 13px; margin-bottom: 26px; }
+  .field { width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; font-size: 14px; background: #FBFCFE; outline: none; transition: border .15s; }
+  .field:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+  .login-card .field { margin-bottom: 12px; }
+  .btn { background: var(--primary); color: #fff; border: 0; border-radius: 12px; padding: 12px 20px; font-size: 14px; font-weight: 600; cursor: pointer; transition: transform .1s, box-shadow .15s; }
+  .btn:hover { background: var(--primary-dark); box-shadow: 0 4px 14px rgba(11,99,180,.35); }
+  .btn:active { transform: scale(.98); }
+  .btn.full { width: 100%; }
+  .btn.ghost { background: var(--surface); color: var(--primary); border: 1px solid #CFE2F5; }
+  .btn.ghost:hover { background: var(--primary-soft); box-shadow: none; }
+  .btn.danger { background: var(--red); } .btn.danger:hover { background: #B91C1C; box-shadow: 0 4px 14px rgba(220,38,38,.3); }
+  .btn.ok { background: var(--green); } .btn.ok:hover { background: #15803D; box-shadow: none; }
+  .btn.warn { background: var(--amber); } .btn.warn:hover { background: #B45309; box-shadow: none; }
+  .btn.sm { padding: 7px 13px; font-size: 12.5px; border-radius: 9px; }
+  .err { color: var(--red); font-size: 13px; margin-top: 10px; min-height: 17px; }
+
+  /* ================= SHELL ================= */
+  #app-view { display: none; min-height: 100vh; }
+  .shell { display: flex; min-height: 100vh; }
+
+  /* ---- Sidebar ---- */
+  aside.sidebar { width: 248px; background: linear-gradient(180deg, var(--navy), var(--navy-2)); color: #C7D5E8;
+    display: flex; flex-direction: column; position: fixed; inset: 0 auto 0 0; z-index: 50; transition: transform .25s; }
+  .side-brand { display: flex; align-items: center; gap: 12px; padding: 22px 20px 18px; }
+  .side-brand .chip { width: 42px; height: 42px; border-radius: 13px; background: linear-gradient(135deg, var(--primary), #3E8FD9);
+    display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 19px; color: #fff; flex: none; }
+  .side-brand b { color: #fff; font-size: 15.5px; display: block; line-height: 1.2; }
+  .side-brand small { font-size: 11px; color: #7E93B4; }
+  nav.side-nav { flex: 1; padding: 8px 12px; overflow-y: auto; }
+  .nav-label { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: #5E739A; padding: 14px 12px 6px; }
+  .nav-item { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: 0; color: #AFC0D9;
+    padding: 11px 12px; font-size: 14px; border-radius: 11px; cursor: pointer; margin-bottom: 2px; text-align: left; transition: background .15s, color .15s; }
+  .nav-item svg { width: 19px; height: 19px; flex: none; }
+  .nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+  .nav-item.active { background: var(--primary); color: #fff; font-weight: 600; box-shadow: 0 6px 16px rgba(11,99,180,.4); }
+  .nav-item .badge { margin-left: auto; background: var(--amber); color: #fff; font-size: 10.5px; font-weight: 700; border-radius: 20px; padding: 2px 8px; }
+  .side-foot { padding: 16px 12px; border-top: 1px solid rgba(255,255,255,.07); }
+  .side-foot button { width: 100%; }
+
+  /* ---- Main ---- */
+  .main-area { flex: 1; margin-left: 248px; display: flex; flex-direction: column; min-width: 0; }
+  header.topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 28px;
+    display: flex; align-items: center; gap: 14px; position: sticky; top: 0; z-index: 40; }
+  .hamburger { display: none; background: none; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; cursor: pointer; }
+  .hamburger svg { width: 20px; height: 20px; display: block; }
+  header.topbar h1 { font-size: 18px; flex: 1; }
+  .topbar .who { display: flex; align-items: center; gap: 10px; }
+  .topbar .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--primary-soft); color: var(--primary);
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; }
+  main.content { padding: 26px 28px 40px; max-width: 1240px; width: 100%; margin: 0 auto; }
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(10,26,47,.5); z-index: 45; }
+
+  /* ================= COMPONENTS ================= */
+  h2.page-title { font-size: 21px; margin-bottom: 4px; }
+  p.page-sub { color: var(--muted); font-size: 13px; margin-bottom: 22px; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .stat { background: var(--surface); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+  .stat::after { content: ''; position: absolute; right: -20px; top: -20px; width: 90px; height: 90px; border-radius: 50%; opacity: .08; }
+  .stat.blue::after { background: var(--primary); } .stat.green::after { background: var(--green); }
+  .stat.amber::after { background: var(--amber); } .stat.red::after { background: var(--red); }
+  .stat .ico { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+  .stat .ico svg { width: 20px; height: 20px; }
+  .stat .num { font-size: 27px; font-weight: 800; letter-spacing: -.02em; }
+  .stat .lbl { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px; }
+  .card h3 { font-size: 15px; margin-bottom: 16px; }
+
+  /* Donut */
+  .donut-wrap { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+  .legend { display: flex; flex-direction: column; gap: 10px; }
+  .legend .li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .legend .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .legend b { margin-left: auto; padding-left: 18px; }
+
+  /* Bars */
+  .bars { display: flex; align-items: flex-end; gap: 12px; height: 150px; padding-top: 8px; }
+  .bars .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end; }
+  .bars .bar { width: 100%; max-width: 42px; border-radius: 8px 8px 4px 4px; background: linear-gradient(180deg, #3E8FD9, var(--primary)); min-height: 4px; transition: height .4s; }
+  .bars .bar-lbl { font-size: 11px; color: var(--muted); }
+  .bars .bar-val { font-size: 12px; font-weight: 700; color: var(--primary); }
+
+  /* Activity */
+  .feed { display: flex; flex-direction: column; }
+  .feed .fi { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--bg); font-size: 13.5px; align-items: baseline; }
+  .feed .fi:last-child { border-bottom: 0; }
+  .feed .fdot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex: none; align-self: center; }
+  .feed .ftime { margin-left: auto; color: var(--muted); font-size: 11.5px; flex: none; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-weight: 600; padding: 10px 8px; border-bottom: 2px solid var(--bg); white-space: nowrap; }
+  td { padding: 13px 8px; border-bottom: 1px solid var(--bg); vertical-align: middle; }
+  tr:last-child td { border-bottom: 0; }
+  .tbl-scroll { overflow-x: auto; }
+  .pill { display: inline-block; padding: 3px 11px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .pill.review { background: var(--amber-soft); color: var(--amber); }
+  .pill.approved { background: var(--green-soft); color: var(--green); }
+  .pill.rejected { background: var(--red-soft); color: var(--red); }
+  .pill.active { background: var(--green-soft); color: var(--green); }
+  .pill.inactive { background: #F1F3F7; color: var(--muted); }
+  .row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .muted { color: var(--muted); font-size: 12px; }
+  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; gap: 10px; flex-wrap: wrap; }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 14px; }
+  label.fl { font-size: 12px; color: var(--muted); display: block; margin-bottom: 5px; font-weight: 600; }
+  textarea.field { resize: vertical; }
+  select.field { cursor: pointer; }
+
+  /* Image picker */
+  .img-picker { border: 2px dashed #C8D8EA; border-radius: 14px; padding: 18px; text-align: center; cursor: pointer; transition: border .15s, background .15s; background: #FBFCFE; }
+  .img-picker:hover { border-color: var(--primary); background: var(--primary-soft); }
+  .img-picker .hint { font-size: 12.5px; color: var(--muted); }
+  .img-picker img { max-height: 130px; border-radius: 10px; margin: 0 auto 8px; display: block; }
+  .img-thumb { width: 74px; height: 48px; object-fit: cover; border-radius: 8px; display: block; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--navy); color: #fff;
+    padding: 12px 24px; border-radius: 12px; font-size: 13.5px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 99; box-shadow: 0 10px 30px rgba(0,0,0,.3); }
+  .toast.show { opacity: 1; }
+  .empty { text-align: center; color: var(--muted); padding: 34px 10px; font-size: 13.5px; }
+  .empty .big { font-size: 30px; margin-bottom: 8px; }
+
+  /* ================= RESPONSIVE ================= */
+  @media (max-width: 1024px) {
+    aside.sidebar { transform: translateX(-100%); box-shadow: 20px 0 60px rgba(0,0,0,.3); }
+    aside.sidebar.open { transform: translateX(0); }
+    .main-area { margin-left: 0; }
+    .hamburger { display: block; }
+    .overlay.show { display: block; }
+  }
+  @media (max-width: 860px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    main.content { padding: 20px 16px 32px; }
+    header.topbar { padding: 12px 16px; }
+    .stats { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .stat { padding: 15px; } .stat .num { font-size: 22px; }
+    .card { padding: 16px; }
+    .btn { padding: 11px 16px; }
+    .form-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 480px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .login-card { padding: 30px 22px; }
+    header.topbar h1 { font-size: 15.5px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ======== LOGIN ======== -->
+<div id="login-view">
+  <div class="login-card">
+    <div class="login-logo">E</div>
+    <h1>Elaraby Connect</h1>
+    <p>HR Admin Dashboard — sign in to continue</p>
+    <input id="login-user" class="field" placeholder="Username" value="admin" autocomplete="username">
+    <input id="login-pass" class="field" type="password" placeholder="Password" autocomplete="current-password">
+    <button class="btn full" onclick="adminLogin()">Sign In</button>
+    <div id="login-err" class="err"></div>
+  </div>
+</div>
+
+<!-- ======== APP ======== -->
+<div id="app-view">
+  <div class="shell">
+    <div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+    <aside class="sidebar" id="sidebar">
+      <div class="side-brand">
+        <div class="chip">E</div>
+        <div><b>Elaraby Connect</b><small>HR Admin Panel</small></div>
+      </div>
+      <nav class="side-nav" id="side-nav">
+        <div class="nav-label">Overview</div>
+        <button class="nav-item active" data-tab="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          Dashboard</button>
+        <button class="nav-item" data-tab="requests">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6M9 16h6M9 8h2"/><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 3V1M16 3V1"/></svg>
+          Requests <span class="badge" id="nav-pending" style="display:none">0</span></button>
+        <div class="nav-label">People</div>
+        <button class="nav-item" data-tab="employees">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.2 3.4-5 6.5-5s5.7 1.8 6.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 15.2c2.6.3 4.6 1.8 5.3 4.3"/></svg>
+          Employees</button>
+        <button class="nav-item" data-tab="payroll">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M5 9v.01M19 15v.01"/></svg>
+          Payroll</button>
+        <button class="nav-item" data-tab="shifts">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 9h18M9 15l2 2 4-4"/></svg>
+          Shifts</button>
+        <div class="nav-label">Content</div>
+        <button class="nav-item" data-tab="announcements">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l14-6v14L3 13v-2z"/><path d="M11 17c0 2-1 3-3 3s-2-2-2-3"/></svg>
+          Announcements</button>
+        <button class="nav-item" data-tab="news">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h10M7 17h6"/></svg>
+          News</button>
+        <button class="nav-item" data-tab="benefits">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13M3 12h18M7.5 8C6 8 5 6.5 5 5.5S6 3 7.5 3 12 5 12 8c0-3 3-5 4.5-5S19 4.5 19 5.5 18 8 16.5 8"/></svg>
+          Benefits</button>
+        <button class="nav-item" data-tab="trips">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.5 13.5L3 11l1.5-1.5L10 10l4.5-4.5c.8-.8 2-1 2.8-.3.7.8.5 2-.3 2.8L12.5 12.5l.5 5.5L11.5 19.5l-2.5-7.5z"/></svg>
+          Trips</button>
+        <div class="nav-label">Security & Governance</div>
+        <button class="nav-item" data-tab="audit">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Audit Logs</button>
+      </nav>
+      <div class="side-foot">
+        <button class="btn ghost sm" onclick="logout()" style="background:rgba(255,255,255,.08);color:#fff;border-color:transparent">Log out</button>
+      </div>
+    </aside>
+
+    <div class="main-area">
+      <header class="topbar">
+        <button class="hamburger" onclick="openSidebar()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <h1 id="page-title">Dashboard</h1>
+        <div class="who"><div class="avatar">HR</div></div>
+      </header>
+      <main class="content" id="main"></main>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = location.origin + '/api';
+let token = localStorage.getItem('admin_token') || '';
+let currentTab = 'dashboard';
+let latestStats = null;
+
+// ---------- helpers ----------
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token, ...(opts.headers || {}) },
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const json = await res.json().catch(() => ({}));
+  if (res.status === 401) { logout(); throw new Error('unauthorized'); }
+  if (!res.ok) throw new Error(json.error || ('HTTP ' + res.status));
+  return json;
+}
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove('show'), 2400);
+}
+function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+function fmtDate(ts) { return new Date(ts).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); }
+function statusPill(s) { return `<span class="pill ${s === 'inReview' ? 'review' : s}">${s === 'inReview' ? 'In Review' : s}</span>`; }
+function openSidebar() { document.getElementById('sidebar').classList.add('open'); document.getElementById('overlay').classList.add('show'); }
+function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); }
+
+// ---------- auth ----------
+async function adminLogin() {
+  const username = document.getElementById('login-user').value.trim();
+  const password = document.getElementById('login-pass').value;
+  try {
+    const res = await fetch(API + '/admin/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      if (res.status === 429 && json.retryAfter) {
+        const mins = Math.ceil(json.retryAfter / 60);
+        document.getElementById('login-err').textContent =
+          `Too many attempts — locked for ${mins} minute(s)`;
+        return;
+      }
+      throw new Error(json.error || 'Login failed');
+    }
+    token = json.token;
+    localStorage.setItem('admin_token', token);
+    showApp();
+  } catch (e) {
+    document.getElementById('login-err').textContent = 'Wrong username or password';
+  }
+}
+function logout() { token = ''; localStorage.removeItem('admin_token'); location.reload(); }
+function showApp() {
+  document.getElementById('login-view').style.display = 'none';
+  document.getElementById('app-view').style.display = 'block';
+  switchTab('dashboard');
+}
+if (token) showApp();
+document.getElementById('login-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') adminLogin(); });
+
+// ---------- navigation ----------
+document.getElementById('side-nav').addEventListener('click', (e) => {
+  const btn = e.target.closest('.nav-item[data-tab]');
+  if (!btn) return;
+  switchTab(btn.dataset.tab);
+  closeSidebar();
+});
+const TITLES = { dashboard: 'Dashboard', requests: 'Employee Requests', employees: 'Employees',
+  payroll: 'Payroll', shifts: 'Shift Roster',
+  announcements: 'Announcements', news: 'Company News', benefits: 'Benefits', trips: 'Company Trips',
+  audit: 'Enterprise Audit Logs' };
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.nav-item[data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+  document.getElementById('page-title').textContent = TITLES[tab] || tab;
+  render();
+}
+
+async function refreshBadge() {
+  try {
+    const s = await api('/admin/stats');
+    const b = document.getElementById('nav-pending');
+    b.textContent = s.pendingRequests;
+    b.style.display = s.pendingRequests > 0 ? 'inline-block' : 'none';
+  } catch {}
+}
+
+async function render() {
+  const main = document.getElementById('main');
+  try {
+    if (currentTab === 'dashboard') { latestStats = await api('/admin/stats'); refreshBadge(); return renderDashboard(latestStats); }
+    if (currentTab === 'requests') return renderRequests((await api('/admin/requests')).requests);
+    if (currentTab === 'employees') return renderEmployees((await api('/admin/employees')).employees);
+    if (currentTab === 'payroll') return renderPayroll();
+    if (currentTab === 'shifts') return renderShifts();
+    if (currentTab === 'announcements') return renderContent('announcements', await api('/admin/announcements'));
+    if (currentTab === 'news') return renderContent('news', await api('/admin/news'));
+    if (currentTab === 'benefits') return renderContent('benefits', await api('/admin/benefits'));
+    if (currentTab === 'trips') return renderContent('trips', await api('/admin/trips'));
+    if (currentTab === 'audit') return renderAuditLogs(await api('/admin/audit-logs'));
+  } catch (e) {
+    main.innerHTML = `<div class="card empty"><div class="big">⚠️</div>Failed to load: ${esc(e.message)}</div>`;
+  }
+}
+
+// ---------- dashboard ----------
+const ICO = {
+  users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.2 3.4-5 6.5-5s5.7 1.8 6.5 5"/><circle cx="17" cy="9" r="2.5"/><path d="M16 15.2c2.6.3 4.6 1.8 5.3 4.3"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9.5"/></svg>',
+  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>',
+  beach: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18"/></svg>',
+  plane: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.5 13.5L3 11l1.5-1.5L10 10l4.5-4.5c.8-.8 2-1 2.8-.3.7.8.5 2-.3 2.8L12.5 12.5l.5 5.5L11.5 19.5l-2.5-7.5z"/></svg>',
+};
+
+function donutSvg(parts) {
+  // parts: [{label, value, color}]
+  const total = parts.reduce((s, p) => s + p.value, 0) || 1;
+  const R = 54, C = 2 * Math.PI * R;
+  let offset = 0;
+  const segs = parts.map((p) => {
+    const frac = p.value / total;
+    const seg = `<circle r="${R}" cx="70" cy="70" fill="none" stroke="${p.color}" stroke-width="22"
+      stroke-dasharray="${(frac * C).toFixed(1)} ${C.toFixed(1)}" stroke-dashoffset="${(-offset * C).toFixed(1)}"
+      transform="rotate(-90 70 70)"/>`;
+    offset += frac;
+    return seg;
+  }).join('');
+  return `<svg width="140" height="140" viewBox="0 0 140 140">
+    <circle r="${R}" cx="70" cy="70" fill="none" stroke="#EEF2F7" stroke-width="22"/>${segs}
+    <text x="70" y="66" text-anchor="middle" font-size="24" font-weight="800" fill="#16233A">${total}</text>
+    <text x="70" y="86" text-anchor="middle" font-size="11" fill="#7A8699">total</text></svg>`;
+}
+
+function renderDashboard(s) {
+  const statusParts = [
+    { label: 'Approved', value: s.approvedRequests, color: '#16A34A' },
+    { label: 'In Review', value: s.pendingRequests, color: '#D97706' },
+    { label: 'Rejected', value: s.rejectedRequests, color: '#DC2626' },
+  ];
+  const maxBar = Math.max(1, ...s.requestsByDay.map((d) => d.count));
+  const bars = s.requestsByDay.map((d) => `
+    <div class="bar-col">
+      <span class="bar-val">${d.count || ''}</span>
+      <div class="bar" style="height:${Math.round((d.count / maxBar) * 100)}%"></div>
+      <span class="bar-lbl">${d.day}</span>
+    </div>`).join('');
+
+  const feed = (s.recentActivity || []).map((a) => `
+    <div class="fi">
+      <span class="fdot" style="background:${a.status === 'approved' ? 'var(--green)' : a.status === 'rejected' ? 'var(--red)' : 'var(--amber)'}"></span>
+      <span><b>${esc(a.who)}</b> — ${esc(a.title)}</span>
+      <span class="ftime">${fmtDate(a.at)}</span>
+    </div>`).join('') || '<div class="empty">No activity yet.</div>';
+
+  document.getElementById('main').innerHTML = `
+    <h2 class="page-title">Overview</h2>
+    <p class="page-sub">Live snapshot of your workforce</p>
+    <div class="stats">
+      <div class="stat blue"><div class="ico" style="background:var(--primary-soft);color:var(--primary)">${ICO.users}</div>
+        <div class="num">${s.activeEmployees}<span class="muted" style="font-size:15px">/${s.employees}</span></div><div class="lbl">Active Employees</div></div>
+      <div class="stat amber"><div class="ico" style="background:var(--amber-soft);color:var(--amber)">${ICO.clock}</div>
+        <div class="num">${s.pendingRequests}</div><div class="lbl">Pending Requests</div></div>
+      <div class="stat green"><div class="ico" style="background:var(--green-soft);color:var(--green)">${ICO.check}</div>
+        <div class="num">${s.approvedRequests}</div><div class="lbl">Approved</div></div>
+      <div class="stat red"><div class="ico" style="background:var(--red-soft);color:var(--red)">${ICO.x}</div>
+        <div class="num">${s.rejectedRequests}</div><div class="lbl">Rejected</div></div>
+      <div class="stat blue"><div class="ico" style="background:var(--primary-soft);color:var(--primary)">${ICO.beach}</div>
+        <div class="num">${s.vacationDaysTaken}</div><div class="lbl">Vacation Days Taken</div></div>
+      <div class="stat amber"><div class="ico" style="background:var(--amber-soft);color:var(--amber)">${ICO.plane}</div>
+        <div class="num">${s.tripsBooked}</div><div class="lbl">Trip Seats Booked</div></div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>Requests by Status</h3>
+        <div class="donut-wrap">
+          ${donutSvg(statusParts)}
+          <div class="legend">
+            ${statusParts.map((p) => `<div class="li"><span class="dot" style="background:${p.color}"></span>${p.label}<b>${p.value}</b></div>`).join('')}
+            <div class="li muted" style="margin-top:4px">Avg vacation balance: <b style="padding-left:18px">${s.avgVacationBalance} d</b></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Requests — last 7 days</h3>
+        <div class="bars">${bars}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Recent Activity</h3>
+      <div class="feed">${feed}</div>
+    </div>`;
+}
+
+// ---------- requests ----------
+async function renderRequests(requests) {
+  const rows = requests.map((r) => `
+    <tr>
+      <td><b>${esc(r.refNumber)}</b><div class="muted">${fmtDate(r.createdAt)}</div></td>
+      <td><b>${esc(r.employeeName)}</b><div class="muted">${esc(r.employeeCode)}</div></td>
+      <td>${esc(r.title)}${r.details?.leaveType ? `<div class="muted">${esc(r.details.leaveType)}${r.details.dates ? ' • ' + esc(r.details.dates) : ''}</div>` : ''}</td>
+      <td>${statusPill(r.status)}${r.decisionReason ? `<div class="muted">${esc(r.decisionReason)}</div>` : ''}</td>
+      <td>${r.status === 'inReview' ? `
+        <div class="row-actions">
+          <button class="btn ok sm" onclick="decide('${r.id}','approved')">Approve</button>
+          <button class="btn danger sm" onclick="decide('${r.id}','rejected')">Reject</button>
+        </div>` : `<span class="muted">by ${esc(r.decidedBy || '—')}</span>`}
+      </td>
+    </tr>`).join('');
+  document.getElementById('main').innerHTML = `
+    <div class="toolbar">
+      <div><h2 class="page-title">Employee Requests</h2><p class="page-sub" style="margin-bottom:0">${requests.filter(r=>r.status==='inReview').length} awaiting your decision</p></div>
+    </div>
+    <div class="card tbl-scroll"><table>
+      <thead><tr><th>Ref</th><th>Employee</th><th>Request</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="5"><div class="empty"><div class="big">🎉</div>No requests yet — all clear.</div></td></tr>'}</tbody>
+    </table></div>`;
+}
+async function decide(id, status) {
+  let reason = null;
+  if (status === 'rejected') {
+    reason = prompt('Rejection reason (sent to the employee):');
+    if (reason === null) return;
+  }
+  try {
+    await api(`/admin/requests/${id}/decide`, { method: 'POST', body: { status, reason } });
+    toast(status === 'approved' ? '✅ Approved — employee notified' : 'Rejected — employee notified');
+    render();
+  } catch (e) { toast('Failed: ' + e.message); }
+}
+
+// ---------- employees ----------
+async function renderEmployees(employees) {
+  const rows = employees.map((e) => `
+    <tr>
+      <td><b>${esc(e.name)}</b><div class="muted">${esc(e.phone || '')}</div></td>
+      <td>${esc(e.employeeCode)}</td>
+      <td>${esc(e.nationalId)}</td>
+      <td>${esc(e.factory)}<div class="muted">${esc(e.department)} • ${esc(e.position)}</div></td>
+      <td><b>${e.vacationBalance}</b> <span class="muted">d</span></td>
+      <td><span class="pill ${e.active ? 'active' : 'inactive'}">${e.active ? 'Active' : 'Inactive'}</span>${!e.pinHash ? '<div class="muted">no PIN yet</div>' : ''}</td>
+      <td><div class="row-actions">
+        <button class="btn ghost sm" onclick="resetPin('${e.id}')">Reset PIN</button>
+        <button class="btn sm ${e.active ? 'warn' : 'ok'}" onclick="toggleEmployee('${e.id}')">${e.active ? 'Deactivate' : 'Activate'}</button>
+      </div></td>
+    </tr>`).join('');
+  document.getElementById('main').innerHTML = `
+    <div class="toolbar">
+      <div><h2 class="page-title">Employees</h2><p class="page-sub" style="margin-bottom:0">${employees.length} people — new hires sign in with OTP + National ID</p></div>
+      <button class="btn" onclick="showAddEmployee()">+ Add Employee</button>
+    </div>
+    <div class="card" id="add-form" style="display:none;margin-bottom:16px">
+      <div class="form-grid">
+        <div><label class="fl">Full Name *</label><input id="emp-name" class="field"></div>
+        <div><label class="fl">National ID (14 digits) *</label><input id="emp-nid" class="field" maxlength="14" inputmode="numeric"></div>
+        <div><label class="fl">Employee Code</label><input id="emp-code" class="field" placeholder="auto"></div>
+        <div><label class="fl">Phone</label><input id="emp-phone" class="field"></div>
+        <div><label class="fl">Factory</label><input id="emp-factory" class="field" value="10th of Ramadan"></div>
+        <div><label class="fl">Department</label><input id="emp-dept" class="field" value="Production A"></div>
+        <div><label class="fl">Position</label><input id="emp-position" class="field" value="Operator"></div>
+        <div><label class="fl">Vacation Days</label><input id="emp-vac" class="field" type="number" value="12"></div>
+      </div>
+      <button class="btn" onclick="addEmployee()">Save Employee</button>
+    </div>
+    <div class="card tbl-scroll"><table>
+      <thead><tr><th>Name</th><th>Code</th><th>National ID</th><th>Work</th><th>Vacation</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+}
+function showAddEmployee() {
+  const f = document.getElementById('add-form');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+async function addEmployee() {
+  try {
+    await api('/admin/employees', {
+      method: 'POST',
+      body: {
+        name: document.getElementById('emp-name').value.trim(),
+        nationalId: document.getElementById('emp-nid').value.trim(),
+        employeeCode: document.getElementById('emp-code').value.trim(),
+        phone: document.getElementById('emp-phone').value.trim(),
+        factory: document.getElementById('emp-factory').value.trim(),
+        department: document.getElementById('emp-dept').value.trim(),
+        position: document.getElementById('emp-position').value.trim(),
+        vacationBalance: document.getElementById('emp-vac').value,
+      },
+    });
+    toast('Employee added — they can now sign in with OTP');
+    render();
+  } catch (e) { toast('Failed: ' + e.message); }
+}
+async function toggleEmployee(id) {
+  await api(`/admin/employees/${id}/toggle`, { method: 'POST' });
+  render();
+}
+async function resetPin(id) {
+  if (!confirm('Reset PIN? The employee will set a new PIN after OTP verification.')) return;
+  await api(`/admin/employees/${id}`, { method: 'PUT', body: { resetPin: true } });
+  toast('PIN reset');
+  render();
+}
+
+// ---------- payroll ----------
+async function renderPayroll() {
+  const employees = (await api('/admin/employees')).employees;
+  const options = employees
+    .map((e) => `<option value="${e.id}">${esc(e.name)} (${esc(e.employeeCode)})</option>`).join('');
+  document.getElementById('main').innerHTML = `
+    <h2 class="page-title">Payroll</h2>
+    <p class="page-sub">Publish each employee's salary statement — it appears instantly in their app.</p>
+    <div class="card" style="max-width:640px">
+      <label class="fl">Employee</label>
+      <select id="pr-emp" class="field" onchange="loadPayroll()" style="margin-bottom:14px">${options}</select>
+      <div id="pr-fields"><div class="muted">Loading…</div></div>
+    </div>`;
+  loadPayroll();
+}
+async function loadPayroll() {
+  const id = document.getElementById('pr-emp').value;
+  const { payroll } = await api(`/admin/payroll/${id}`);
+  const v = payroll || { period: '', basicSalary: 7000, allowances: 950, deductions: 200, paidOn: '', paymentMethod: 'Bank Transfer (CIB)' };
+  document.getElementById('pr-fields').innerHTML = `
+    <div class="form-grid">
+      <div><label class="fl">Period *</label><input id="pr-period" class="field" placeholder="e.g. September 2026" value="${esc(v.period)}"></div>
+      <div><label class="fl">Basic Salary (EGP)</label><input id="pr-basic" class="field" type="number" value="${v.basicSalary}"></div>
+      <div><label class="fl">Allowances (EGP)</label><input id="pr-allow" class="field" type="number" value="${v.allowances}"></div>
+      <div><label class="fl">Deductions (EGP)</label><input id="pr-deduct" class="field" type="number" value="${v.deductions}"></div>
+      <div><label class="fl">Paid On</label><input id="pr-paid" class="field" placeholder="e.g. Sep 28, 2026" value="${esc(v.paidOn)}"></div>
+      <div><label class="fl">Payment Method</label><input id="pr-method" class="field" value="${esc(v.paymentMethod)}"></div>
+    </div>
+    ${payroll ? `<div class="muted" style="margin-bottom:10px">Published — net: <b>${(v.basicSalary||0)+(v.allowances||0)-(v.deductions||0)} EGP</b></div>` : '<div class="muted" style="margin-bottom:10px">No statement published yet — the app shows a placeholder until you save.</div>'}
+    <button class="btn" onclick="savePayroll()">Publish Statement</button>`;
+}
+async function savePayroll() {
+  const id = document.getElementById('pr-emp').value;
+  try {
+    await api(`/admin/payroll/${id}`, {
+      method: 'PUT',
+      body: {
+        period: document.getElementById('pr-period').value.trim(),
+        basicSalary: document.getElementById('pr-basic').value,
+        allowances: document.getElementById('pr-allow').value,
+        deductions: document.getElementById('pr-deduct').value,
+        paidOn: document.getElementById('pr-paid').value.trim(),
+        paymentMethod: document.getElementById('pr-method').value.trim(),
+      },
+    });
+    toast('Statement published — live in the employee app');
+    loadPayroll();
+  } catch (e) { toast('Failed: ' + e.message); }
+}
+
+// ---------- shift roster ----------
+const SHIFT_OPTIONS = [['morning', 'Morning 06:00-14:00'], ['evening', 'Evening 14:00-22:00'], ['night', 'Night 22:00-06:00'], ['off', 'Off / Rest Day']];
+const SHIFT_DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+async function renderShifts() {
+  const employees = (await api('/admin/employees')).employees;
+  const options = employees
+    .map((e) => `<option value="${e.id}">${esc(e.name)} (${esc(e.employeeCode)})</option>`).join('');
+  document.getElementById('main').innerHTML = `
+    <h2 class="page-title">Shift Roster</h2>
+    <p class="page-sub">Set the current week (Sun-Sat) per employee — their app schedule updates immediately.</p>
+    <div class="card" style="max-width:560px">
+      <label class="fl">Employee</label>
+      <select id="ro-emp" class="field" onchange="loadRoster()" style="margin-bottom:14px">${options}</select>
+      <div id="ro-days"><div class="muted">Loading…</div></div>
+    </div>`;
+  loadRoster();
+}
+async function loadRoster() {
+  const id = document.getElementById('ro-emp').value;
+  const { days } = await api(`/admin/roster/${id}`);
+  const selected = (i) => {
+    if (days?.[i]?.shift) return days[i].shift;
+    return (i < 5) ? 'morning' : 'off';
+  };
+  document.getElementById('ro-days').innerHTML = `
+    ${SHIFT_DAY_NAMES.map((name, i) => `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span style="width:42px;font-weight:700;font-size:13px">${name}</span>
+        <select id="ro-day-${i}" class="field" style="flex:1">
+          ${SHIFT_OPTIONS.map(([val, label]) =>
+            `<option value="${val}" ${selected(i) === val ? 'selected' : ''}>${label}</option>`).join('')}
+        </select>
+      </div>`).join('')}
+    <button class="btn" style="margin-top:8px" onclick="saveRoster()">Save Roster</button>
+    ${days ? '<div class="muted" style="margin-top:8px">Published for this week.</div>' : '<div class="muted" style="margin-top:8px">Not published — the app shows the default morning-shift pattern.</div>'}`;
+}
+async function saveRoster() {
+  const id = document.getElementById('ro-emp').value;
+  const days = SHIFT_DAY_NAMES.map((_, i) => ({ shift: document.getElementById('ro-day-' + i).value }));
+  try {
+    await api(`/admin/roster/${id}`, { method: 'PUT', body: { days } });
+    toast('Roster saved — live in the employee app');
+    loadRoster();
+  } catch (e) { toast('Failed: ' + e.message); }
+}
+
+// ---------- content CRUD with image upload ----------
+const CONTENT_FIELDS = {
+  announcements: {
+    fields: [['title', 'Title'], ['body', 'Body', 'area'], ['important', 'Important (true/false)']],
+    withImage: true,
+    note: 'Publishing notifies every active employee — with the image in their inbox.',
+  },
+  news: { fields: [['title', 'Title'], ['body', 'Body', 'area']], withImage: true, note: '' },
+  benefits: {
+    fields: [['title', 'Title'], ['discount', 'Discount (e.g. 20% OFF)'], ['category', 'Category'], ['description', 'Description', 'area'], ['validThrough', 'Valid Through']],
+    withImage: true, note: '',
+  },
+  trips: {
+    fields: [['title', 'Title'], ['destination', 'Destination'], ['price', 'Price'], ['originalPrice', 'Original Price'], ['date', 'Date'], ['totalSeats', 'Total Seats', 'num'], ['bookedSeats', 'Booked Seats', 'num']],
+    withImage: true, note: '',
+  },
+};
+let pendingImage = null; // {name, dataUrl}
+
+function renderContent(name, res) {
+  const conf = CONTENT_FIELDS[name];
+  const items = res.items || [];
+  const rows = items.map((it) => `
+    <tr>
+      <td>${it.imageUrl ? `<img class="img-thumb" src="${esc(it.imageUrl)}" style="margin-bottom:6px">` : ''}<b>${esc(it.title)}</b></td>
+      <td class="muted">${esc(shortData(it))}</td>
+      <td class="muted" style="white-space:nowrap">${fmtDate(it.createdAt)}</td>
+      <td><button class="btn danger sm" onclick="deleteItem('${name}','${it.id}')">Delete</button></td>
+    </tr>`).join('');
+  document.getElementById('main').innerHTML = `
+    <div class="toolbar">
+      <div><h2 class="page-title">${TITLES[name]}</h2><p class="page-sub" style="margin-bottom:0">${conf.note || '&nbsp;'}</p></div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      <div class="form-grid">
+        ${conf.fields.map(([key, label, kind]) => kind === 'area'
+          ? `<div style="grid-column:1/-1"><label class="fl">${label}</label><textarea id="cf-${key}" class="field" rows="3"></textarea></div>`
+          : `<div><label class="fl">${label}</label><input id="cf-${key}" class="field" ${kind === 'num' ? 'type="number"' : ''}></div>`).join('')}
+        ${conf.withImage ? `
+        <div style="grid-column:1/-1">
+          <label class="fl">Image (optional — png/jpg/webp, up to 6MB)</label>
+          <div class="img-picker" id="img-picker" onclick="document.getElementById('img-file').click()">
+            <div id="img-preview" class="hint">📷 Click to choose an image</div>
+          </div>
+          <input type="file" id="img-file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="pickImage(this)">
+        </div>` : ''}
+      </div>
+      <button class="btn" id="publish-btn" onclick="createItem('${name}')">Publish</button>
+    </div>
+    <div class="card tbl-scroll"><table>
+      <thead><tr><th>Title</th><th>Data</th><th>Created</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="4"><div class="empty"><div class="big">📭</div>Nothing published yet.</div></td></tr>'}</tbody>
+    </table></div>`;
+  pendingImage = null;
+}
+function shortData(it) {
+  const skip = new Set(['id', 'title', 'createdAt']);
+  return Object.entries(it).filter(([k]) => !skip.has(k)).map(([k, v]) => `${k}: ${v}`).join(' • ');
+}
+function pickImage(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 4.5 * 1024 * 1024) { toast('Image too large (max ~4.5MB)'); input.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingImage = { name: file.name, dataUrl: reader.result };
+    document.getElementById('img-preview').innerHTML =
+      `<img src="${reader.result}"><span class="hint">${esc(file.name)} — click to change</span>`;
+  };
+  reader.readAsDataURL(file);
+}
+async function createItem(name) {
+  const conf = CONTENT_FIELDS[name];
+  const body = {};
+  for (const [key, , kind] of conf.fields) {
+    const el = document.getElementById('cf-' + key);
+    if (!el) continue;
+    let v = el.value.trim();
+    if (kind === 'num') v = Number(v) || 0;
+    else if (key === 'important') v = v === 'true';
+    if (v !== '') body[key] = v;
+  }
+  if (!body.title) { toast('Title is required'); return; }
+  const btn = document.getElementById('publish-btn');
+  btn.disabled = true; btn.textContent = 'Publishing…';
+  try {
+    if (pendingImage) {
+      const up = await api('/admin/upload', {
+        method: 'POST',
+        body: { name: pendingImage.name, dataBase64: pendingImage.dataUrl },
+      });
+      body.imageUrl = up.url;
+    }
+    await api('/admin/' + name, { method: 'POST', body });
+    toast('Published — live in the app 🎉');
+    render();
+  } catch (e) {
+    toast('Failed: ' + e.message);
+    btn.disabled = false; btn.textContent = 'Publish';
+  }
+}
+async function deleteItem(name, id) {
+  if (!confirm('Delete this item?')) return;
+  await api(`/admin/${name}/${id}`, { method: 'DELETE' });
+  toast('Deleted');
+  render();
+}
+
+function renderAuditLogs(data) {
+  const logs = data.auditLogs || [];
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <h2 class="page-title">Enterprise Audit Logs</h2>
+        <p class="page-sub">Chronological audit trail of all administrative actions, logins, and status updates</p>
+      </div>
+      <button class="btn sm ghost" onclick="render()">↻ Refresh Logs</button>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      ${logs.length === 0 ? '<div class="empty" style="padding:40px"><div class="big">📋</div>No audit logs recorded yet</div>' : `
+      <div style="overflow-x:auto">
+        <table class="tbl" style="width:100%;text-align:left;border-collapse:collapse">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border);background:#FBFCFE">
+              <th style="padding:12px 16px;font-size:11.5px;color:var(--muted);text-transform:uppercase">Time</th>
+              <th style="padding:12px 16px;font-size:11.5px;color:var(--muted);text-transform:uppercase">Actor</th>
+              <th style="padding:12px 16px;font-size:11.5px;color:var(--muted);text-transform:uppercase">Action</th>
+              <th style="padding:12px 16px;font-size:11.5px;color:var(--muted);text-transform:uppercase">Target ID</th>
+              <th style="padding:12px 16px;font-size:11.5px;color:var(--muted);text-transform:uppercase">IP Address</th>
+              <th style="padding:12px 16px;font-size:11.5px;color:var(--muted);text-transform:uppercase">Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${logs.map((l) => `
+              <tr style="border-bottom:1px solid var(--border);font-size:13px">
+                <td style="padding:12px 16px;white-space:nowrap;color:var(--muted)">${fmtDate(l.timestamp)}</td>
+                <td style="padding:12px 16px"><b>${esc(l.actor)}</b></td>
+                <td style="padding:12px 16px"><span class="pill" style="background:var(--primary-soft);color:var(--primary);font-weight:600">${esc(l.action)}</span></td>
+                <td style="padding:12px 16px;color:var(--muted)">${esc(l.targetId || '—')}</td>
+                <td style="padding:12px 16px;font-family:monospace;font-size:11.5px">${esc(l.ip || '—')}</td>
+                <td style="padding:12px 16px">${esc(l.details || '—')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>`}
+    </div>
+  `;
+}
+
+refreshBadge();
+</script>
+</body>
+</html>

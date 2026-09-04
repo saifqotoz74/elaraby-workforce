@@ -1,0 +1,27 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: elaraby-connect-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - JWT_SECRET=${JWT_SECRET:-change_in_production_to_a_secure_random_string}
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASS=${ADMIN_PASS:-change_in_production_strong_password}
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
+      - TWILIO_FROM_PHONE=${TWILIO_FROM_PHONE:-}
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
