@@ -1,14 +1,12 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
+import '../../firebase_options.dart';
 import 'api_client.dart';
 
 /// FCM push notifications.
 ///
-/// Activates only when `android/app/google-services.json` exists (see
-/// android/app/build.gradle — the Google Services plugin is applied
-/// conditionally). Without the file everything here is a no-op and the app
-/// keeps working with pull-based inbox refresh.
+/// Automatically initialized using DefaultFirebaseOptions and google-services.json.
 class PushService {
   static final PushService instance = PushService._();
   PushService._();
@@ -19,10 +17,15 @@ class PushService {
     if (_initialized) return;
     _initialized = true;
     try {
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
     } catch (_) {
-      // No google-services.json / not supported platform — skip silently.
-      return;
+      try {
+        await Firebase.initializeApp();
+      } catch (_) {
+        return;
+      }
     }
 
     // Permission prompt (notifications are denied by default on Android 13+).
