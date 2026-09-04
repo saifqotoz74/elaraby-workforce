@@ -424,7 +424,7 @@ function renderDashboard(s) {
     <div class="bar-col">
       <span class="bar-val">${d.count || ''}</span>
       <div class="bar" style="height:${Math.round((d.count / maxBar) * 100)}%"></div>
-      <span class="bar-lbl">${d.day}</span>
+      <span class="bar-lbl">${d.label || d.day || ''}</span>
     </div>`).join('');
 
   const feed = (s.recentActivity || []).map((a) => `
@@ -635,7 +635,13 @@ async function savePayroll() {
 }
 
 // ---------- shift roster ----------
-const SHIFT_OPTIONS = [['morning', 'Morning 06:00-14:00'], ['evening', 'Evening 14:00-22:00'], ['night', 'Night 22:00-06:00'], ['off', 'Off / Rest Day']];
+const SHIFT_OPTIONS = [
+  ['morning', 'Morning 06:00-14:00'],
+  ['evening', 'Evening 14:00-22:00'],
+  ['night', 'Night 22:00-06:00'],
+  ['office', 'Office 08:30-17:00'],
+  ['off', 'Off / Rest Day']
+];
 const SHIFT_DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 async function renderShifts() {
   const employees = (await api('/admin/employees')).employees;

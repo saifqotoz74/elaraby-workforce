@@ -128,7 +128,7 @@ class RequestsStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  void addRequest(EmployeeRequest request) {
+  void addRequest(EmployeeRequest request, {int? days}) {
     _requests.insert(0, request);
     _persist();
     notifyListeners();
@@ -137,6 +137,7 @@ class RequestsStore extends ChangeNotifier {
       type: request.type,
       title: request.title,
       details: request.details,
+      days: days,
     );
   }
 

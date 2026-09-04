@@ -132,8 +132,8 @@ router.get('/stats', (req, res) => {
 
   const balances = d.employees.map((e) => e.vacationBalance || 0);
   const vacationDaysTaken = d.requests
-    .filter((r) => r.type === 'leave' && r.status === 'approved')
-    .reduce((sum, r) => sum + (Number(r.days) || 1), 0);
+    .filter((r) => String(r.type || '').toLowerCase() === 'leave' && r.status === 'approved')
+    .reduce((sum, r) => sum + (Number(r.days ?? r.details?.days) || 1), 0);
 
   const recentActivity = [...d.requests]
     .sort((a, b) => (b.decidedAt || b.createdAt) - (a.decidedAt || a.createdAt))
@@ -274,6 +274,22 @@ router.post('/requests/:id/decide', (req, res) => {
   request.summary =
     status === 'approved' ? 'Approved by HR' : `Rejected by HR${reason ? ` — ${reason}` : ''}`;
 
+  // If HR rejects an Annual Leave request, refund the employee's deducted vacation days.
+  if (status === 'rejected') {
+    const isAnnualLeave = request.type === 'Leave' && (
+      request.details?.leaveType === 'Annual Leave' ||
+      request.details?.leaveType === 'annual' ||
+      String(request.title).toLowerCase().includes('annual leave')
+    );
+    if (isAnnualLeave) {
+      const employee = db().employees.find((e) => e.id === request.employeeId);
+      const days = Number(request.details?.days ?? request.days) || 0;
+      if (employee && days > 0) {
+        employee.vacationBalance = (employee.vacationBalance || 0) + days;
+      }
+    }
+  }
+
   const title =
     status === 'approved'
       ? `Request Approved — ${request.title}`
@@ -350,8 +366,9 @@ router.put('/roster/:employeeId', (req, res) => {
   const employee = db().employees.find((e) => e.id === req.params.employeeId);
   if (!employee) return res.status(404).json({ error: 'employee_not_found' });
   const days = req.body?.days;
+  const validShifts = ['morning', 'evening', 'night', 'office', 'off'];
   if (!Array.isArray(days) || days.length !== 7 ||
-      days.some((d) => !['morning', 'evening', 'night', 'off'].includes(d.shift))) {
+      days.some((d) => !validShifts.includes(d.shift))) {
     return res.status(400).json({ error: 'days_must_be_7_valid_shifts' });
   }
   const now = new Date();

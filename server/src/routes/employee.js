@@ -7,6 +7,7 @@ const {
   hash,
   verifyHash,
   signToken,
+  verifyToken,
   requireAuth,
 } = require('../auth');
 const { guard, registerFailure, clearFailures } = require('../rateLimit');
@@ -92,7 +93,7 @@ router.post('/auth/otp', async (req, res) => {
   db().auditLogs.unshift({
     id: `AUD-${Date.now()}`,
     action: 'OTP_REQUESTED',
-    details: `Verification code generated for ${employee.name} (${nationalId}) [Phone: ${employee.phone}]: ${code}`,
+    details: `Verification code generated for ${employee.name} (${effectiveNationalId}) [Phone: ${employee.phone}]: ${code}`,
     admin: 'SYSTEM',
     ip: req.ip,
     timestamp: Date.now(),
@@ -126,17 +127,29 @@ router.post('/auth/otp/verify', (req, res) => {
   }
   clearFailures(db(), `otp_verify:${nationalId}`);
   clearFailures(db(), `otp:${nationalId}`);
+  const resetToken = signToken({ sub: employee.id, nationalId: employee.nationalId, scope: 'pin_reset' });
   save();
-  res.json({ ok: true, employee: publicEmployee(employee) });
+  res.json({ ok: true, employee: publicEmployee(employee), resetToken });
 });
 
 router.post('/auth/pin', (req, res) => {
-  const { nationalId, pin } = req.body || {};
+  const { nationalId, pin, resetToken } = req.body || {};
   if (!/^\d{4}$/.test(String(pin || ''))) {
     return res.status(400).json({ error: 'pin_must_be_4_digits' });
   }
   const employee = db().employees.find((e) => e.nationalId === nationalId);
   if (!employee) return res.status(404).json({ error: 'not_found' });
+
+  // Security guard: If PIN is already set, require valid pin_reset token or employee auth
+  if (employee.pinHash) {
+    const authHeader = req.headers.authorization;
+    const token = resetToken || (authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null);
+    const verified = token ? verifyToken(token) : null;
+    if (!verified || (verified.sub !== employee.id && verified.nationalId !== employee.nationalId)) {
+      return res.status(403).json({ error: 'pin_already_set_requires_verification' });
+    }
+  }
+
   employee.pinHash = hash(pin);
   save();
   res.json({ ok: true });
@@ -333,9 +346,15 @@ router.post('/requests', requireAuth, (req, res) => {
   const me = db().employees.find((e) => e.id === req.employeeId);
   const ref = `REQ-2026-${nextId('request')}`;
 
+  const requested = Number(days ?? details?.days) || 0;
+  const isAnnualLeave = type === 'Leave' && (
+    details?.leaveType === 'Annual Leave' ||
+    details?.leaveType === 'annual' ||
+    String(title).toLowerCase().includes('annual leave')
+  );
+
   // Annual leave deducts the balance immediately and is rejected if exceeded.
-  if (type === 'Leave' && details?.leaveType === 'Annual Leave') {
-    const requested = Number(days) || 0;
+  if (isAnnualLeave) {
     if (requested > (me?.vacationBalance ?? 0)) {
       return res.status(422).json({ error: 'exceeds_balance' });
     }
@@ -350,7 +369,11 @@ router.post('/requests', requireAuth, (req, res) => {
     refNumber: ref,
     status: 'inReview',
     summary: 'Waiting on: Line Manager Approval',
-    details: details || {},
+    details: {
+      ...(details || {}),
+      ...(requested > 0 ? { days: requested } : {}),
+      ...(isAnnualLeave && !details?.leaveType ? { leaveType: 'Annual Leave' } : {}),
+    },
     decisionReason: null,
     decidedBy: null,
     decidedAt: null,
@@ -370,7 +393,12 @@ router.post('/requests/:id/cancel', requireAuth, (req, res) => {
     return res.status(422).json({ error: 'only_in_review_can_be_cancelled' });
   }
   // Annual leave refunds the balance when cancelled.
-  if (request.type === 'Leave' && request.details?.leaveType === 'Annual Leave') {
+  const isAnnualLeave = request.type === 'Leave' && (
+    request.details?.leaveType === 'Annual Leave' ||
+    request.details?.leaveType === 'annual' ||
+    String(request.title).toLowerCase().includes('annual leave')
+  );
+  if (isAnnualLeave) {
     const me = db().employees.find((e) => e.id === req.employeeId);
     const days = Number(request.details?.days) || 0;
     if (me && days > 0) me.vacationBalance += days;

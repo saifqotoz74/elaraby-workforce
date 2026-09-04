@@ -382,6 +382,8 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
         summary: AppLocale.tr('leave_waiting_approval'),
         reviewer: AppLocale.tr('leave_line_manager'),
         details: {
+          'leaveType': _selectedLeaveType,
+          'days': '$_estimatedDays',
           AppLocale.tr('leave_detail_duration'): '$_estimatedDays ${AppLocale.tr('vac_days_unit')}',
           AppLocale.tr('leave_detail_dates'):
               '${_formatDate(_fromDate!)} – ${_formatDate(_toDate!)}',
@@ -390,6 +392,7 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
           AppLocale.tr('leave_detail_submitted'): AppLocale.tr('time_just_now'),
         },
       ),
+      days: _estimatedDays,
     );
 
     if (isAnnual) {
