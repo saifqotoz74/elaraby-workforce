@@ -55,6 +55,29 @@ class HomeHeader extends StatelessWidget {
               ),
             ),
           ),
+          // PR Project Logo Badge
+          Container(
+            width: 40,
+            height: 40,
+            margin: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x0A000000),
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Image.asset(
+              'assets/images/app_logo.png',
+              fit: BoxFit.contain,
+            ),
+          ),
           // Notification Bell Button
           GestureDetector(
             onTap: () {
