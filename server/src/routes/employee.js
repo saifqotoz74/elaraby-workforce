@@ -41,19 +41,47 @@ function myRequests(db, employeeId) {
 
 // ---------- Auth ----------
 router.post('/auth/otp', async (req, res) => {
-  const { nationalId } = req.body || {};
-  if (!/^\d{14}$/.test(String(nationalId || ''))) {
-    return res.status(400).json({ error: 'National ID must be 14 digits' });
+  const { nationalId, phone, identifier } = req.body || {};
+  const query = String(identifier || nationalId || phone || '').trim();
+  const digits = query.replace(/\D/g, '');
+
+  if (digits.length < 10) {
+    return res.status(400).json({ error: 'Please enter a valid National ID or Phone Number' });
   }
-  if (guard(db(), `otp:${nationalId}`, res)) return;
-  if (guard(db(), `otp_ip:${req.ip}`, res)) return;
-  registerFailure(db(), `otp_ip:${req.ip}`);
-  const employee = db().employees.find((e) => e.nationalId === nationalId);
-  if (!employee || !employee.active) {
+
+  const employee = db().employees.find((e) => {
+    if (!e.active) return false;
+    const empNat = String(e.nationalId || '').replace(/\D/g, '');
+    const empPhone = String(e.phone || '').replace(/\D/g, '');
+    return empNat === digits ||
+           empPhone === digits ||
+           empPhone.endsWith(digits) ||
+           (digits.length >= 10 && empPhone.includes(digits.slice(-10)));
+  });
+
+  if (!employee) {
     return res.json({ found: false });
   }
-  const code = createOtp(db(), nationalId);
+
+  const effectiveNationalId = employee.nationalId;
+  if (guard(db(), `otp:${effectiveNationalId}`, res)) return;
+  if (guard(db(), `otp_ip:${req.ip}`, res)) return;
+  registerFailure(db(), `otp_ip:${req.ip}`);
+
+  const code = createOtp(db(), effectiveNationalId);
   clearFailures(db(), `otp_ip:${req.ip}`);
+
+  // Record in audit logs so HR admin can always see active OTP in real time
+  db().auditLogs = db().auditLogs || [];
+  db().auditLogs.unshift({
+    id: `AUD-${Date.now()}`,
+    action: 'OTP_REQUESTED',
+    details: `Verification code generated for ${employee.name} (${nationalId}) [Phone: ${employee.phone}]: ${code}`,
+    admin: 'SYSTEM',
+    ip: req.ip,
+    timestamp: Date.now(),
+  });
+  if (db().auditLogs.length > 500) db().auditLogs.length = 500;
   save();
 
   // Twilio configured -> real SMS (code never leaves the server).
