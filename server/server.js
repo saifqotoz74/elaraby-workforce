@@ -77,7 +77,9 @@ app.use('/api', employeeRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Uploaded images + admin dashboard (single-file SPA).
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+const isVercel = !!(process.env.VERCEL || process.env.NOW_REGION);
+const uploadsDir = isVercel ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
+app.use('/uploads', express.static(uploadsDir));
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
 app.get('/', (req, res) => res.redirect('/admin/'));
 
@@ -87,8 +89,12 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'internal_error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`✔ Elaraby Connect API:      http://localhost:${PORT}/api/health`);
-  console.log(`✔ Admin dashboard:          http://localhost:${PORT}/admin/`);
-  console.log(`  Admin login: admin / ${process.env.ADMIN_PASS || 'elaraby2026'} (change via ADMIN_PASS env)`);
-});
+if (!isVercel) {
+  app.listen(PORT, () => {
+    console.log(`✔ Elaraby Connect API:      http://localhost:${PORT}/api/health`);
+    console.log(`✔ Admin dashboard:          http://localhost:${PORT}/admin/`);
+    console.log(`  Admin login: admin / ${process.env.ADMIN_PASS || 'elaraby2026'} (change via ADMIN_PASS env)`);
+  });
+}
+
+module.exports = app;

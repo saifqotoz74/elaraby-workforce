@@ -1,12 +1,14 @@
 // JSON-file backed enterprise data store.
 // Features: atomic write via temp file + rename, auto-backup rotation,
-// schema defaults, and audit logging support.
+// schema defaults, audit logging support, and Vercel serverless /tmp compatibility.
 const fs = require('fs');
 const path = require('path');
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
+const isVercel = !!(process.env.VERCEL || process.env.NOW_REGION);
+const DATA_DIR = isVercel ? '/tmp' : path.join(__dirname, '..', 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const BACKUP_FILE = path.join(DATA_DIR, 'db.backup.json');
+const SEED_FILE = path.join(__dirname, '..', 'data', 'db.json');
 
 const EMPTY = () => ({
   counters: { request: 100, notification: 100, audit: 100 },
@@ -30,6 +32,14 @@ const BACKUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 function data() {
   if (_data) return _data;
+
+  // On Vercel, if /tmp/db.json doesn't exist yet, seed it from bundled data
+  if (isVercel && !fs.existsSync(DB_FILE) && fs.existsSync(SEED_FILE)) {
+    try {
+      fs.copyFileSync(SEED_FILE, DB_FILE);
+    } catch (_) {}
+  }
+
   if (fs.existsSync(DB_FILE)) {
     try {
       const parsed = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));

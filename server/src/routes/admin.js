@@ -9,7 +9,10 @@ const { guard, registerFailure, clearFailures } = require('../rateLimit');
 const { notify } = require('../notify');
 
 const router = express.Router();
-const UPLOADS_DIR = path.join(__dirname, '..', '..', 'uploads');
+const isVercel = !!(process.env.VERCEL || process.env.NOW_REGION);
+const UPLOADS_DIR = isVercel
+  ? path.join('/tmp', 'uploads')
+  : path.join(__dirname, '..', '..', 'uploads');
 
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'elaraby2026';
