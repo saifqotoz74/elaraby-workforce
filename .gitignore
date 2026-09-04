@@ -47,6 +47,7 @@ app.*.map.json
 # Server
 server/node_modules/
 server/data/
+server/uploads/
 
 # Secrets
 server/.env

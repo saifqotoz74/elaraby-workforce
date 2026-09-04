@@ -21,7 +21,6 @@ import 'package:elaraby_workforce/features/profile/presentation/screens/profile_
 import 'package:elaraby_workforce/features/profile/presentation/screens/settings_screen.dart';
 import 'package:elaraby_workforce/features/profile/presentation/screens/change_pin_screen.dart';
 import 'package:elaraby_workforce/features/inbox/presentation/screens/inbox_screen.dart';
-import 'package:elaraby_workforce/features/main_navigation/presentation/screens/main_nav_screen.dart';
 import 'package:elaraby_workforce/features/home/presentation/widgets/quick_actions_grid.dart';
 import 'package:elaraby_workforce/features/profile/presentation/screens/help_support_screen.dart';
 
