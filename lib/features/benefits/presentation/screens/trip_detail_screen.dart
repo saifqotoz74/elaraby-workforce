@@ -79,6 +79,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
         if (widget.tripId != null) {
           BenefitsContent.instance.bookTrip(widget.tripId!, false);
         }
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(AppLocale.tr('trip_cancelled')),
@@ -93,6 +94,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
           if (widget.tripId != null) {
             BenefitsContent.instance.bookTrip(widget.tripId!, true);
           }
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(AppLocale.tr('trip_confirmed')),
