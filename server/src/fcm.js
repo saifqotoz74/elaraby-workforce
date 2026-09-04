@@ -16,6 +16,12 @@ let _tokenExpiry = 0;
 
 function serviceAccount() {
   if (_key !== null) return _key;
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    try {
+      _key = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+      return _key;
+    } catch (_) {}
+  }
   try {
     _key = JSON.parse(fs.readFileSync(KEY_PATH, 'utf8'));
   } catch {
