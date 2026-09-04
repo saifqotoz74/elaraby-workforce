@@ -523,6 +523,7 @@ async function renderEmployees(employees) {
       <td><b>${e.vacationBalance}</b> <span class="muted">d</span></td>
       <td><span class="pill ${e.active ? 'active' : 'inactive'}">${e.active ? 'Active' : 'Inactive'}</span>${!e.pinHash ? '<div class="muted">no PIN yet</div>' : ''}</td>
       <td><div class="row-actions">
+        <button class="btn ghost sm" onclick="editEmployeePhone('${e.id}','${esc(e.phone || '')}','${esc(e.name)}')">Edit Phone</button>
         <button class="btn ghost sm" onclick="resetPin('${e.id}')">Reset PIN</button>
         <button class="btn sm ${e.active ? 'warn' : 'ok'}" onclick="toggleEmployee('${e.id}')">${e.active ? 'Deactivate' : 'Activate'}</button>
       </div></td>
@@ -582,6 +583,15 @@ async function resetPin(id) {
   await api(`/admin/employees/${id}`, { method: 'PUT', body: { resetPin: true } });
   toast('PIN reset');
   render();
+}
+async function editEmployeePhone(id, currentPhone, name) {
+  const newPhone = prompt(`Update phone number for ${name}:\n(e.g. +201229105279)`, currentPhone || '');
+  if (newPhone === null) return;
+  try {
+    await api(`/admin/employees/${id}`, { method: 'PUT', body: { phone: newPhone.trim() } });
+    toast(`Phone updated for ${name}`);
+    render();
+  } catch (e) { toast('Failed: ' + e.message); }
 }
 
 // ---------- payroll ----------

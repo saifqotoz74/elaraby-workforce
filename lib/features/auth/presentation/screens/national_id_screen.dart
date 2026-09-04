@@ -26,14 +26,29 @@ class _NationalIdScreenState extends State<NationalIdScreen> {
     _focusNode.unfocus();
     final nationalId = _idController.text;
     setState(() => _requesting = true);
-    // Server sends the OTP (dev mode also returns the code for testing).
-    // Offline -> push straight through so the flow never blocks.
-    final devCode = await Backend.instance.requestOtp(nationalId);
+    final otpRes = await Backend.instance.requestOtp(nationalId);
     if (!mounted) return;
     setState(() => _requesting = false);
+
+    if (!otpRes.found) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocale.tr('auth_id_not_found')),
+          backgroundColor: AppColors.announcementHeader,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => OtpScreen(nationalId: nationalId, devCode: devCode),
+        builder: (_) => OtpScreen(
+          nationalId: nationalId,
+          devCode: otpRes.devCode,
+          maskedPhone: otpRes.maskedPhone,
+        ),
       ),
     );
   }

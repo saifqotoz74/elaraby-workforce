@@ -17,7 +17,15 @@ class OtpScreen extends StatefulWidget {
   /// testing hint. Null means the server was unreachable (offline pass-through).
   final String? devCode;
 
-  const OtpScreen({super.key, this.nationalId, this.devCode});
+  /// Masked phone number of the employee (e.g. +20 122 ••••• 79) returned by server.
+  final String? maskedPhone;
+
+  const OtpScreen({
+    super.key,
+    this.nationalId,
+    this.devCode,
+    this.maskedPhone,
+  });
 
   @override
   State<OtpScreen> createState() => _OtpScreenState();
@@ -124,9 +132,9 @@ class _OtpScreenState extends State<OtpScreen> {
     _startTimer();
     final messenger = ScaffoldMessenger.of(context);
     if (widget.nationalId != null) {
-      final code = await Backend.instance.requestOtp(widget.nationalId!);
+      final res = await Backend.instance.requestOtp(widget.nationalId!);
       if (!mounted) return;
-      if (code != null) setState(() => _devCode = code);
+      if (res.devCode != null) setState(() => _devCode = res.devCode);
     }
     messenger.showSnackBar(
       SnackBar(content: Text(AppLocale.tr('auth_code_resent'))),
@@ -149,7 +157,16 @@ class _OtpScreenState extends State<OtpScreen> {
     );
   }
 
-  String get _phoneHint => LocalStore.instance.profile.maskedPhone;
+  String get _phoneHint {
+    if (widget.maskedPhone != null && widget.maskedPhone!.trim().isNotEmpty) {
+      return widget.maskedPhone!;
+    }
+    if (widget.nationalId != null &&
+        widget.nationalId == LocalStore.instance.nationalId) {
+      return LocalStore.instance.profile.maskedPhone;
+    }
+    return AppLocale.tr('auth_registered_phone');
+  }
 
   @override
   Widget build(BuildContext context) {

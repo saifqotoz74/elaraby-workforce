@@ -122,7 +122,10 @@ class AppLocale extends ChangeNotifier {
     'auth_id_help_body':
         'Your National ID number is printed on the front of your ID card. If you still cannot find it, visit the HR office (Building 2) or call the hotline 19319.',
     'auth_otp_title': 'Enter verification code',
-    'auth_otp_sent_to': 'We sent a 6–digit code to your registered number',
+    'auth_otp_sent_to': 'We sent a 6–digit code to',
+    'auth_registered_phone': 'your registered phone',
+    'auth_id_not_found':
+        'National ID not found in workforce database. Please contact HR office.',
     'auth_auto_verify': 'Auto-verifies once complete',
     'auth_resend_in': 'Resend code in',
     'auth_resend_now': 'Resend code now',
@@ -485,7 +488,10 @@ class AppLocale extends ChangeNotifier {
     'auth_id_help_body':
         'رقمك القومي مطبوع على بطاقة الرقم القومي. إذا لم تجده، تفضل بزيارة مكتب الموارد البشرية (مبنى 2) أو اتصل بالخط الساخن 19319.',
     'auth_otp_title': 'أدخل رمز التحقق',
-    'auth_otp_sent_to': 'أرسلنا رمزاً من 6 أرقام إلى رقمك المسجل',
+    'auth_otp_sent_to': 'أرسلنا رمزاً من 6 أرقام إلى',
+    'auth_registered_phone': 'رقمك المسجل',
+    'auth_id_not_found':
+        'الرقم القومي غير مسجل في قاعدة بيانات العاملين. يرجى مراجعة إدارة الموارد البشرية.',
     'auth_auto_verify': 'يتم التحقق تلقائياً عند الاكتمال',
     'auth_resend_in': 'إعادة الإرسال بعد',
     'auth_resend_now': 'إعادة إرسال الرمز الآن',

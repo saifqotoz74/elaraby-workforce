@@ -158,6 +158,7 @@ class LocalStore {
   // ---- Session ----
   bool get isOnboarded => _prefs?.getBool(_kOnboarded) ?? false;
   Future<void> setOnboarded(bool value) async => _p.setBool(_kOnboarded, value);
+  String? get nationalId => _prefs?.getString('last_national_id');
 
   /// Wipes everything user-specific (logout / re-onboarding).
   Future<void> clearSession() async {

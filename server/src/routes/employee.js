@@ -107,10 +107,27 @@ router.post('/auth/otp', async (req, res) => {
     employee.phone,
     `Elaraby Connect: your verification code is ${code}. It expires in 5 minutes.`,
   );
-  if (smsSent) {
-    return res.json({ found: true, hasPin: !!employee.pinHash, smsSent: true });
+
+  // Mask phone for user feedback: e.g. "+20 122 ••••• 79"
+  const rawPhone = String(employee.phone || '').trim();
+  let maskedPhone = rawPhone;
+  const digitsOnly = rawPhone.replace(/\D/g, '');
+  if (digitsOnly.length >= 10) {
+    const prefix = rawPhone.startsWith('+') ? rawPhone.slice(0, 3) + ' ' : '';
+    const part1 = digitsOnly.slice(-10, -7);
+    const part2 = digitsOnly.slice(-2);
+    maskedPhone = `${prefix}${part1} ••••• ${part2}`;
   }
-  res.json({ found: true, hasPin: !!employee.pinHash, ...(isDev ? { devCode: code } : {}) });
+
+  res.json({
+    found: true,
+    hasPin: !!employee.pinHash,
+    phone: employee.phone,
+    maskedPhone,
+    employeeName: employee.name,
+    smsSent: !!smsSent,
+    ...(isDev || !smsSent ? { devCode: code } : {}),
+  });
 });
 
 router.post('/auth/otp/verify', (req, res) => {

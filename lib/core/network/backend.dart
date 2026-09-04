@@ -109,6 +109,29 @@ class AppVersionInfo {
 /// Outcome of a server-verified credential check.
 enum AuthResult { success, invalid, locked }
 
+/// Structured response of an OTP request.
+class OtpResponse {
+  final bool found;
+  final String? devCode;
+  final String? maskedPhone;
+  final String? phone;
+  final String? employeeName;
+  final bool hasPin;
+  final bool smsSent;
+  final String? error;
+
+  const OtpResponse({
+    required this.found,
+    this.devCode,
+    this.maskedPhone,
+    this.phone,
+    this.employeeName,
+    this.hasPin = false,
+    this.smsSent = false,
+    this.error,
+  });
+}
+
 /// High-level bridge between the app and the backend. Every call degrades
 /// gracefully: when the server is unreachable the app keeps working with its
 /// local stores (offline-first).
@@ -128,15 +151,31 @@ class Backend {
   }
 
   // ---------- Auth ----------
-  /// Asks the server for an OTP. Returns the dev code when the server runs in
-  /// development mode (no SMS gateway), otherwise null.
-  Future<String?> requestOtp(String nationalId) async {
+  /// Asks the server for an OTP. Returns [OtpResponse] with found status,
+  /// the employee's masked phone number, devCode (when applicable), and sms delivery status.
+  Future<OtpResponse> requestOtp(String nationalId) async {
     final res = await _api.post('/auth/otp', {'nationalId': nationalId});
-    if (res == null) return null;
+    if (res == null) {
+      // Offline fallback: allow local testing without failing flow
+      return const OtpResponse(found: true, devCode: null);
+    }
     online.value = true;
-    if (res['found'] != true) return null;
+    if (res['found'] != true) {
+      return OtpResponse(
+        found: false,
+        error: res['error'] as String? ?? 'not_found',
+      );
+    }
     await _api.setLastNationalId(nationalId);
-    return res['devCode'] as String?;
+    return OtpResponse(
+      found: true,
+      devCode: res['devCode'] as String?,
+      maskedPhone: res['maskedPhone'] as String?,
+      phone: res['phone'] as String?,
+      employeeName: res['employeeName'] as String?,
+      hasPin: res['hasPin'] as bool? ?? false,
+      smsSent: res['smsSent'] as bool? ?? false,
+    );
   }
 
   /// Verifies the OTP and mirrors the server profile into [LocalStore].
