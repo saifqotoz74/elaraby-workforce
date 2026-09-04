@@ -57,11 +57,13 @@ class ApiClient {
     }
   }
 
+  /// Default live production backend deployed on Vercel
+  static const String _defaultLiveUrl = 'https://server-six-xi-42.vercel.app/api';
+
   String get baseUrl {
     if (overrideBaseUrl != null) return overrideBaseUrl!;
     if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
-    if (Platform.isAndroid) return 'http://10.0.2.2:3000/api';
-    return 'http://localhost:3000/api';
+    return _defaultLiveUrl;
   }
 
   /// Resolves a server-relative path like `/uploads/x.png` to a full URL.
