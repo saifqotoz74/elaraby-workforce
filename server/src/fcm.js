@@ -23,6 +23,10 @@ function serviceAccount() {
     } catch (_) {}
   }
   try {
+    _key = require('../firebase-service-account.json');
+    if (_key && _key.client_email) return _key;
+  } catch (_) {}
+  try {
     _key = JSON.parse(fs.readFileSync(KEY_PATH, 'utf8'));
   } catch {
     _key = false; // not configured

@@ -28,7 +28,13 @@ const EMPTY = () => ({
 
 let _data = null;
 let _lastBackupTime = 0;
+let _firestoreInitTriggered = false;
 const BACKUP_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+
+let firestore = null;
+try {
+  firestore = require('./firestore');
+} catch (_) {}
 
 function data() {
   if (_data) return _data;
@@ -59,8 +65,25 @@ function data() {
       }
     }
   }
-  _data = EMPTY();
-  save();
+  if (!_data) {
+    _data = EMPTY();
+    save();
+  }
+  if (firestore && !_firestoreInitTriggered) {
+    _firestoreInitTriggered = true;
+    firestore.checkAvailability().then((available) => {
+      if (available) {
+        firestore.loadFromFirestore().then((remote) => {
+          if (remote && _data) {
+            _data = { ...EMPTY(), ..._data, ...remote };
+          } else if (_data) {
+            firestore.syncToFirestore(_data).catch(() => {});
+          }
+        }).catch(() => {});
+      }
+    }).catch(() => {});
+  }
+
   return _data;
 }
 
@@ -72,6 +95,11 @@ function save() {
   
   fs.writeFileSync(tmp, serialized);
   fs.renameSync(tmp, DB_FILE);
+
+  // Background sync to Cloud Firestore if connected
+  if (firestore) {
+    firestore.syncToFirestore(_data).catch(() => {});
+  }
 
   // Periodic backup rotation
   const now = Date.now();

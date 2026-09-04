@@ -27,7 +27,7 @@ android {
 
     defaultConfig {
         applicationId = "com.elaraby.workforce.elaraby_workforce"
-        minSdk = flutter.minSdkVersion
+        minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -60,3 +60,7 @@ if (googleServicesJson.exists()) {
     apply plugin: "com.google.gms.google-services"
 }
 
+dependencies {
+    // Import the Firebase BoM
+    implementation platform('com.google.firebase:firebase-bom:33.9.0')
+}
