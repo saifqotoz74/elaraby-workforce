@@ -3,7 +3,9 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:elaraby_workforce/core/localization/app_locale.dart';
+import 'package:elaraby_workforce/core/network/backend.dart';
 import 'package:elaraby_workforce/core/storage/local_store.dart';
+import 'package:elaraby_workforce/features/home/data/home_content.dart';
 import 'package:elaraby_workforce/features/main_navigation/presentation/screens/main_nav_screen.dart';
 import 'package:elaraby_workforce/features/services/data/requests_store.dart';
 import 'package:elaraby_workforce/main.dart';
@@ -100,6 +102,79 @@ void main() {
 
     test('missing key falls back to the key itself', () {
       expect(AppLocale.tr('no_such_key'), 'no_such_key');
+    });
+  });
+
+  group('AppVersionInfo', () {
+    test('version comparison evaluates correctly', () {
+      expect(AppVersionInfo.isVersionLower('1.0.0', '1.0.1'), isTrue);
+      expect(AppVersionInfo.isVersionLower('1.0.0', '1.1.0'), isTrue);
+      expect(AppVersionInfo.isVersionLower('1.0.0', '2.0.0'), isTrue);
+      expect(AppVersionInfo.isVersionLower('1.0.0', '1.0.0'), isFalse);
+      expect(AppVersionInfo.isVersionLower('1.2.0', '1.0.0'), isFalse);
+    });
+
+    test('isUpdateRequired honors forceUpdate and minVersion', () {
+      const infoForced = AppVersionInfo(
+        currentVersion: '1.0.0',
+        minVersion: '1.0.0',
+        latestVersion: '1.0.0',
+        forceUpdate: true,
+        title: 'Title',
+        titleEn: 'Title',
+        message: 'Msg',
+        messageEn: 'Msg',
+        updateUrl: 'https://example.com',
+      );
+      expect(infoForced.isUpdateRequired, isTrue);
+
+      const infoMinVersion = AppVersionInfo(
+        currentVersion: '1.0.0',
+        minVersion: '1.2.0',
+        latestVersion: '1.2.0',
+        forceUpdate: false,
+        title: 'Title',
+        titleEn: 'Title',
+        message: 'Msg',
+        messageEn: 'Msg',
+        updateUrl: 'https://example.com',
+      );
+      expect(infoMinVersion.isUpdateRequired, isTrue);
+
+      const infoOptional = AppVersionInfo(
+        currentVersion: '1.0.0',
+        minVersion: '1.0.0',
+        latestVersion: '1.1.0',
+        forceUpdate: false,
+        title: 'Title',
+        titleEn: 'Title',
+        message: 'Msg',
+        messageEn: 'Msg',
+        updateUrl: 'https://example.com',
+      );
+      expect(infoOptional.isUpdateRequired, isFalse);
+      expect(infoOptional.isUpdateRecommended, isTrue);
+    });
+  });
+
+  group('ServerTodayShift', () {
+    test('parses from JSON correctly', () {
+      final shift = ServerTodayShift.fromJson({
+        'shiftKey': 'morning',
+        'shiftName': 'Morning Shift',
+        'shiftNameAr': 'الوردية الأولى (صباحية)',
+        'time': '07:00 AM – 03:00 PM',
+        'timeAr': '07:00 ص – 03:00 م',
+        'line': 'Benha Complex • Assembly Line 1',
+        'lineAr': 'مجمع بنها • خط التجميع 1',
+        'offDuty': false,
+      });
+
+      expect(shift.shiftKey, 'morning');
+      expect(shift.shiftName, 'Morning Shift');
+      expect(shift.time, '07:00 AM – 03:00 PM');
+      expect(shift.timeAr, '07:00 ص – 03:00 م');
+      expect(shift.offDuty, isFalse);
     });
   });
 

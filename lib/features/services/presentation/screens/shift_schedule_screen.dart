@@ -25,18 +25,29 @@ class _ShiftScheduleScreenState extends State<ShiftScheduleScreen> {
   Future<void> _loadRoster() async {
     final days = await Backend.instance.fetchRoster();
     if (!mounted || days == null) return;
+    final isAr = AppLocale.instance.isArabic;
     final now = DateTime.now();
     final sunday = now.subtract(Duration(days: now.weekday % 7));
-    final dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    final dayNamesEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    final dayNamesAr = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    final dayNames = isAr ? dayNamesAr : dayNamesEn;
+
     setState(() {
       _serverDays = List.generate(7, (i) {
         final date = sunday.add(Duration(days: i));
         final shift = days[i]['shift'] as String? ?? 'morning';
+        final timeStr = isAr
+            ? (days[i]['timeAr'] as String? ?? days[i]['time'] as String? ?? 'عطلة أسبوعية')
+            : (days[i]['time'] as String? ?? 'Rest Day');
+        final nameStr = isAr
+            ? (days[i]['shiftNameAr'] as String? ?? days[i]['name'] as String? ?? 'الوردية الأولى')
+            : (days[i]['name'] as String? ?? 'Morning Shift');
+
         return _DayShift(
           day: dayNames[i],
-          date: DateFormat('d MMM').format(date),
-          time: days[i]['time'] as String? ?? 'Rest Day',
-          shiftName: days[i]['name'] as String? ?? 'Morning Shift',
+          date: DateFormat('d MMM', isAr ? 'ar' : 'en').format(date),
+          time: timeStr,
+          shiftName: nameStr,
           isConfirmed: shift != 'off',
           isToday: date.year == now.year &&
               date.month == now.month &&
@@ -47,21 +58,26 @@ class _ShiftScheduleScreenState extends State<ShiftScheduleScreen> {
   }
 
   /// Work week starting Sunday. Morning shift Sun–Thu, Fri/Sat off duty.
-  /// Until a backend supplies the real roster, the pattern is generated for
-  /// the current week so dates and "today" are always correct.
   List<_DayShift> _buildWeek() {
+    final isAr = AppLocale.instance.isArabic;
     final now = DateTime.now();
     final sunday = now.subtract(Duration(days: now.weekday % 7));
-    final dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    final dayNamesEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    final dayNamesAr = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    final dayNames = isAr ? dayNamesAr : dayNamesEn;
 
     return List.generate(7, (i) {
       final date = sunday.add(Duration(days: i));
       final isRestDay = i == 5 || i == 6;
       return _DayShift(
         day: dayNames[i],
-        date: DateFormat('d MMM').format(date),
-        time: isRestDay ? 'Rest Day' : '06:00 AM – 02:00 PM',
-        shiftName: isRestDay ? 'Off Duty' : 'Morning Shift',
+        date: DateFormat('d MMM', isAr ? 'ar' : 'en').format(date),
+        time: isRestDay
+            ? (isAr ? 'عطلة أسبوعية' : 'Rest Day')
+            : (isAr ? '07:00 ص – 03:00 م' : '07:00 AM – 03:00 PM'),
+        shiftName: isRestDay
+            ? (isAr ? 'يوم راحة' : 'Off Duty')
+            : (isAr ? 'الوردية الأولى' : 'Morning Shift'),
         isConfirmed: !isRestDay,
         isToday: date.year == now.year &&
             date.month == now.month &&

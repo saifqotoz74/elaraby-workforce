@@ -41,7 +41,42 @@ class ServerNews {
   }
 }
 
-/// Announcement + news pulled from the backend. Null/empty members mean the
+/// Dynamic today shift data model fetched from the database / roster.
+class ServerTodayShift {
+  final String shiftKey;
+  final String shiftName;
+  final String shiftNameAr;
+  final String time;
+  final String timeAr;
+  final String line;
+  final String lineAr;
+  final bool offDuty;
+
+  const ServerTodayShift({
+    required this.shiftKey,
+    required this.shiftName,
+    required this.shiftNameAr,
+    required this.time,
+    required this.timeAr,
+    required this.line,
+    required this.lineAr,
+    required this.offDuty,
+  });
+
+  factory ServerTodayShift.fromJson(Map<String, dynamic> json) =>
+      ServerTodayShift(
+        shiftKey: json['shiftKey'] as String? ?? 'morning',
+        shiftName: json['shiftName'] as String? ?? 'Morning Shift',
+        shiftNameAr: json['shiftNameAr'] as String? ?? 'الوردية الأولى (صباحية)',
+        time: json['time'] as String? ?? json['timeEn'] as String? ?? '07:00 AM – 03:00 PM',
+        timeAr: json['timeAr'] as String? ?? '07:00 ص – 03:00 م',
+        line: json['line'] as String? ?? 'Elaraby Group • Public Relations',
+        lineAr: json['lineAr'] as String? ?? 'مجموعة العربي • العلاقات العامة',
+        offDuty: json['offDuty'] as bool? ?? false,
+      );
+}
+
+/// Announcement + news + today shift pulled from the backend. Null/empty members mean the
 /// server was unreachable — screens fall back to their bundled demo content.
 class HomeContent extends ChangeNotifier {
   static final HomeContent instance = HomeContent._();
@@ -51,12 +86,14 @@ class HomeContent extends ChangeNotifier {
 
   ServerAnnouncement? announcement;
   List<ServerNews> news = [];
+  ServerTodayShift? todayShift;
 
   Future<void> load() async {
     final res = await _api.get('/home');
     final rawAnnouncement = res?['announcement'] as Map<String, dynamic>?;
     final rawNews = res?['news'] as List<dynamic>?;
-    if (rawAnnouncement == null && rawNews == null) return;
+    final rawTodayShift = res?['todayShift'] as Map<String, dynamic>?;
+    if (rawAnnouncement == null && rawNews == null && rawTodayShift == null) return;
 
     if (rawAnnouncement != null) {
       announcement = ServerAnnouncement(
@@ -82,6 +119,9 @@ class HomeContent extends ChangeNotifier {
             );
           })
           .toList();
+    }
+    if (rawTodayShift != null) {
+      todayShift = ServerTodayShift.fromJson(rawTodayShift);
     }
     notifyListeners();
   }

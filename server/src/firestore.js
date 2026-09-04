@@ -120,7 +120,7 @@ async function syncToFirestore(allData) {
           const item = items[i];
           const docId = String(
             item.id ||
-            item.employeeId ||
+            (item.employeeId && item.weekStart ? `${item.employeeId}_${item.weekStart}` : item.employeeId) ||
             (item.token ? Buffer.from(item.token).toString('hex').slice(0, 20) : `item_${i}`)
           );
           operations.push({
@@ -132,7 +132,16 @@ async function syncToFirestore(allData) {
       }
     }
 
-    // 3. Keep backward-compatible pointer
+    // 3. Persist app version config in metadata
+    if (allData.appVersionConfig) {
+      operations.push({
+        type: 'set',
+        ref: db.collection('metadata').doc('appVersion'),
+        data: allData.appVersionConfig,
+      });
+    }
+
+    // 4. Keep backward-compatible pointer
     operations.push({
       type: 'set',
       ref: db.collection('app_state').doc('summary'),
@@ -181,6 +190,12 @@ async function loadFromFirestore() {
     const countersDoc = await db.collection('metadata').doc('counters').get();
     if (countersDoc.exists) {
       result.counters = { ...result.counters, ...countersDoc.data() };
+    }
+
+    // Load app version config
+    const versionDoc = await db.collection('metadata').doc('appVersion').get();
+    if (versionDoc.exists) {
+      result.appVersionConfig = versionDoc.data();
     }
 
     // Load all collections concurrently

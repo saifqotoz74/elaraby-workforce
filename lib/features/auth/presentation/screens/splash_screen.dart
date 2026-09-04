@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../../core/network/backend.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../common/presentation/widgets/update_dialog.dart';
 import 'get_started_screen.dart';
 import 'pin_lock_screen.dart';
 
@@ -16,18 +18,38 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(seconds: 3), () async {
-      final onboarded =
-          LocalStore.instance.isOnboarded && await LocalStore.instance.hasPin();
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) =>
-                onboarded ? const PinLockScreen() : const GetStartedScreen(),
-          ),
-        );
-      }
-    });
+    _checkAppAndNavigate();
+  }
+
+  Future<void> _checkAppAndNavigate() async {
+    final splashMinWait = Future.delayed(const Duration(milliseconds: 2500));
+
+    // Check version config from server
+    AppVersionInfo? versionInfo;
+    try {
+      versionInfo = await Backend.instance.checkAppVersion();
+    } catch (_) {}
+
+    await splashMinWait;
+    if (!mounted) return;
+
+    // If update is required (forced or installed version < minimum supported), block navigation
+    if (versionInfo != null && versionInfo.isUpdateRequired) {
+      await UpdateDialog.show(context, versionInfo);
+      return;
+    }
+
+    final onboarded =
+        LocalStore.instance.isOnboarded && await LocalStore.instance.hasPin();
+
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) =>
+              onboarded ? const PinLockScreen() : const GetStartedScreen(),
+        ),
+      );
+    }
   }
 
   @override

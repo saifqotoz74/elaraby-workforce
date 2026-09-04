@@ -24,6 +24,17 @@ const EMPTY = () => ({
   roster: [],
   fcmTokens: [],
   auditLogs: [],
+  appVersionConfig: {
+    minVersion: '1.0.0',
+    latestVersion: '1.0.0',
+    currentVersion: '1.0.0',
+    forceUpdate: false,
+    title: 'تحديث جديد متوفر',
+    titleEn: 'Update Available',
+    message: 'يتوفر إصدار جديد من تطبيق العربي كونكت. يرجى التحديث لمتابعة استخدام التطبيق بكفاءة وأمان.',
+    messageEn: 'A new version of Elaraby Connect is available. Please update to continue using the application securely.',
+    updateUrl: 'https://server-six-xi-42.vercel.app',
+  },
 });
 
 let _data = null;

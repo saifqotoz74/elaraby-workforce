@@ -5,6 +5,7 @@ import '../../features/home/data/home_content.dart';
 import '../../features/services/data/requests_store.dart';
 import '../storage/local_store.dart';
 import 'api_client.dart';
+import 'push_service.dart';
 
 /// One server inbox notification.
 class ServerNotification {
@@ -34,6 +35,75 @@ class ServerNotification {
             DateTime.fromMillisecondsSinceEpoch(json['createdAt'] as int? ?? 0),
         imageUrl: json['imageUrl'] as String?,
       );
+}
+
+/// App version metadata for force / optional updates
+class AppVersionInfo {
+  final String currentVersion;
+  final String minVersion;
+  final String latestVersion;
+  final bool forceUpdate;
+  final String title;
+  final String titleEn;
+  final String message;
+  final String messageEn;
+  final String updateUrl;
+
+  const AppVersionInfo({
+    required this.currentVersion,
+    required this.minVersion,
+    required this.latestVersion,
+    required this.forceUpdate,
+    required this.title,
+    required this.titleEn,
+    required this.message,
+    required this.messageEn,
+    required this.updateUrl,
+  });
+
+  factory AppVersionInfo.fromJson(Map<String, dynamic> json) =>
+      AppVersionInfo(
+        currentVersion: json['currentVersion'] as String? ?? '1.0.0',
+        minVersion: json['minVersion'] as String? ?? '1.0.0',
+        latestVersion: json['latestVersion'] as String? ?? '1.0.0',
+        forceUpdate: json['forceUpdate'] as bool? ?? false,
+        title: json['title'] as String? ?? 'تحديث جديد متوفر',
+        titleEn: json['titleEn'] as String? ?? 'Update Available',
+        message: json['message'] as String? ??
+            'يتوفر إصدار جديد من تطبيق العربي كونكت. يرجى التحديث لمتابعة الاستخدام.',
+        messageEn: json['messageEn'] as String? ??
+            'A new version of Elaraby Connect is available. Please update to continue.',
+        updateUrl: json['updateUrl'] as String? ??
+            'https://server-six-xi-42.vercel.app',
+      );
+
+  static bool isVersionLower(String installed, String target) {
+    try {
+      final v1 = installed.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+      final v2 = target.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+      while (v1.length < 3) {
+        v1.add(0);
+      }
+      while (v2.length < 3) {
+        v2.add(0);
+      }
+      for (var i = 0; i < 3; i++) {
+        if (v1[i] < v2[i]) return true;
+        if (v1[i] > v2[i]) return false;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static const String currentInstalledVersion = '1.0.0';
+
+  bool get isUpdateRequired =>
+      forceUpdate || isVersionLower(currentInstalledVersion, minVersion);
+
+  bool get isUpdateRecommended =>
+      isVersionLower(currentInstalledVersion, latestVersion);
 }
 
 /// Outcome of a server-verified credential check.
@@ -103,6 +173,8 @@ class Backend {
     if (res['ok'] != true) return AuthResult.invalid;
     await _api.setToken(res['token'] as String);
     _applyEmployee(res['employee'] as Map<String, dynamic>);
+    // Register FCM device token on backend
+    PushService.instance.registerCurrentToken();
     // Session just became available — pull server-driven content.
     HomeContent.instance.load();
     BenefitsContent.instance.load();
@@ -253,5 +325,12 @@ class Backend {
 
   Future<void> markInboxRead() async {
     await _api.post('/inbox/read', {});
+  }
+
+  // ---------- App Version / Force Update ----------
+  Future<AppVersionInfo?> checkAppVersion() async {
+    final res = await _api.get('/app/version', timeout: const Duration(seconds: 4));
+    if (res == null) return null;
+    return AppVersionInfo.fromJson(res);
   }
 }

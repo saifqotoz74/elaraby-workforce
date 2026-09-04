@@ -39,6 +39,22 @@ function myRequests(db, employeeId) {
     .sort((a, b) => b.createdAt - a.createdAt);
 }
 
+// ---------- App Version / Force Update (Public) ----------
+router.get(['/app/version', '/app-version'], (req, res) => {
+  const config = db().appVersionConfig || {
+    minVersion: '1.0.0',
+    latestVersion: '1.0.0',
+    currentVersion: '1.0.0',
+    forceUpdate: false,
+    title: 'تحديث جديد متوفر',
+    titleEn: 'Update Available',
+    message: 'يتوفر إصدار جديد من تطبيق العربي كونكت. يرجى التحديث لمتابعة استخدام التطبيق بكفاءة وأمان.',
+    messageEn: 'A new version of Elaraby Connect is available. Please update to continue using the application securely.',
+    updateUrl: 'https://server-six-xi-42.vercel.app',
+  };
+  res.json(config);
+});
+
 // ---------- Auth ----------
 router.post('/auth/otp', async (req, res) => {
   const { nationalId, phone, identifier } = req.body || {};
@@ -172,15 +188,137 @@ router.get('/me', requireAuth, (req, res) => {
   res.json({ employee: publicEmployee(employee) });
 });
 
+// ---------- Shift Presets & Resolution ----------
+const SHIFT_PRESETS = {
+  morning: {
+    time: '07:00 AM – 03:00 PM',
+    timeEn: '07:00 AM – 03:00 PM',
+    timeAr: '07:00 ص – 03:00 م',
+    name: 'Morning Shift',
+    nameEn: 'Morning Shift',
+    nameAr: 'الوردية الأولى (صباحية)',
+    offDuty: false,
+  },
+  evening: {
+    time: '03:00 PM – 11:00 PM',
+    timeEn: '03:00 PM – 11:00 PM',
+    timeAr: '03:00 م – 11:00 م',
+    name: 'Evening Shift',
+    nameEn: 'Evening Shift',
+    nameAr: 'الوردية الثانية (مسائية)',
+    offDuty: false,
+  },
+  night: {
+    time: '11:00 PM – 07:00 AM',
+    timeEn: '11:00 PM – 07:00 AM',
+    timeAr: '11:00 م – 07:00 ص',
+    name: 'Night Shift',
+    nameEn: 'Night Shift',
+    nameAr: 'الوردية الثالثة (ليلية)',
+    offDuty: false,
+  },
+  office: {
+    time: '08:30 AM – 04:30 PM',
+    timeEn: '08:30 AM – 04:30 PM',
+    timeAr: '08:30 ص – 04:30 م',
+    name: 'Office Hours',
+    nameEn: 'Office Hours',
+    nameAr: 'الدوام الإداري العام',
+    offDuty: false,
+  },
+  off: {
+    time: 'Rest Day',
+    timeEn: 'Rest Day',
+    timeAr: 'عطلة أسبوعية',
+    name: 'Off Duty',
+    nameEn: 'Off Duty',
+    nameAr: 'يوم راحة أسبوعية',
+    offDuty: true,
+  },
+};
+
+function currentWeekStartKey() {
+  const now = new Date();
+  const sunday = new Date(now);
+  sunday.setDate(now.getDate() - now.getDay());
+  sunday.setHours(0, 0, 0, 0);
+  return sunday.toISOString().slice(0, 10);
+}
+
+function resolveEmployeeShiftForDay(employee, dayIndex, customShift) {
+  let shiftKey = customShift;
+  if (!shiftKey) {
+    const isRestDay = dayIndex === 5 || dayIndex === 6; // Friday or Saturday
+    if (isRestDay) {
+      shiftKey = 'off';
+    } else {
+      const isPR = String(employee?.department || '').includes('Public Relations') ||
+                   String(employee?.department || '').includes('العلاقات العامة');
+      shiftKey = isPR ? 'office' : 'morning';
+    }
+  }
+  const preset = SHIFT_PRESETS[shiftKey] || SHIFT_PRESETS.morning;
+  const lineText = employee
+    ? `${employee.factory || 'Elaraby Group'} • ${employee.department || 'Operations'}`
+    : 'Elaraby Workforce';
+
+  return {
+    shiftKey,
+    name: preset.nameEn,
+    shiftName: preset.nameEn,
+    shiftNameAr: preset.nameAr,
+    time: preset.timeEn,
+    timeEn: preset.timeEn,
+    timeAr: preset.timeAr,
+    line: lineText,
+    lineAr: lineText,
+    offDuty: preset.offDuty,
+  };
+}
+
+function resolveTodayShift(employee) {
+  if (!employee) return null;
+  const now = new Date();
+  const dayIndex = now.getDay();
+  const weekStart = currentWeekStartKey();
+  const rosterList = db().roster || [];
+  const record = rosterList.find(
+    (r) => r.employeeId === employee.id && (r.weekStart === weekStart || !r.weekStart),
+  );
+  const customShift = record?.days?.find((d) => d.dayIndex === dayIndex)?.shift;
+  return {
+    ...resolveEmployeeShiftForDay(employee, dayIndex, customShift),
+    date: now.toISOString().slice(0, 10),
+    dayIndex,
+  };
+}
+
+function resolveWeekRoster(employee, record) {
+  const now = new Date();
+  const dayIndexToday = now.getDay();
+  return Array.from({ length: 7 }).map((_, i) => {
+    const customShift = record?.days?.find((d) => d.dayIndex === i)?.shift;
+    const resolved = resolveEmployeeShiftForDay(employee, i, customShift);
+    return {
+      dayIndex: i,
+      shift: resolved.shiftKey,
+      ...resolved,
+      isToday: i === dayIndexToday,
+    };
+  });
+}
+
 // ---------- Home ----------
 router.get('/home', requireAuth, (req, res) => {
   const me = db().employees.find((e) => e.id === req.employeeId);
   const announcement = [...db().announcements].sort((a, b) => b.createdAt - a.createdAt)[0] || null;
   const news = [...db().news].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
+  const todayShift = resolveTodayShift(me);
   res.json({
     announcement,
     news,
     metrics: { vacationBalance: me ? me.vacationBalance : 0 },
+    todayShift,
   });
 });
 
@@ -262,13 +400,6 @@ router.post('/inbox/read', requireAuth, (req, res) => {
 });
 
 // ---------- Payroll ----------
-const SHIFT_PRESETS = {
-  morning: { time: '06:00 AM – 02:00 PM', name: 'Morning Shift', offDuty: false },
-  evening: { time: '02:00 PM – 10:00 PM', name: 'Evening Shift', offDuty: false },
-  night: { time: '10:00 PM – 06:00 AM', name: 'Night Shift', offDuty: false },
-  off: { time: 'Rest Day', name: 'Off Duty', offDuty: true },
-};
-
 router.get('/payroll', requireAuth, (req, res) => {
   const record = db().payroll.find((p) => p.employeeId === req.employeeId);
   // Default demo statement until HR publishes one from the dashboard.
@@ -285,23 +416,15 @@ router.get('/payroll', requireAuth, (req, res) => {
 });
 
 // ---------- Roster (current week, Sunday-based) ----------
-function currentWeekStartKey() {
-  const now = new Date();
-  const sunday = new Date(now);
-  sunday.setDate(now.getDate() - now.getDay());
-  sunday.setHours(0, 0, 0, 0);
-  return sunday.toISOString().slice(0, 10);
-}
-
 router.get('/roster', requireAuth, (req, res) => {
+  const me = db().employees.find((e) => e.id === req.employeeId);
   const weekStart = currentWeekStartKey();
-  const record = db().roster.find(
-    (r) => r.employeeId === req.employeeId && r.weekStart === weekStart,
+  const record = (db().roster || []).find(
+    (r) => r.employeeId === req.employeeId && (r.weekStart === weekStart || !r.weekStart),
   );
-  const days = record
-    ? record.days.map((d) => ({ shift: d.shift, ...SHIFT_PRESETS[d.shift] }))
-    : null;
-  res.json({ weekStart, days }); // days == null -> app uses its default pattern
+  const days = resolveWeekRoster(me, record);
+  const todayShift = resolveTodayShift(me);
+  res.json({ weekStart, days, todayShift });
 });
 
 // ---------- Push tokens ----------
