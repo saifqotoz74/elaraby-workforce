@@ -23,6 +23,22 @@ class _PinScreenState extends State<PinScreen> {
       });
 
       if (_pin.length == 4) {
+        if (RegExp(r'^(\d)\1{3}$').hasMatch(_pin)) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                AppLocale.instance.isArabic
+                    ? 'رمز PIN ضعيف جداً، يرجى تجنب تكرار الرقم نفسه'
+                    : 'PIN is too weak. Please avoid repeating the same digit.',
+              ),
+              backgroundColor: AppColors.announcementButton,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+          setState(() => _pin = '');
+          return;
+        }
         Future.delayed(const Duration(milliseconds: 200), () {
           if (mounted) {
             Navigator.of(context).push(

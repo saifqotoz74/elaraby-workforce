@@ -25,7 +25,12 @@ class UpdateDialog extends StatelessWidget {
   }
 
   Future<void> _launchUpdateUrl() async {
-    final uri = Uri.tryParse(info.updateUrl);
+    var rawUrl = info.updateUrl.trim();
+    if (rawUrl.isEmpty) return;
+    if (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://') && !rawUrl.startsWith('market://')) {
+      rawUrl = 'https://$rawUrl';
+    }
+    final uri = Uri.tryParse(rawUrl);
     if (uri != null && await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }

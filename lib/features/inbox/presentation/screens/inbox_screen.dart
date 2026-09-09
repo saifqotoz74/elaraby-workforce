@@ -4,6 +4,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/localization/app_locale.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/backend.dart';
+import '../../../../core/utils/app_network_image.dart';
 import 'inbox_ids.dart';
 import '../../../benefits/presentation/screens/benefit_detail_screen.dart';
 import '../../../home/presentation/screens/announcement_detail_screen.dart';
@@ -34,6 +35,7 @@ class _InboxScreenState extends State<InboxScreen> {
     if (!mounted) return;
     if (notes != null) {
       setState(() => _serverNotes = notes);
+      InboxIds.instance.registerServerNotifications(notes);
       await Backend.instance.syncRequests();
     }
   }
@@ -111,10 +113,15 @@ class _InboxScreenState extends State<InboxScreen> {
 
           // Scrollable Notifications List
           Expanded(
-            child: ListView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              children: [
+            child: RefreshIndicator(
+              onRefresh: _loadFromServer,
+              color: AppColors.primary,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                children: [
                 // Filter Tabs
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -151,114 +158,115 @@ class _InboxScreenState extends State<InboxScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Section: From HR (live from the server)
+                // Section: Live from HR or Fallback Timeline
                 if (_serverNotes.isNotEmpty) ...[
                   _buildSectionLabel(AppLocale.tr('inbox_from_hr')),
                   const SizedBox(height: 10),
                   ..._serverNotes.map(_buildServerCard),
                   const SizedBox(height: 14),
-                ],
-
-                // Section: Today
-                if (_selectedFilter == 'inbox_filter_all' ||
-                    _selectedFilter == 'Announcements' ||
-                    _selectedFilter == 'Approvals') ...[
-                  _buildSectionLabel(AppLocale.instance.isArabic ? 'اليوم' : 'Today'),
-                  const SizedBox(height: 10),
-                  if (_selectedFilter == 'inbox_filter_all' || _selectedFilter == 'Announcements') ...[
-                    _buildNotificationCard(
-                      icon: Icons.campaign_rounded,
-                      iconBg: const Color(0xFFFEECEC),
-                      iconColor: AppColors.announcementButton,
-                      title: AppLocale.instance.isArabic ? 'سياسة الورديات الجديدة' : 'New Shift Policy',
-                      subtitle: AppLocale.instance.isArabic ? 'تبدأ في 10 أغسطس — اضغط للقراءة' : 'Starting Aug 10 — tap to read',
-                      time: '9:12 AM',
-                      hasUnreadDot: !InboxIds.instance.isRead(InboxIds.shiftPolicy),
-                      onTap: () {
-                        InboxIds.instance.markRead(InboxIds.shiftPolicy);
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const AnnouncementDetailScreen()),
-                        );
-                      },
-                    ),
+                ] else ...[
+                  // Offline / Demo Timeline
+                  if (_selectedFilter == 'inbox_filter_all' ||
+                      _selectedFilter == 'Announcements' ||
+                      _selectedFilter == 'Approvals') ...[
+                    _buildSectionLabel(AppLocale.instance.isArabic ? 'اليوم' : 'Today'),
                     const SizedBox(height: 10),
+                    if (_selectedFilter == 'inbox_filter_all' || _selectedFilter == 'Announcements') ...[
+                      _buildNotificationCard(
+                        icon: Icons.campaign_rounded,
+                        iconBg: const Color(0xFFFEECEC),
+                        iconColor: AppColors.announcementButton,
+                        title: AppLocale.instance.isArabic ? 'سياسة الورديات الجديدة' : 'New Shift Policy',
+                        subtitle: AppLocale.instance.isArabic ? 'تبدأ في 10 أغسطس — اضغط للقراءة' : 'Starting Aug 10 — tap to read',
+                        time: '9:12 AM',
+                        hasUnreadDot: !InboxIds.instance.isRead(InboxIds.shiftPolicy),
+                        onTap: () {
+                          InboxIds.instance.markRead(InboxIds.shiftPolicy);
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const AnnouncementDetailScreen()),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    if (_selectedFilter == 'inbox_filter_all' || _selectedFilter == 'inbox_filter_approvals') ...[
+                      _buildNotificationCard(
+                        icon: Icons.check_circle_rounded,
+                        iconBg: AppColors.shiftBg,
+                        iconColor: AppColors.primary,
+                        title: AppLocale.instance.isArabic ? 'تمت الموافقة على طلب الإجازة' : 'Leave Request Approved',
+                        subtitle: AppLocale.instance.isArabic ? 'تم تأكيد إجازة 20 – 22 أغسطس' : 'Aug 20 – 22 confirmed',
+                        time: '9:12 AM',
+                        hasUnreadDot: !InboxIds.instance.isRead(InboxIds.leaveApproved),
+                        onTap: () {
+                          InboxIds.instance.markRead(InboxIds.leaveApproved);
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const YourRequestsScreen()),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                   ],
-                  if (_selectedFilter == 'inbox_filter_all' || _selectedFilter == 'inbox_filter_approvals') ...[
-                    _buildNotificationCard(
-                      icon: Icons.check_circle_rounded,
-                      iconBg: AppColors.shiftBg,
-                      iconColor: AppColors.primary,
-                      title: AppLocale.instance.isArabic ? 'تمت الموافقة على طلب الإجازة' : 'Leave Request Approved',
-                      subtitle: AppLocale.instance.isArabic ? 'تم تأكيد إجازة 20 – 22 أغسطس' : 'Aug 20 – 22 confirmed',
-                      time: '9:12 AM',
-                      hasUnreadDot: !InboxIds.instance.isRead(InboxIds.leaveApproved),
-                      onTap: () {
-                        InboxIds.instance.markRead(InboxIds.leaveApproved);
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const YourRequestsScreen()),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-                ],
-                const SizedBox(height: 14),
+                  const SizedBox(height: 14),
 
-                // Section: Yesterday
-                if (_selectedFilter == 'inbox_filter_all' ||
-                    _selectedFilter == 'Benefits' ||
-                    _selectedFilter == 'Approvals') ...[
-                  _buildSectionLabel(AppLocale.instance.isArabic ? 'أمس' : 'Yesterday'),
-                  const SizedBox(height: 10),
-                  if (_selectedFilter == 'inbox_filter_all' || _selectedFilter == 'inbox_filter_benefits') ...[
-                    _buildNotificationCard(
-                      icon: Icons.local_offer_rounded,
-                      iconBg: const Color(0xFFFEF3E2),
-                      iconColor: const Color(0xFFD97706),
-                      title: AppLocale.instance.isArabic ? 'خصم جديد متاح' : 'New Discount',
-                      subtitle: AppLocale.instance.isArabic ? 'خصم 15% لدى صيدليات سيف' : '15% off at Seif Pharmacies',
-                      time: '4:04 PM',
-                      hasUnreadDot: !InboxIds.instance.isRead(InboxIds.newDiscount),
-                      onTap: () {
-                        InboxIds.instance.markRead(InboxIds.newDiscount);
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const BenefitDetailScreen(
-                              title: 'Seif Pharmacies',
-                              discount: '15% OFF',
-                              category: 'Health Care',
-                              imagePath: 'assets/images/benefit_pharmacy.png',
-                              validity: 'Valid through 30 Jun 2027',
+                  // Section: Yesterday
+                  if (_selectedFilter == 'inbox_filter_all' ||
+                      _selectedFilter == 'Benefits' ||
+                      _selectedFilter == 'Approvals') ...[
+                    _buildSectionLabel(AppLocale.instance.isArabic ? 'أمس' : 'Yesterday'),
+                    const SizedBox(height: 10),
+                    if (_selectedFilter == 'inbox_filter_all' || _selectedFilter == 'inbox_filter_benefits') ...[
+                      _buildNotificationCard(
+                        icon: Icons.local_offer_rounded,
+                        iconBg: const Color(0xFFFEF3E2),
+                        iconColor: const Color(0xFFD97706),
+                        title: AppLocale.instance.isArabic ? 'خصم جديد متاح' : 'New Discount',
+                        subtitle: AppLocale.instance.isArabic ? 'خصم 15% لدى صيدليات سيف' : '15% off at Seif Pharmacies',
+                        time: '4:04 PM',
+                        hasUnreadDot: !InboxIds.instance.isRead(InboxIds.newDiscount),
+                        onTap: () {
+                          InboxIds.instance.markRead(InboxIds.newDiscount);
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const BenefitDetailScreen(
+                                title: 'Seif Pharmacies',
+                                discount: '15% OFF',
+                                category: 'Health Care',
+                                imagePath: 'assets/images/benefit_pharmacy.png',
+                                validity: 'Valid through 30 Jun 2027',
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-                  if (_selectedFilter == 'inbox_filter_all' || _selectedFilter == 'inbox_filter_approvals') ...[
-                    _buildNotificationCard(
-                      icon: Icons.payments_rounded,
-                      iconBg: const Color(0xFFEAF8F0),
-                      iconColor: AppColors.statusGreen,
-                      title: AppLocale.instance.isArabic ? 'مفردات المرتب متاحة' : 'Salary Slip Available',
-                      subtitle: AppLocale.instance.isArabic ? 'راتب شهر يوليو جاهز للاطلاع' : 'July payroll is ready',
-                      time: '11:22 AM',
-                      hasUnreadDot: !InboxIds.instance.isRead(InboxIds.salarySlip),
-                      onTap: () {
-                        InboxIds.instance.markRead(InboxIds.salarySlip);
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const SalarySlipScreen()),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 10),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    if (_selectedFilter == 'inbox_filter_all' || _selectedFilter == 'inbox_filter_approvals') ...[
+                      _buildNotificationCard(
+                        icon: Icons.payments_rounded,
+                        iconBg: const Color(0xFFEAF8F0),
+                        iconColor: AppColors.statusGreen,
+                        title: AppLocale.instance.isArabic ? 'مفردات المرتب متاحة' : 'Salary Slip Available',
+                        subtitle: AppLocale.instance.isArabic ? 'راتب شهر يوليو جاهز للاطلاع' : 'July payroll is ready',
+                        time: '11:22 AM',
+                        hasUnreadDot: !InboxIds.instance.isRead(InboxIds.salarySlip),
+                        onTap: () {
+                          InboxIds.instance.markRead(InboxIds.salarySlip);
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const SalarySlipScreen()),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                   ],
                 ],
                 const SizedBox(height: 24),
               ],
             ),
           ),
+        ),
         ],
       ),
     );
@@ -300,29 +308,16 @@ class _InboxScreenState extends State<InboxScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (note.imageUrl != null)
-                    ClipRRect(
-                      borderRadius: const BorderRadius.all(Radius.circular(12)),
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 170),
-                        child: Image.network(
-                          ApiClient.instance.resolveUrl(note.imageUrl!),
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                          loadingBuilder: (context, child, progress) =>
-                              progress == null
-                                  ? child
-                                  : const SizedBox(
-                                      height: 90,
-                                      child: Center(
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2),
-                                      ),
-                                    ),
-                        ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: AppNetworkImage(
+                        imageUrl: ApiClient.instance.resolveUrl(note.imageUrl!),
+                        width: double.infinity,
+                        height: 170,
+                        fit: BoxFit.cover,
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                  if (note.imageUrl != null) const SizedBox(height: 10),
                   Text(
                     note.title,
                     style: AppTypography.fontBase.copyWith(

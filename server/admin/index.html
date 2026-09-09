@@ -275,7 +275,28 @@ function toast(msg) {
   t.textContent = msg; t.classList.add('show');
   clearTimeout(t._tm); t._tm = setTimeout(() => t.classList.remove('show'), 2400);
 }
-function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
+function esc(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/\\/g, '&#92;');
+}
+function escJs(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '\\"')
+    .replace(/</g, '\\x3c')
+    .replace(/>/g, '\\x3e')
+    .replace(/&/g, '\\x26')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r');
+}
 function fmtDate(ts) { return new Date(ts).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }); }
 function statusPill(s) { return `<span class="pill ${s === 'inReview' ? 'review' : s}">${s === 'inReview' ? 'In Review' : s}</span>`; }
 function openSidebar() { document.getElementById('sidebar').classList.add('open'); document.getElementById('overlay').classList.add('show'); }
@@ -485,8 +506,8 @@ async function renderRequests(requests) {
       <td>${statusPill(r.status)}${r.decisionReason ? `<div class="muted">${esc(r.decisionReason)}</div>` : ''}</td>
       <td>${r.status === 'inReview' ? `
         <div class="row-actions">
-          <button class="btn ok sm" onclick="decide('${r.id}','approved')">Approve</button>
-          <button class="btn danger sm" onclick="decide('${r.id}','rejected')">Reject</button>
+          <button class="btn ok sm" onclick="decide('${escJs(r.id)}','approved')">Approve</button>
+          <button class="btn danger sm" onclick="decide('${escJs(r.id)}','rejected')">Reject</button>
         </div>` : `<span class="muted">by ${esc(r.decidedBy || '—')}</span>`}
       </td>
     </tr>`).join('');
@@ -523,9 +544,9 @@ async function renderEmployees(employees) {
       <td><b>${e.vacationBalance}</b> <span class="muted">d</span></td>
       <td><span class="pill ${e.active ? 'active' : 'inactive'}">${e.active ? 'Active' : 'Inactive'}</span>${!e.pinHash ? '<div class="muted">no PIN yet</div>' : ''}</td>
       <td><div class="row-actions">
-        <button class="btn ghost sm" onclick="editEmployeePhone('${e.id}','${esc(e.phone || '')}','${esc(e.name)}')">Edit Phone</button>
-        <button class="btn ghost sm" onclick="resetPin('${e.id}')">Reset PIN</button>
-        <button class="btn sm ${e.active ? 'warn' : 'ok'}" onclick="toggleEmployee('${e.id}')">${e.active ? 'Deactivate' : 'Activate'}</button>
+        <button class="btn ghost sm" onclick="editEmployeePhone('${escJs(e.id)}','${escJs(e.phone || '')}','${escJs(e.name)}')">Edit Phone</button>
+        <button class="btn ghost sm" onclick="resetPin('${escJs(e.id)}')">Reset PIN</button>
+        <button class="btn sm ${e.active ? 'warn' : 'ok'}" onclick="toggleEmployee('${escJs(e.id)}')">${e.active ? 'Deactivate' : 'Activate'}</button>
       </div></td>
     </tr>`).join('');
   document.getElementById('main').innerHTML = `
@@ -723,7 +744,7 @@ function renderContent(name, res) {
       <td>${it.imageUrl ? `<img class="img-thumb" src="${esc(it.imageUrl)}" style="margin-bottom:6px">` : ''}<b>${esc(it.title)}</b></td>
       <td class="muted">${esc(shortData(it))}</td>
       <td class="muted" style="white-space:nowrap">${fmtDate(it.createdAt)}</td>
-      <td><button class="btn danger sm" onclick="deleteItem('${name}','${it.id}')">Delete</button></td>
+      <td><button class="btn danger sm" onclick="deleteItem('${escJs(name)}','${escJs(it.id)}')">Delete</button></td>
     </tr>`).join('');
   document.getElementById('main').innerHTML = `
     <div class="toolbar">
@@ -743,7 +764,7 @@ function renderContent(name, res) {
           <input type="file" id="img-file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="pickImage(this)">
         </div>` : ''}
       </div>
-      <button class="btn" id="publish-btn" onclick="createItem('${name}')">Publish</button>
+      <button class="btn" id="publish-btn" onclick="createItem('${escJs(name)}')">Publish</button>
     </div>
     <div class="card tbl-scroll"><table>
       <thead><tr><th>Title</th><th>Data</th><th>Created</th><th></th></tr></thead>

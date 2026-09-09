@@ -36,44 +36,58 @@ function serviceAccount() {
 
 function isConfigured() {
   const k = serviceAccount();
-  return !!(k?.client_email && k?.private_key && k?.project_id);
+  if (!k || !k.client_email || !k.private_key || !k.project_id) return false;
+  if (k.project_id.includes('placeholder') || k.project_id.includes('YOUR_FIREBASE')) return false;
+  return true;
 }
 
 function base64url(buf) {
   return Buffer.from(buf).toString('base64url');
 }
 
+let _tokenPromise = null;
+
 /// OAuth2 access token via a signed JWT (RS256), cached until near-expiry.
 async function getAccessToken() {
   if (_accessToken && Date.now() < _tokenExpiry - 60000) return _accessToken;
-  const k = serviceAccount();
-  const now = Math.floor(Date.now() / 1000);
-  const header = base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-  const claim = base64url(JSON.stringify({
-    iss: k.client_email,
-    scope: 'https://www.googleapis.com/auth/firebase.messaging',
-    aud: 'https://oauth2.googleapis.com/token',
-    iat: now,
-    exp: now + 3600,
-  }));
-  const signature = crypto
-    .createSign('RSA-SHA256')
-    .update(`${header}.${claim}`)
-    .sign(k.private_key)
-    .toString('base64url');
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: `${header}.${claim}.${signature}`,
-    }).toString(),
-  });
-  if (!res.ok) throw new Error(`oauth failed: ${res.status}`);
-  const json = await res.json();
-  _accessToken = json.access_token;
-  _tokenExpiry = Date.now() + (json.expires_in - 120) * 1000;
-  return _accessToken;
+  if (_tokenPromise) return _tokenPromise;
+
+  _tokenPromise = (async () => {
+    try {
+      const k = serviceAccount();
+      const now = Math.floor(Date.now() / 1000);
+      const header = base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+      const claim = base64url(JSON.stringify({
+        iss: k.client_email,
+        scope: 'https://www.googleapis.com/auth/firebase.messaging',
+        aud: 'https://oauth2.googleapis.com/token',
+        iat: now,
+        exp: now + 3600,
+      }));
+      const signature = crypto
+        .createSign('RSA-SHA256')
+        .update(`${header}.${claim}`)
+        .sign(k.private_key)
+        .toString('base64url');
+      const res = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+          assertion: `${header}.${claim}.${signature}`,
+        }).toString(),
+      });
+      if (!res.ok) throw new Error(`oauth failed: ${res.status}`);
+      const json = await res.json();
+      _accessToken = json.access_token;
+      _tokenExpiry = Date.now() + (json.expires_in - 120) * 1000;
+      return _accessToken;
+    } finally {
+      _tokenPromise = null;
+    }
+  })();
+
+  return _tokenPromise;
 }
 
 /// Sends to one device token. Returns true on success, false otherwise.
@@ -99,7 +113,19 @@ async function sendToToken(fcmToken, title, body) {
       },
     );
     if (!res.ok) {
-      console.error('[fcm] send failed:', res.status, (await res.text()).slice(0, 200));
+      const text = await res.text();
+      console.error('[fcm] send failed:', res.status, text.slice(0, 200));
+      // Prune dead / unregistered / invalid tokens from db
+      if (res.status === 404 || text.includes('UNREGISTERED') || text.includes('INVALID_ARGUMENT')) {
+        try {
+          const { data, save } = require('./db');
+          const d = data();
+          if (d.fcmTokens) {
+            d.fcmTokens = d.fcmTokens.filter((t) => t.token !== fcmToken);
+            save();
+          }
+        } catch (_) {}
+      }
       return false;
     }
     return true;

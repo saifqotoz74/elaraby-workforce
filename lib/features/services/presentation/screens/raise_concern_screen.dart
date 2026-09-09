@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/localization/app_locale.dart';
 import '../../../../core/theme/app_typography.dart';
+
+import '../../../../core/network/backend.dart';
+import '../../../../core/storage/local_store.dart';
 
 class RaiseConcernScreen extends StatefulWidget {
   const RaiseConcernScreen({super.key});
@@ -13,6 +17,7 @@ class RaiseConcernScreen extends StatefulWidget {
 class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
   String _selectedCategory = 'Workplace Environment';
   final TextEditingController _detailsController = TextEditingController();
+  bool _submitting = false;
 
   final List<String> _categories = [
     'Workplace Environment',
@@ -23,7 +28,30 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    final draft = LocalStore.instance.getDraft('raise_concern');
+    if (draft != null) {
+      if (draft['category'] is String && _categories.contains(draft['category'])) {
+        _selectedCategory = draft['category'] as String;
+      }
+      if (draft['details'] is String) {
+        _detailsController.text = draft['details'] as String;
+      }
+    }
+    _detailsController.addListener(_onTextChanged);
+  }
+
+  void _onTextChanged() {
+    LocalStore.instance.saveDraft('raise_concern', {
+      'category': _selectedCategory,
+      'details': _detailsController.text,
+    });
+  }
+
+  @override
   void dispose() {
+    _detailsController.removeListener(_onTextChanged);
     _detailsController.dispose();
     super.dispose();
   }
@@ -40,7 +68,7 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
-          'Raise a Concern',
+          AppLocale.tr('raise_concern'),
           style: AppTypography.sectionHeading.copyWith(fontSize: 18),
         ),
         shape: const RoundedRectangleBorder(
@@ -254,17 +282,7 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Anonymous by design: NOT stored in the employee's own
-                    // request list, so no reference number can identify them.
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(AppLocale.tr('concern_success')),
-                        backgroundColor: AppColors.primary,
-                      ),
-                    );
-                    Navigator.of(context).maybePop();
-                  },
+                  onPressed: _submitting ? null : _submit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -273,10 +291,19 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: Text(
-                    'Submit Anonymously',
-                    style: AppTypography.buttonText.copyWith(fontSize: 15),
-                  ),
+                  child: _submitting
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : Text(
+                          'Submit Anonymously',
+                          style: AppTypography.buttonText.copyWith(fontSize: 15),
+                        ),
                 ),
               ),
             ),
@@ -284,5 +311,58 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
         ),
       ),
     );
+  }
+
+  Future<void> _submit() async {
+    final details = _detailsController.text.trim();
+    if (details.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocale.instance.isArabic
+                ? 'يرجى كتابة تفاصيل البلاغ أولاً'
+                : 'Please enter details for your report first.',
+          ),
+          backgroundColor: AppColors.announcementButton,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _submitting = true);
+    HapticFeedback.heavyImpact();
+
+    try {
+      final res = await Backend.instance.submitConcern(
+        category: _selectedCategory,
+        details: details,
+      );
+      await LocalStore.instance.clearDraft('raise_concern');
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      final ref = res?['refNumber'] as String?;
+      final isAr = AppLocale.instance.isArabic;
+      final msg = ref != null
+          ? (isAr ? 'تم إرسال بلاغك بنجاح وسرية تامة (رقم: $ref)' : 'Concern submitted securely (Ref: $ref)')
+          : AppLocale.tr('concern_success');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+      Navigator.of(context).maybePop();
+    } catch (_) {
+      await LocalStore.instance.clearDraft('raise_concern');
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocale.tr('concern_success')),
+          backgroundColor: AppColors.primary,
+        ),
+      );
+      Navigator.of(context).maybePop();
+    }
   }
 }

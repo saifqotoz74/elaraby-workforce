@@ -5,6 +5,7 @@ import '../../../../core/storage/local_store.dart';
 import '../../data/benefits_content.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/app_network_image.dart';
 
 class TripDetailScreen extends StatefulWidget {
   final String title;
@@ -60,6 +61,7 @@ class TripDetailScreen extends StatefulWidget {
 class _TripDetailScreenState extends State<TripDetailScreen> {
   late int _currentBooked;
   bool _isBooked = false;
+  bool _loading = false;
   late final String _tripId =
       'trip_${widget.title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_')}';
 
@@ -70,15 +72,37 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
     _currentBooked = widget.bookedSeats + (_isBooked ? 1 : 0);
   }
 
-  void _toggleBooking() {
-    setState(() {
+  Future<void> _toggleBooking() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+
+    try {
       if (_isBooked) {
-        _isBooked = false;
-        _currentBooked--;
-        LocalStore.instance.setTripBooked(_tripId, false);
+        bool serverOk = true;
         if (widget.tripId != null) {
-          BenefitsContent.instance.bookTrip(widget.tripId!, false);
+          serverOk = await BenefitsContent.instance.bookTrip(widget.tripId!, false);
         }
+        if (!serverOk) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                AppLocale.instance.isArabic
+                    ? 'تعذر إلغاء الحجز، يرجى المحاولة لاحقاً'
+                    : 'Failed to cancel reservation, please try again later.',
+              ),
+              backgroundColor: AppColors.announcementButton,
+            ),
+          );
+          return;
+        }
+        setState(() {
+          _isBooked = false;
+          _currentBooked = (_currentBooked - 1).clamp(0, widget.totalSeats);
+        });
+        LocalStore.instance.setTripBooked(_tripId, false);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -87,23 +111,59 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
           ),
         );
       } else {
-        if (_currentBooked < widget.totalSeats) {
-          _isBooked = true;
-          _currentBooked++;
-          LocalStore.instance.setTripBooked(_tripId, true);
-          if (widget.tripId != null) {
-            BenefitsContent.instance.bookTrip(widget.tripId!, true);
-          }
+        if (_currentBooked >= widget.totalSeats) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(AppLocale.tr('trip_confirmed')),
-              backgroundColor: AppColors.statusGreen,
+              content: Text(
+                AppLocale.instance.isArabic
+                    ? 'عذراً، اكتملت جميع مقاعد الرحلة'
+                    : 'Sorry, this trip is fully booked.',
+              ),
+              backgroundColor: AppColors.announcementButton,
             ),
           );
+          return;
         }
+
+        bool serverOk = true;
+        if (widget.tripId != null) {
+          serverOk = await BenefitsContent.instance.bookTrip(widget.tripId!, true);
+        }
+
+        if (!serverOk) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                AppLocale.instance.isArabic
+                    ? 'عذراً، اكتملت مقاعد الرحلة بالفعل أو تعذر الحجز'
+                    : 'Booking failed: trip is full or server is unavailable.',
+              ),
+              backgroundColor: AppColors.announcementButton,
+            ),
+          );
+          return;
+        }
+
+        setState(() {
+          _isBooked = true;
+          _currentBooked++;
+        });
+        LocalStore.instance.setTripBooked(_tripId, true);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocale.tr('trip_confirmed')),
+            backgroundColor: AppColors.statusGreen,
+          ),
+        );
       }
-    });
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -144,12 +204,12 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                       child: Stack(
                         children: [
                           widget.imageUrl != null
-                              ? Image.network(
-                                  ApiClient.instance.resolveUrl(widget.imageUrl!),
+                              ? AppNetworkImage(
+                                  imageUrl: ApiClient.instance.resolveUrl(widget.imageUrl!),
                                   width: double.infinity,
                                   height: 200,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) => Image.asset(
+                                  errorWidget: Image.asset(
                                     widget.imagePath,
                                     width: double.infinity,
                                     height: 200,
@@ -485,24 +545,34 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _toggleBooking,
+                  onPressed: _loading ? null : _toggleBooking,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _isBooked ? const Color(0xFFFEECEC) : AppColors.primary,
                     foregroundColor: _isBooked ? AppColors.announcementButton : Colors.white,
+                    disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.35),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: Text(
-                    _isBooked
-                        ? AppLocale.tr('trip_cancel_booking')
-                        : '${AppLocale.tr('trip_book_now')} (${widget.price})',
-                    style: AppTypography.buttonText.copyWith(
-                      fontSize: 15,
-                      color: _isBooked ? AppColors.announcementButton : Colors.white,
-                    ),
-                  ),
+                  child: _loading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          _isBooked
+                              ? AppLocale.tr('trip_cancel_booking')
+                              : '${AppLocale.tr('trip_book_now')} (${widget.price})',
+                          style: AppTypography.buttonText.copyWith(
+                            fontSize: 15,
+                            color: _isBooked ? AppColors.announcementButton : Colors.white,
+                          ),
+                        ),
                 ),
               ),
             ),

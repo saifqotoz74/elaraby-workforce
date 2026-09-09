@@ -1,1 +1,7 @@
 .vercel
+firebase-service-account.json
+node_modules/
+data/db.backup.json
+uploads/
+*.log
+.env

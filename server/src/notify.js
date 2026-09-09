@@ -4,7 +4,7 @@
 const { data, save, nextId } = require('./db');
 const fcm = require('./fcm');
 
-function notify({ employeeId, title, body, imageUrl = null }) {
+function notify({ employeeId, title, body, imageUrl = null }, autoSave = true) {
   const db = data();
   const notification = {
     id: `ntf_${nextId('notification')}`,
@@ -16,13 +16,32 @@ function notify({ employeeId, title, body, imageUrl = null }) {
     createdAt: Date.now(),
   };
   db.notifications.push(notification);
-  save();
+  if (autoSave) {
+    save();
+  }
 
   const tokens = (db.fcmTokens || [])
     .filter((t) => t.employeeId === employeeId)
     .map((t) => t.token);
   for (const token of tokens) {
-    fcm.sendToToken(token, title, body).catch(() => {});
+    fcm.sendToToken(token, title, body).catch((err) => {
+      const errMsg = String(err?.message || err || '');
+      if (
+        errMsg.includes('INVALID_ARGUMENT') ||
+        errMsg.includes('UNREGISTERED') ||
+        errMsg.includes('NOT_FOUND') ||
+        errMsg.includes('registration token')
+      ) {
+        const currentDb = data();
+        if (currentDb.fcmTokens) {
+          const prev = currentDb.fcmTokens.length;
+          currentDb.fcmTokens = currentDb.fcmTokens.filter((t) => t.token !== token);
+          if (currentDb.fcmTokens.length !== prev) {
+            save();
+          }
+        }
+      }
+    });
   }
   return notification;
 }

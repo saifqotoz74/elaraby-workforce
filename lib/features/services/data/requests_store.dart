@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/network/backend.dart';
+import '../../../core/storage/local_store.dart';
 
 enum RequestStatus { inReview, approved, rejected }
 
@@ -18,6 +19,7 @@ class EmployeeRequest {
   final String? reviewer;
   final String? rejectionReason;
   final Map<String, String> details;
+  final bool isPendingSync;
 
   const EmployeeRequest({
     required this.id,
@@ -30,7 +32,36 @@ class EmployeeRequest {
     this.reviewer,
     this.rejectionReason,
     this.details = const {},
+    this.isPendingSync = false,
   });
+
+  EmployeeRequest copyWith({
+    String? id,
+    String? title,
+    String? type,
+    String? refNumber,
+    RequestStatus? status,
+    String? date,
+    String? summary,
+    String? reviewer,
+    String? rejectionReason,
+    Map<String, String>? details,
+    bool? isPendingSync,
+  }) {
+    return EmployeeRequest(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      type: type ?? this.type,
+      refNumber: refNumber ?? this.refNumber,
+      status: status ?? this.status,
+      date: date ?? this.date,
+      summary: summary ?? this.summary,
+      reviewer: reviewer ?? this.reviewer,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
+      details: details ?? this.details,
+      isPendingSync: isPendingSync ?? this.isPendingSync,
+    );
+  }
 
   String get statusLabel {
     switch (status) {
@@ -54,6 +85,7 @@ class EmployeeRequest {
         'reviewer': reviewer,
         'rejectionReason': rejectionReason,
         'details': details,
+        'isPendingSync': isPendingSync,
       };
 
   factory EmployeeRequest.fromJson(Map<String, dynamic> json) =>
@@ -69,6 +101,7 @@ class EmployeeRequest {
         rejectionReason: json['rejectionReason'] as String?,
         details: (json['details'] as Map<String, dynamic>? ?? const {})
             .map((k, v) => MapEntry(k, v as String)),
+        isPendingSync: json['isPendingSync'] as bool? ?? false,
       );
 }
 
@@ -121,31 +154,199 @@ class RequestsStore extends ChangeNotifier {
   List<EmployeeRequest> get rejectedRequests =>
       _requests.where((r) => r.status == RequestStatus.rejected).toList();
 
-  /// Server is the source of truth when online — swaps the whole list.
-  void replaceAll(List<EmployeeRequest> requests) {
-    _requests = requests;
+  List<EmployeeRequest> get pendingSyncRequests =>
+      _requests.where((r) => r.isPendingSync).toList();
+
+  /// Server is the source of truth when online — but preserves any local requests
+  /// that are still pending upload so they are NEVER erased.
+  void replaceAll(List<EmployeeRequest> serverRequests) {
+    final localPending = _requests.where((r) => r.isPendingSync).toList();
+    final serverRefs = serverRequests.map((s) => s.refNumber).toSet();
+    final remainingPending = localPending
+        .where((p) => !serverRefs.contains(p.refNumber))
+        .toList();
+
+    _requests = [...remainingPending, ...serverRequests];
     _persist();
     notifyListeners();
+  }
+
+  /// Flushes all pending offline requests to the server.
+  Future<void> flushPending() async {
+    if (!Backend.instance.online.value) return;
+    final pending = _requests.where((r) => r.isPendingSync).toList();
+    if (pending.isEmpty) return;
+
+    var modified = false;
+    for (final req in pending) {
+      final days = int.tryParse(req.details['days'] ?? '');
+      var isPermanentRejection = false;
+      String? rejectReason;
+
+      final serverReq = await Backend.instance.submitRequest(
+        type: req.type,
+        title: req.title,
+        details: req.details,
+        days: days,
+        idempotencyKey: req.id,
+        onPermanentError: (err) {
+          isPermanentRejection = true;
+          rejectReason = err;
+        },
+      );
+
+      final idx = _requests.indexWhere((r) => r.id == req.id);
+      if (serverReq != null && idx != -1) {
+        _requests[idx] = req.copyWith(
+          id: serverReq.id,
+          refNumber: serverReq.refNumber,
+          isPendingSync: false,
+        );
+        modified = true;
+      } else if (isPermanentRejection && idx != -1) {
+        final days = int.tryParse(req.details['days'] ?? '');
+        final isAnnual = req.type == 'Leave' &&
+            (req.details['leaveType'] == 'Annual Leave' ||
+                req.title.toLowerCase().contains('annual'));
+        if (days != null && days > 0 && isAnnual) {
+          await LocalStore.instance.addVacationDays(days);
+        }
+        _requests[idx] = req.copyWith(
+          status: RequestStatus.rejected,
+          isPendingSync: false,
+          summary: rejectReason == 'exceeds_balance'
+              ? 'Rejected: Vacation balance exceeded'
+              : 'Rejected: Request rejected by policy',
+        );
+        modified = true;
+      }
+    }
+    if (modified) {
+      await _persist();
+      notifyListeners();
+    }
   }
 
   void addRequest(EmployeeRequest request, {int? days}) {
-    _requests.insert(0, request);
+    final isOnline = Backend.instance.online.value;
+    final pendingReq = request.copyWith(isPendingSync: !isOnline);
+    _requests.insert(0, pendingReq);
     _persist();
     notifyListeners();
-    // Mirror to the backend (no-op when offline; re-sync happens on next load).
-    Backend.instance.submitRequest(
-      type: request.type,
-      title: request.title,
-      details: request.details,
-      days: days,
-    );
+
+    if (isOnline) {
+      var isPermanentRejection = false;
+      String? rejectReason;
+
+      Backend.instance
+          .submitRequest(
+        type: request.type,
+        title: request.title,
+        details: request.details,
+        days: days,
+        idempotencyKey: request.id,
+        onPermanentError: (err) {
+          isPermanentRejection = true;
+          rejectReason = err;
+        },
+      )
+          .then((serverReq) {
+        if (serverReq != null) {
+          final idx = _requests.indexWhere((r) => r.id == pendingReq.id);
+          if (idx != -1) {
+            _requests[idx] = pendingReq.copyWith(
+              id: serverReq.id,
+              refNumber: serverReq.refNumber,
+              isPendingSync: false,
+            );
+            _persist();
+            notifyListeners();
+          }
+        } else if (isPermanentRejection) {
+          final isAnnual = pendingReq.type == 'Leave' &&
+              (pendingReq.details['leaveType'] == 'Annual Leave' ||
+                  pendingReq.title.toLowerCase().contains('annual'));
+          if (days != null && days > 0 && isAnnual) {
+            LocalStore.instance.addVacationDays(days);
+          }
+          final idx = _requests.indexWhere((r) => r.id == pendingReq.id);
+          if (idx != -1) {
+            _requests[idx] = pendingReq.copyWith(
+              status: RequestStatus.rejected,
+              isPendingSync: false,
+              summary: rejectReason == 'exceeds_balance'
+                  ? 'Rejected: Vacation balance exceeded'
+                  : 'Rejected: Request rejected by policy',
+            );
+            _persist();
+            notifyListeners();
+          }
+        } else {
+          // Transit network failure: preserve in pendingSync queue
+          final idx = _requests.indexWhere((r) => r.id == pendingReq.id);
+          if (idx != -1 && !_requests[idx].isPendingSync) {
+            _requests[idx] = _requests[idx].copyWith(isPendingSync: true);
+            _persist();
+            notifyListeners();
+          }
+        }
+      }).catchError((_) {
+        // Catch unexpected exception: mark pendingSync for flushPending retry
+        final idx = _requests.indexWhere((r) => r.id == pendingReq.id);
+        if (idx != -1 && !_requests[idx].isPendingSync) {
+          _requests[idx] = _requests[idx].copyWith(isPendingSync: true);
+          _persist();
+          notifyListeners();
+        }
+      });
+    }
   }
 
-  void cancelRequest(String id) {
-    _requests.removeWhere((r) => r.id == id);
+  Future<bool> cancelRequest(String id) async {
+    final originalIndex = _requests.indexWhere((r) => r.id == id);
+    if (originalIndex == -1) return false;
+    final originalReq = _requests[originalIndex];
+
+    // Optimistically remove from active list
+    _requests.removeAt(originalIndex);
+    notifyListeners();
+
+    final isAnnual = originalReq.type == 'Leave' &&
+        (originalReq.details['leaveType'] == 'Annual Leave' ||
+            originalReq.title.toLowerCase().contains('annual'));
+    final leaveDays = int.tryParse(originalReq.details['days'] ?? '');
+
+    if (originalReq.isPendingSync || !Backend.instance.online.value) {
+      if (isAnnual && leaveDays != null && leaveDays > 0) {
+        await LocalStore.instance.addVacationDays(leaveDays);
+      }
+      await _persist();
+      return true;
+    }
+
+    try {
+      final success = await Backend.instance.cancelRequest(id);
+      if (success) {
+        await _persist();
+        return true;
+      } else {
+        // Rollback state if server rejected cancellation
+        _requests.insert(originalIndex, originalReq);
+        notifyListeners();
+        return false;
+      }
+    } catch (_) {
+      // Rollback state on network or unexpected failure
+      _requests.insert(originalIndex, originalReq);
+      notifyListeners();
+      return false;
+    }
+  }
+
+  void clear() {
+    _requests = [];
     _persist();
     notifyListeners();
-    Backend.instance.cancelRequest(id);
   }
 
   static List<EmployeeRequest> get _seedRequests => [

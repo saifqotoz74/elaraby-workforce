@@ -5,6 +5,7 @@ import '../../../../core/storage/local_store.dart';
 import '../../../services/presentation/screens/raise_concern_screen.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/app_network_image.dart';
 
 class BenefitDetailScreen extends StatelessWidget {
   final String title;
@@ -46,10 +47,10 @@ class BenefitDetailScreen extends StatelessWidget {
                         height: 240,
                         width: double.infinity,
                         child: imageUrl != null
-                            ? Image.network(
-                                ApiClient.instance.resolveUrl(imageUrl!),
+                            ? AppNetworkImage(
+                                imageUrl: ApiClient.instance.resolveUrl(imageUrl!),
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) =>
+                                errorWidget:
                                     Image.asset(imagePath, fit: BoxFit.cover),
                               )
                             : Image.asset(imagePath, fit: BoxFit.cover),

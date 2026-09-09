@@ -16,6 +16,8 @@ class AppLocale extends ChangeNotifier {
     final code = LocalStore.instance.localeCode;
     if (code == 'ar' || code == 'en') {
       _locale = Locale(code!);
+    } else {
+      _locale = const Locale('ar');
     }
   }
 
@@ -148,6 +150,14 @@ class AppLocale extends ChangeNotifier {
     'auth_forgot_pin': 'Forgot your PIN?',
     'auth_forgot_body':
         'Resetting your PIN will sign you out and clear local data on this device. You will need to verify your National ID again.',
+    'auth_switch_employee': 'Log in as another employee',
+    'auth_switch_employee_confirm':
+        'Are you sure you want to log in as another employee? This will clear active session and local data on this device.',
+    'leave_discard_title': 'Discard changes?',
+    'leave_discard_message':
+        'You have unsaved changes in your leave request. Are you sure you want to exit and lose them?',
+    'leave_discard_stay': 'Stay',
+    'leave_discard_confirm': 'Discard',
     'auth_get_started': 'Get Started',
     'auth_get_started_subtitle':
         'Your one app for shifts, salary, requests and company benefits.',
@@ -405,6 +415,12 @@ class AppLocale extends ChangeNotifier {
     // Settings sections
     'settings_security': 'Security & Fast Access',
     'settings_notifications_header': 'Notification',
+
+    // Feedback & offline
+    'emp_saved_offline': 'Changes saved locally (will sync when online)',
+    'leave_request_submitted': 'Leave request submitted successfully',
+    'leave_request_failed': 'Failed to submit leave request. Please try again.',
+    'network_offline_warning': 'You are currently offline. Changes will sync automatically.',
   };
 
   static const Map<String, String> _ar = {
@@ -514,6 +530,14 @@ class AppLocale extends ChangeNotifier {
     'auth_forgot_pin': 'نسيت الرمز السري؟',
     'auth_forgot_body':
         'إعادة تعيين الرمز ستخرجك من التطبيق وتمسح البيانات المحلية على هذا الجهاز. ستحتاج للتحقق من رقمك القومي مرة أخرى.',
+    'auth_switch_employee': 'تسجيل الدخول بموظف آخر',
+    'auth_switch_employee_confirm':
+        'هل أنت متأكد من تسجيل الدخول بموظف آخر؟ سيتم مسح الجلسة النشطة والبيانات المحلية على هذا الجهاز.',
+    'leave_discard_title': 'تجاهل التعديلات؟',
+    'leave_discard_message':
+        'لديك بيانات غير محفوظة في طلب الإجازة. هل أنت متأكد من الخروج وتجاهل البيانات؟',
+    'leave_discard_stay': 'البقاء',
+    'leave_discard_confirm': 'تجاهل والخروج',
     'auth_get_started': 'ابدأ الآن',
     'auth_get_started_subtitle':
         'تطبيقك الواحد للورديات والمرتبات والطلبات ومزايا الشركة.',
@@ -766,5 +790,11 @@ class AppLocale extends ChangeNotifier {
     // Settings sections
     'settings_security': 'الأمان والوصول السريع',
     'settings_notifications_header': 'الإشعارات',
+
+    // Feedback & offline
+    'emp_saved_offline': 'تم الحفظ محلياً (سيتم المزامنة عند الاتصال بالإنترنت)',
+    'leave_request_submitted': 'تم تقديم طلب الإجازة بنجاح',
+    'leave_request_failed': 'تعذر إرسال طلب الإجازة. يرجى المحاولة مرة أخرى.',
+    'network_offline_warning': 'أنت الآن في وضع عدم الاتصال. ستتم المزامنة تلقائياً.',
   };
 }

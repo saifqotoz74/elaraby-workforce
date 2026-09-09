@@ -96,7 +96,7 @@ class BenefitsContent extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> bookTrip(String tripId, bool book) async {
+  Future<bool> bookTrip(String tripId, bool book) async {
     final path = book ? '/trips/$tripId/book' : '/trips/$tripId/unbook';
     final res = await _api.post(path, {});
     if (res?['ok'] == true) {
@@ -120,6 +120,15 @@ class BenefitsContent extends ChangeNotifier {
             .toList();
         notifyListeners();
       }
+      return true;
     }
+    return false;
+  }
+
+  void clear() {
+    benefits = [];
+    trips = [];
+    loaded = false;
+    notifyListeners();
   }
 }

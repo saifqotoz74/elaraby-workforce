@@ -3,6 +3,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/localization/app_locale.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/app_network_image.dart';
 
 class AnnouncementDetailScreen extends StatelessWidget {
   final String? title;
@@ -32,7 +33,7 @@ class AnnouncementDetailScreen extends StatelessWidget {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
-          'Announcement Details',
+          AppLocale.instance.isArabic ? 'تفاصيل الإعلان' : 'Announcement Details',
           style: AppTypography.sectionHeading.copyWith(fontSize: 18),
         ),
         shape: const RoundedRectangleBorder(
@@ -47,15 +48,12 @@ class AnnouncementDetailScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (imageUrl != null)
-                ClipRRect(
+                AppNetworkImage(
+                  imageUrl: ApiClient.instance.resolveUrl(imageUrl!),
+                  width: double.infinity,
+                  height: 190,
+                  fit: BoxFit.cover,
                   borderRadius: BorderRadius.circular(20),
-                  child: Image.network(
-                    ApiClient.instance.resolveUrl(imageUrl!),
-                    width: double.infinity,
-                    height: 190,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                  ),
                 ),
               if (imageUrl != null) const SizedBox(height: 16),
               Container(
@@ -114,7 +112,7 @@ class AnnouncementDetailScreen extends StatelessWidget {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
-          'Announcement Details',
+          AppLocale.instance.isArabic ? 'تفاصيل الإعلان' : 'Announcement Details',
           style: AppTypography.sectionHeading.copyWith(fontSize: 18),
         ),
         shape: const RoundedRectangleBorder(

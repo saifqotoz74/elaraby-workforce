@@ -179,13 +179,18 @@ void main() {
   });
 
   testWidgets('Main nav home tab smoke test', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(800, 1200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
     await LocalStore.instance.init();
     await RequestsStore.instance.load();
     // Reset singleton state mutated by earlier tests.
     await LocalStore.instance.saveProfile(const EmployeeProfile());
     AppLocale.instance.setLocale(const Locale('en'));
     await tester.pumpWidget(const ElarabyWorkforceApp(initialScreen: MainNavScreen()));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('Welcome, Ahmed'), findsOneWidget);
     expect(find.text('Quick Actions'), findsOneWidget);

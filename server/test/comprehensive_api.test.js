@@ -267,9 +267,20 @@ async function runAllTests() {
       employeeToken = verifyNew.json.token; // update token
 
       // Revert PIN back to 1234 for subsequent tests
-      await request('POST', '/api/auth/pin/change', {
+      const revertRes = await request('POST', '/api/auth/pin/change', {
         Authorization: `Bearer ${employeeToken}`,
       }, { currentPin: '4321', newPin: '1234' });
+      assert.strictEqual(revertRes.status, 200);
+      assert.ok(revertRes.json.token);
+
+      // Verify the old token is revoked immediately
+      const revokedCheck = await request('GET', '/api/me', {
+        Authorization: `Bearer ${employeeToken}`,
+      });
+      assert.strictEqual(revokedCheck.status, 401);
+      assert.strictEqual(revokedCheck.json.error, 'token_revoked');
+
+      employeeToken = revertRes.json.token;
     });
 
     // -------------------------------------------------------------
@@ -332,6 +343,16 @@ async function runAllTests() {
       assert.strictEqual(markRes.json.ok, true);
     });
 
+    await test('GET /api/inbox supports pagination parameters', async () => {
+      const res = await request('GET', '/api/inbox?page=1&limit=2', { Authorization: `Bearer ${employeeToken}` });
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.json.page, 1);
+      assert.strictEqual(res.json.limit, 2);
+      assert.ok(typeof res.json.total === 'number');
+      assert.ok(Array.isArray(res.json.notifications));
+      assert.ok(res.json.notifications.length <= 2);
+    });
+
     // -------------------------------------------------------------
     // 5. EMPLOYEE REQUESTS LIFECYCLE & INTEGRITY
     // -------------------------------------------------------------
@@ -390,6 +411,16 @@ async function runAllTests() {
       assert.ok(res.json.requests.some((r) => r.id === createdRequestId));
     });
 
+    await test('GET /api/requests supports pagination parameters', async () => {
+      const res = await request('GET', '/api/requests?page=1&limit=1', { Authorization: `Bearer ${employeeToken}` });
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.json.page, 1);
+      assert.strictEqual(res.json.limit, 1);
+      assert.ok(typeof res.json.total === 'number');
+      assert.ok(Array.isArray(res.json.requests));
+      assert.ok(res.json.requests.length <= 1);
+    });
+
     await test('POST /api/requests/:id/cancel cancels request and refunds balance', async () => {
       const res = await request('POST', `/api/requests/${createdRequestId}/cancel`, {
         Authorization: `Bearer ${employeeToken}`,
@@ -400,6 +431,38 @@ async function runAllTests() {
       // Verify balance is refunded
       const profile = await request('GET', '/api/me', { Authorization: `Bearer ${employeeToken}` });
       assert.strictEqual(profile.json.employee.vacationBalance, initialBalance);
+    });
+
+    await test('POST /api/requests respects x-idempotency-key and prevents double deduction', async () => {
+      const idempKey = 'test-idemp-key-999';
+      const balanceBefore = (await request('GET', '/api/me', { Authorization: `Bearer ${employeeToken}` })).json.employee.vacationBalance;
+
+      const res1 = await request('POST', '/api/requests', {
+        Authorization: `Bearer ${employeeToken}`,
+        'x-idempotency-key': idempKey,
+      }, {
+        type: 'Leave',
+        title: 'Idempotency Leave Test',
+        details: { leaveType: 'Annual Leave', days: 1 },
+        days: 1,
+      });
+      assert.strictEqual(res1.status, 200);
+      assert.strictEqual(res1.json.vacationBalance, balanceBefore - 1);
+      const reqId = res1.json.request.id;
+
+      // Duplicate submission with same key
+      const res2 = await request('POST', '/api/requests', {
+        Authorization: `Bearer ${employeeToken}`,
+        'x-idempotency-key': idempKey,
+      }, {
+        type: 'Leave',
+        title: 'Idempotency Leave Test',
+        details: { leaveType: 'Annual Leave', days: 1 },
+        days: 1,
+      });
+      assert.strictEqual(res2.status, 200);
+      assert.strictEqual(res2.json.request.id, reqId, 'Must return identical request instance');
+      assert.strictEqual(res2.json.vacationBalance, balanceBefore - 1, 'Balance must NOT be deducted twice');
     });
 
     // -------------------------------------------------------------
@@ -482,6 +545,16 @@ async function runAllTests() {
       assert.strictEqual(res.status, 200);
       assert.ok(Array.isArray(res.json.auditLogs));
       assert.ok(res.json.auditLogs.length > 0);
+    });
+
+    await test('GET /api/admin/employees supports pagination parameters', async () => {
+      const res = await request('GET', '/api/admin/employees?page=1&limit=2', { Authorization: `Bearer ${adminToken}` });
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.json.page, 1);
+      assert.strictEqual(res.json.limit, 2);
+      assert.ok(typeof res.json.total === 'number');
+      assert.ok(Array.isArray(res.json.employees));
+      assert.ok(res.json.employees.length <= 2);
     });
 
     let newEmployeeId = null;
@@ -600,10 +673,12 @@ async function runAllTests() {
     console.log('\n--- Group 9: Admin Request Decision & Vacation Refund Check ---');
 
     // Submit a leave request for our new employee to test HR Rejection refund
-    // First set PIN for new employee
-    await request('POST', '/api/auth/pin', {}, { nationalId: testNationalId, pin: '1234' });
-    const empLogin = await request('POST', '/api/auth/pin/verify', {}, { nationalId: testNationalId, pin: '1234' });
-    const newEmpToken = empLogin.json.token;
+    // First set PIN for new employee using verified resetToken
+    const otpReq = await request('POST', '/api/auth/otp', {}, { nationalId: testNationalId });
+    const otpVer = await request('POST', '/api/auth/otp/verify', {}, { nationalId: testNationalId, code: otpReq.json.devCode });
+    const resetToken = otpVer.json.resetToken;
+    const pinRes = await request('POST', '/api/auth/pin', {}, { nationalId: testNationalId, pin: '1234', resetToken });
+    const newEmpToken = pinRes.json.token;
 
     const leaveReq = await request('POST', '/api/requests', {
       Authorization: `Bearer ${newEmpToken}`,
@@ -726,6 +801,31 @@ async function runAllTests() {
         pin: '1234',
       });
       assert.strictEqual(loginAttempt.status, 401, 'Credentials must be revoked after account erasure');
+
+      // Verify that the existing active JWT token is immediately rejected by requireAuth
+      const meAttempt = await request('GET', '/api/me', {
+        Authorization: `Bearer ${newEmpToken}`,
+      });
+      assert.strictEqual(meAttempt.status, 401, 'Token must be rejected immediately for deactivated account');
+      assert.strictEqual(meAttempt.json.error, 'account_deactivated');
+    });
+
+    await test('POST /api/concerns accepts anonymous workplace reports and admin lists them', async () => {
+      const res = await request('POST', '/api/concerns', {}, {
+        category: 'Safety & Health',
+        details: 'Emergency stop button on Line 3 machine is loose.',
+      });
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.json.ok, true);
+      assert.ok(res.json.refNumber.startsWith('CON-'));
+
+      // Check that Admin can retrieve anonymous concerns
+      const adminRes = await request('GET', '/api/admin/concerns', {
+        Authorization: `Bearer ${adminToken}`,
+      });
+      assert.strictEqual(adminRes.status, 200);
+      assert.ok(Array.isArray(adminRes.json.concerns));
+      assert.ok(adminRes.json.concerns.some((c) => c.category === 'Safety & Health'));
     });
 
   } finally {

@@ -36,7 +36,11 @@ class HomeHeader extends StatelessWidget {
           // Greeting and Date
           Expanded(
             child: ListenableBuilder(
-              listenable: Listenable.merge([AppLocale.instance, InboxIds.instance]),
+              listenable: Listenable.merge([
+                AppLocale.instance,
+                InboxIds.instance,
+                LocalStore.instance,
+              ]),
               builder: (context, _) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,

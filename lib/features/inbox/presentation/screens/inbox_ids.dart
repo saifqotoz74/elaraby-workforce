@@ -9,27 +9,42 @@ class InboxIds extends ChangeNotifier {
   static final InboxIds instance = InboxIds._();
   InboxIds._();
 
-  // Canonical inbox item ids (match the cards in inbox_screen.dart).
+  // Canonical inbox item ids (match offline/seeded defaults).
   static const shiftPolicy = 'inbox_shift_policy';
   static const leaveApproved = 'inbox_leave_approved';
   static const newDiscount = 'inbox_new_discount';
   static const salarySlip = 'inbox_salary_slip';
 
-  static const all = [
+  static const defaultIds = [
     shiftPolicy,
     leaveApproved,
     newDiscount,
     salarySlip,
   ];
 
+  static List<String> get all => instance._knownIds.toList();
+
+  final Set<String> _knownIds = {...defaultIds};
   Set<String> _read = {};
+
+  /// Dynamically registers server notifications into tracking
+  void registerServerNotifications(List<dynamic> notes) {
+    for (final n in notes) {
+      final id = n.id as String;
+      _knownIds.add(id);
+      if (n.read == true) {
+        _read.add(id);
+      }
+    }
+    notifyListeners();
+  }
 
   /// Call once at startup (main.dart) after LocalStore.init().
   void load() {
     _read = LocalStore.instance.readInboxIds;
   }
 
-  int get unreadCount => all.where((id) => !_read.contains(id)).length;
+  int get unreadCount => _knownIds.where((id) => !_read.contains(id)).length;
 
   bool isRead(String id) => _read.contains(id);
 
@@ -41,8 +56,8 @@ class InboxIds extends ChangeNotifier {
   }
 
   Future<void> markAllRead() async {
-    _read = {...all};
-    await LocalStore.instance.markInboxRead(all);
+    _read = {..._knownIds};
+    await LocalStore.instance.markInboxRead(_knownIds);
     notifyListeners();
   }
 }

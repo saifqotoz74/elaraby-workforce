@@ -3,6 +3,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/localization/app_locale.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/network/backend.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../auth/presentation/screens/get_started_screen.dart';
 import 'change_pin_screen.dart';
@@ -42,10 +43,12 @@ class ProfileScreen extends StatelessWidget {
 
           // Body Content
           Expanded(
-            child: ListView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              children: [
+            child: ListenableBuilder(
+              listenable: LocalStore.instance,
+              builder: (context, _) => ListView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                children: [
                 // Top Employee Info Card
                 Container(
                   width: double.infinity,
@@ -256,10 +259,11 @@ class ProfileScreen extends StatelessWidget {
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildMenuCard({
     required IconData icon,
@@ -473,8 +477,7 @@ class ProfileScreen extends StatelessWidget {
           ElevatedButton(
             onPressed: () async {
               Navigator.of(ctx).pop();
-              await ApiClient.instance.setToken(null);
-              await LocalStore.instance.clearSession();
+              await Backend.instance.clearAllUserData();
               if (!context.mounted) return;
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const GetStartedScreen()),
@@ -649,12 +652,89 @@ For privacy questions or support, contact HR & IT at workforce-support@elarabygr
           ElevatedButton(
             onPressed: () async {
               Navigator.of(ctx).pop();
+              final hasPin = await LocalStore.instance.hasPin();
+              String enteredPin = '';
+              if (hasPin && context.mounted) {
+                final pinResult = await showDialog<String>(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (pinCtx) {
+                    final ctrl = TextEditingController();
+                    String? error;
+                    return StatefulBuilder(
+                      builder: (context, setDialogState) {
+                        return AlertDialog(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          title: Text(
+                            isAr ? 'تأكيد الرمز السري' : 'Confirm PIN',
+                            style: AppTypography.fontBase.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                isAr
+                                    ? 'يرجى إدخال رمز PIN المكون من 4 أرقام لتأكيد حذف الحساب:'
+                                    : 'Please enter your 4-digit PIN to confirm deletion:',
+                                style: AppTypography.fontBase.copyWith(fontSize: 13),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                controller: ctrl,
+                                obscureText: true,
+                                keyboardType: TextInputType.number,
+                                maxLength: 4,
+                                decoration: InputDecoration(
+                                  counterText: '',
+                                  errorText: error,
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                              ),
+                            ],
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(pinCtx).pop(null),
+                              child: Text(isAr ? 'إلغاء' : 'Cancel'),
+                            ),
+                            ElevatedButton(
+                              onPressed: () async {
+                                final candidate = ctrl.text.trim();
+                                if (candidate.length != 4) {
+                                  setDialogState(() => error = isAr ? 'أدخل 4 أرقام' : 'Enter 4 digits');
+                                  return;
+                                }
+                                final ok = await LocalStore.instance.verifyPin(candidate);
+                                if (!ok) {
+                                  setDialogState(() => error = isAr ? 'رمز PIN غير صحيح' : 'Incorrect PIN');
+                                  return;
+                                }
+                                if (pinCtx.mounted) {
+                                  Navigator.of(pinCtx).pop(candidate);
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.announcementButton,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: Text(isAr ? 'تأكيد' : 'Confirm'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                );
+                if (pinResult == null) return;
+                enteredPin = pinResult;
+              }
               // Notify backend if connected
               try {
-                await ApiClient.instance.post('/employee/delete-account', {});
+                await ApiClient.instance.post('/employee/delete-account', {
+                  if (enteredPin.isNotEmpty) 'pin': enteredPin,
+                });
               } catch (_) {}
-              await ApiClient.instance.setToken(null);
-              await LocalStore.instance.clearSession();
+              await Backend.instance.clearAllUserData();
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(

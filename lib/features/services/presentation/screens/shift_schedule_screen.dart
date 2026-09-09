@@ -27,14 +27,14 @@ class _ShiftScheduleScreenState extends State<ShiftScheduleScreen> {
     if (!mounted || days == null) return;
     final isAr = AppLocale.instance.isArabic;
     final now = DateTime.now();
-    final sunday = now.subtract(Duration(days: now.weekday % 7));
+    final sunday = DateTime(now.year, now.month, now.day - (now.weekday % 7));
     final dayNamesEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     final dayNamesAr = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
     final dayNames = isAr ? dayNamesAr : dayNamesEn;
 
     setState(() {
       _serverDays = List.generate(7, (i) {
-        final date = sunday.add(Duration(days: i));
+        final date = DateTime(sunday.year, sunday.month, sunday.day + i);
         final shift = days[i]['shift'] as String? ?? 'morning';
         final timeStr = isAr
             ? (days[i]['timeAr'] as String? ?? days[i]['time'] as String? ?? 'عطلة أسبوعية')
@@ -61,13 +61,13 @@ class _ShiftScheduleScreenState extends State<ShiftScheduleScreen> {
   List<_DayShift> _buildWeek() {
     final isAr = AppLocale.instance.isArabic;
     final now = DateTime.now();
-    final sunday = now.subtract(Duration(days: now.weekday % 7));
+    final sunday = DateTime(now.year, now.month, now.day - (now.weekday % 7));
     final dayNamesEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     final dayNamesAr = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
     final dayNames = isAr ? dayNamesAr : dayNamesEn;
 
     return List.generate(7, (i) {
-      final date = sunday.add(Duration(days: i));
+      final date = DateTime(sunday.year, sunday.month, sunday.day + i);
       final isRestDay = i == 5 || i == 6;
       return _DayShift(
         day: dayNames[i],
@@ -105,15 +105,54 @@ class _ShiftScheduleScreenState extends State<ShiftScheduleScreen> {
           AppLocale.tr('shift_schedule'),
           style: AppTypography.sectionHeading.copyWith(fontSize: 18),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
+            tooltip: AppLocale.instance.isArabic ? 'تحديث' : 'Refresh',
+            onPressed: _loadRoster,
+          ),
+        ],
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
       ),
       body: SafeArea(
-        child: ListView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.all(16),
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: _loadRoster,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            padding: const EdgeInsets.all(16),
           children: [
+            if (_serverDays == null)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, size: 18, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        AppLocale.instance.isArabic
+                            ? 'وضع عدم الاتصال: يتم عرض جدول استرشادي لحين الاتصال بالخادم.'
+                            : 'Offline mode: Showing cached schedule until connected to server.',
+                        style: AppTypography.fontBase.copyWith(
+                          fontSize: 12,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             Text(
               '${AppLocale.tr('shift_week_of')} $weekStart – $weekEnd ${DateTime.now().year}',
               style: AppTypography.welcomeTitle.copyWith(fontSize: 18),
@@ -134,7 +173,8 @@ class _ShiftScheduleScreenState extends State<ShiftScheduleScreen> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildLegendItem({required Color color, required String label}) {

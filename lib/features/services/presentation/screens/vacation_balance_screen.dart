@@ -15,7 +15,6 @@ class VacationBalanceScreen extends StatefulWidget {
 class _VacationBalanceScreenState extends State<VacationBalanceScreen> {
   @override
   Widget build(BuildContext context) {
-    final remaining = LocalStore.instance.vacationDaysRemaining;
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
       appBar: AppBar(
@@ -34,62 +33,66 @@ class _VacationBalanceScreenState extends State<VacationBalanceScreen> {
         ),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Top Balance Card
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x06000000),
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            AppLocale.tr('vac_total_available'),
-                            style: AppTypography.fontBase.copyWith(
-                              fontSize: 14,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '$remaining ${AppLocale.tr('vac_days_remaining')}',
-                            style: AppTypography.fontBase.copyWith(
-                              fontSize: 26,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _buildPill('10 ${AppLocale.tr('vac_annual')}', isPrimary: true),
-                              const SizedBox(width: 8),
-                              _buildPill('2 ${AppLocale.tr('vac_sick')}', isPrimary: true),
-                              const SizedBox(width: 8),
-                              _buildPill('0 ${AppLocale.tr('vac_emergency')}', isPrimary: false),
+        child: ListenableBuilder(
+          listenable: LocalStore.instance,
+          builder: (context, _) {
+            final remaining = LocalStore.instance.vacationDaysRemaining;
+            return Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Top Balance Card
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x06000000),
+                                blurRadius: 8,
+                                offset: Offset(0, 2),
+                              ),
                             ],
                           ),
-                        ],
-                      ),
-                    ),
+                          child: Column(
+                            children: [
+                              Text(
+                                AppLocale.tr('vac_total_available'),
+                                style: AppTypography.fontBase.copyWith(
+                                  fontSize: 14,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '$remaining ${AppLocale.tr('vac_days_remaining')}',
+                                style: AppTypography.fontBase.copyWith(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  _buildPill('$remaining ${AppLocale.tr('vac_annual')}', isPrimary: true),
+                                  const SizedBox(width: 8),
+                                  _buildPill('0 ${AppLocale.tr('vac_sick')}', isPrimary: false),
+                                  const SizedBox(width: 8),
+                                  _buildPill('0 ${AppLocale.tr('vac_emergency')}', isPrimary: false),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
                     const SizedBox(height: 24),
 
                     // History Section Header
@@ -122,7 +125,7 @@ class _VacationBalanceScreenState extends State<VacationBalanceScreen> {
                           _buildHistoryItem(
                             title: AppLocale.tr('leave_type_annual_leave'),
                             dateRange: '10 – 12 Jun 2026',
-                            duration: '3 days',
+                            duration: '2 days',
                           ),
                           const Divider(height: 1, indent: 16, endIndent: 16, color: AppColors.scaffoldBackground),
                           _buildHistoryItem(
@@ -134,13 +137,7 @@ class _VacationBalanceScreenState extends State<VacationBalanceScreen> {
                           _buildHistoryItem(
                             title: AppLocale.tr('leave_type_annual_leave'),
                             dateRange: '28 Nov – 02 Dec 2025',
-                            duration: '5 days',
-                          ),
-                          const Divider(height: 1, indent: 16, endIndent: 16, color: AppColors.scaffoldBackground),
-                          _buildHistoryItem(
-                            title: AppLocale.tr('leave_type_emergency_leave'),
-                            dateRange: '29 Dec 2025 – 02 Jan 2026',
-                            duration: '4 days',
+                            duration: '3 days',
                           ),
                         ],
                       ),
@@ -179,10 +176,12 @@ class _VacationBalanceScreenState extends State<VacationBalanceScreen> {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
+        );
+      },
+    ),
+  ),
+);
+}
 
   Widget _buildPill(String label, {required bool isPrimary}) {
     return Container(

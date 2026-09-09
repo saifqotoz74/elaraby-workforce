@@ -3,6 +3,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/localization/app_locale.dart';
 import '../../../../core/network/api_client.dart';
+import '../../../../core/utils/app_network_image.dart';
 import '../../data/home_content.dart';
 import '../screens/company_news_screen.dart';
 
@@ -76,12 +77,12 @@ class CompanyNewsCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (latest?.imageUrl != null)
-                      Image.network(
-                        ApiClient.instance.resolveUrl(latest!.imageUrl!),
+                      AppNetworkImage(
+                        imageUrl: ApiClient.instance.resolveUrl(latest!.imageUrl!),
                         width: double.infinity,
                         height: 135,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Image.asset(
+                        errorWidget: Image.asset(
                           'assets/images/news_factory.png',
                           width: double.infinity,
                           height: 135,

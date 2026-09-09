@@ -85,6 +85,20 @@ router.get('/audit-logs', (req, res) => {
 // ---------- Image upload (base64 JSON — no multipart dep needed) ----------
 const ALLOWED_EXT = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp' };
 
+function isValidImage(buf, ext) {
+  if (!buf || buf.length < 12) return false;
+  if (ext === 'png') {
+    return buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47;
+  }
+  if (ext === 'jpg' || ext === 'jpeg') {
+    return buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF;
+  }
+  if (ext === 'webp') {
+    return buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP';
+  }
+  return false;
+}
+
 router.post('/upload', (req, res) => {
   let { name, dataBase64 } = req.body || {};
   if (!name || !dataBase64) return res.status(400).json({ error: 'name_and_data_required' });
@@ -101,10 +115,19 @@ router.post('/upload', (req, res) => {
   if (buf.length > 6 * 1024 * 1024) {
     return res.status(413).json({ error: 'max_6mb' });
   }
+  if (!isValidImage(buf, ext)) {
+    return res.status(400).json({ error: 'invalid_image_data' });
+  }
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
   const filename = `img_${Date.now()}_${Math.floor(Math.random() * 1e6)}.${ext}`;
   fs.writeFileSync(path.join(UPLOADS_DIR, filename), buf);
   res.json({ url: `/uploads/${filename}`, size: buf.length });
+});
+
+// ---------- Anonymous Concerns (HR Safety & Compliance) ----------
+router.get('/concerns', (req, res) => {
+  const d = db();
+  res.json({ concerns: d.concerns || [] });
 });
 
 // ---------- Stats ----------
@@ -170,7 +193,21 @@ router.get('/stats', (req, res) => {
 
 // ---------- Employees ----------
 router.get('/employees', (req, res) => {
-  res.json({ employees: db().employees.map(employeeOut) });
+  const all = db().employees.map(employeeOut);
+  if (req.query.page || req.query.limit) {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit, 10) || 20));
+    const start = (page - 1) * limit;
+    const items = all.slice(start, start + limit);
+    return res.json({
+      employees: items,
+      total: all.length,
+      page,
+      limit,
+      totalPages: Math.ceil(all.length / limit),
+    });
+  }
+  res.json({ employees: all });
 });
 
 router.post('/employees', (req, res) => {
@@ -219,7 +256,10 @@ router.put('/employees/:id', (req, res) => {
   if (req.body?.vacationBalance !== undefined) {
     employee.vacationBalance = Number(req.body.vacationBalance) || 0;
   }
-  if (req.body?.resetPin) employee.pinHash = null;
+  if (req.body?.resetPin) {
+    employee.pinHash = null;
+    employee.tokenVersion = (employee.tokenVersion || 0) + 1;
+  }
 
   recordAuditLog(db(), {
     actor: req.admin?.sub || 'admin',
@@ -236,6 +276,7 @@ router.post('/employees/:id/toggle', (req, res) => {
   const employee = db().employees.find((e) => e.id === req.params.id);
   if (!employee) return res.status(404).json({ error: 'not_found' });
   employee.active = !employee.active;
+  employee.tokenVersion = (employee.tokenVersion || 0) + 1;
   recordAuditLog(db(), {
     actor: req.admin?.sub || 'admin',
     action: employee.active ? 'activate_employee' : 'deactivate_employee',
@@ -415,7 +456,7 @@ function crudFor(name, collection) {
           title: item.important ? 'Important Announcement' : 'New Announcement',
           body: item.title,
           imageUrl: item.imageUrl || null,
-        });
+        }, false);
       }
     }
     recordAuditLog(db(), {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../../core/localization/app_locale.dart';
 import '../../../../core/network/api_client.dart';
@@ -21,8 +22,50 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
   String _newPin = '';
   String _confirmedPin = '';
   String? _errorMessage;
+  int _failedCurrentPinAttempts = 0;
+  int _lockoutSeconds = 0;
+  Timer? _lockoutTimer;
+
+  @override
+  void dispose() {
+    _lockoutTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startLockout() {
+    setState(() {
+      _lockoutSeconds = 30;
+      _errorMessage = AppLocale.instance.isArabic
+          ? 'محاولات كثيرة خاطئة. يرجى الانتظار 30 ثانية'
+          : 'Too many failed attempts. Please wait 30 seconds';
+      _currentPin = '';
+    });
+    _lockoutTimer?.cancel();
+    _lockoutTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_lockoutSeconds > 1) {
+        setState(() {
+          _lockoutSeconds--;
+          _errorMessage = AppLocale.instance.isArabic
+              ? 'محاولات كثيرة خاطئة. يرجى الانتظار $_lockoutSeconds ثانية'
+              : 'Too many failed attempts. Please wait $_lockoutSeconds seconds';
+        });
+      } else {
+        timer.cancel();
+        setState(() {
+          _lockoutSeconds = 0;
+          _failedCurrentPinAttempts = 0;
+          _errorMessage = null;
+        });
+      }
+    });
+  }
 
   void _onNumberPressed(String number) {
+    if (_lockoutSeconds > 0) return;
     setState(() {
       _errorMessage = null;
       if (_step == 0) {
@@ -30,22 +73,21 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
           _currentPin += number;
           if (_currentPin.length == 4) {
             Future.delayed(const Duration(milliseconds: 200), () async {
-              bool ok;
-              if (ApiClient.instance.token != null) {
-                // Server check via a change with identical PIN would mutate;
-                // instead verify locally then let the final change hit /pin/change.
-                ok = await LocalStore.instance.verifyPin(_currentPin);
-              } else {
-                ok = await LocalStore.instance.verifyPin(_currentPin);
-              }
+              final ok = await LocalStore.instance.verifyPin(_currentPin);
               if (!mounted) return;
               if (ok) {
+                _failedCurrentPinAttempts = 0;
                 setState(() => _step = 1);
               } else {
-                setState(() {
-                  _errorMessage = AppLocale.tr('change_pin_wrong_current');
-                  _currentPin = '';
-                });
+                _failedCurrentPinAttempts++;
+                if (_failedCurrentPinAttempts >= 5) {
+                  _startLockout();
+                } else {
+                  setState(() {
+                    _errorMessage = AppLocale.tr('change_pin_wrong_current');
+                    _currentPin = '';
+                  });
+                }
               }
             });
           }
@@ -54,6 +96,15 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
         if (_newPin.length < 4) {
           _newPin += number;
           if (_newPin.length == 4) {
+            if (RegExp(r'^(\d)\1{3}$').hasMatch(_newPin)) {
+              setState(() {
+                _errorMessage = AppLocale.instance.isArabic
+                    ? 'رمز PIN ضعيف جداً، يرجى تجنب تكرار الرقم نفسه'
+                    : 'PIN is too weak. Please avoid repeating the same digit.';
+                _newPin = '';
+              });
+              return;
+            }
             Future.delayed(const Duration(milliseconds: 200), () {
               if (mounted) setState(() => _step = 2);
             });
@@ -65,18 +116,29 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
           if (_confirmedPin.length == 4) {
             if (_confirmedPin == _newPin) {
               Future.delayed(const Duration(milliseconds: 200), () async {
-                await LocalStore.instance.setPin(_newPin);
                 if (ApiClient.instance.token != null) {
                   final result =
                       await Backend.instance.changePin(_currentPin, _newPin);
-                  if (result == AuthResult.locked && mounted) {
+                  if (!mounted) return;
+                  if (result == AuthResult.locked) {
                     setState(() {
                       _errorMessage = AppLocale.trLocked(15);
                       _confirmedPin = '';
                     });
                     return;
                   }
+                  if (result != AuthResult.success) {
+                    setState(() {
+                      _errorMessage = AppLocale.tr('change_pin_wrong_current');
+                      _confirmedPin = '';
+                      _step = 0;
+                      _currentPin = '';
+                      _newPin = '';
+                    });
+                    return;
+                  }
                 }
+                await LocalStore.instance.setPin(_newPin);
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -102,6 +164,7 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
   }
 
   void _onDeletePressed() {
+    if (_lockoutSeconds > 0) return;
     setState(() {
       _errorMessage = null;
       if (_step == 0 && _currentPin.isNotEmpty) {

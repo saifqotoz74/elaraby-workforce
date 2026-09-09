@@ -125,4 +125,11 @@ class HomeContent extends ChangeNotifier {
     }
     notifyListeners();
   }
+
+  void clear() {
+    announcement = null;
+    news = [];
+    todayShift = null;
+    notifyListeners();
+  }
 }

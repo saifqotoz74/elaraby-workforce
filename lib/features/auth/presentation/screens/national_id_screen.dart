@@ -4,6 +4,7 @@ import '../../../../core/localization/app_locale.dart';
 import '../../../../core/network/backend.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/national_id_validator.dart';
 import '../widgets/auth_progress_bar.dart';
 import 'otp_screen.dart';
 
@@ -18,7 +19,9 @@ class _NationalIdScreenState extends State<NationalIdScreen> {
   final TextEditingController _idController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
 
-  bool get _isValid => RegExp(r'^\d{14}$').hasMatch(_idController.text);
+  bool get _isValid =>
+      _idController.text.length == 14 &&
+      EgyptianNationalIdValidator.isValid(_idController.text);
 
   bool _requesting = false;
 
@@ -168,21 +171,43 @@ class _NationalIdScreenState extends State<NationalIdScreen> {
                         color: AppColors.textSecondary,
                       ),
                     ),
+                    if (text.length == 14 && !_isValid) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        AppLocale.instance.isArabic
+                            ? 'الرقم القومي غير صحيح، يرجى مراجعة الأرقام'
+                            : 'Invalid National ID format, please verify numbers',
+                        style: AppTypography.fontBase.copyWith(
+                          fontSize: 12,
+                          color: AppColors.announcementButton,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
 
-              // Hidden field that actually captures the keyboard input
+              // Accessible field that captures keyboard and screen-reader input
               SizedBox(
-                height: 0,
+                width: 1,
+                height: 1,
                 child: Opacity(
-                  opacity: 0,
+                  opacity: 0.01,
                   child: TextField(
                     controller: _idController,
                     focusNode: _focusNode,
                     autofocus: true,
                     keyboardType: TextInputType.number,
                     inputFormatters: [
+                      TextInputFormatter.withFunction((oldValue, newValue) {
+                        final normalized =
+                            EgyptianNationalIdValidator.normalizeDigits(newValue.text);
+                        return TextEditingValue(
+                          text: normalized,
+                          selection: TextSelection.collapsed(offset: normalized.length),
+                        );
+                      }),
                       FilteringTextInputFormatter.digitsOnly,
                       LengthLimitingTextInputFormatter(14),
                     ],

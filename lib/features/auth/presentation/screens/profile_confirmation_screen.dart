@@ -43,6 +43,34 @@ class ProfileConfirmationScreen extends StatelessWidget {
               ),
               const SizedBox(height: 36),
 
+              if (!LocalStore.instance.hasSavedProfile)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline, size: 18, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          AppLocale.instance.isArabic
+                              ? 'يرجى مراجعة وتأكيد بيانات الهوية الخاصة بك بعناية قبل إنشاء الرمز السري.'
+                              : 'Please review and confirm your identity credentials carefully before creating your PIN.',
+                          style: AppTypography.fontBase.copyWith(
+                            fontSize: 12,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
               // Profile Card
               Container(
                 width: double.infinity,

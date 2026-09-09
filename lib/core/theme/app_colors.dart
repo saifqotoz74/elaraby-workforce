@@ -33,6 +33,9 @@ class AppColors {
 
   // Stat Indicators
   static const Color statusGreen = Color(0xFF16A34A);
+  static const Color error = Color(0xFFDC2626);
+  static const Color success = Color(0xFF10B981);
+  static const Color warning = Color(0xFFF59E0B);
   static const Color badgeBlue = Color(0xFF0B63B4);
   static const Color avatarBg = Color(0xFFC7E0F3);
   static const Color avatarText = Color(0xFF0B63B4);

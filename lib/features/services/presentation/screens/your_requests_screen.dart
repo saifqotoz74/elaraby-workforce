@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../core/localization/app_locale.dart';
+import '../../../../core/network/backend.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../data/requests_store.dart';
@@ -27,7 +29,7 @@ class _YourRequestsScreenState extends State<YourRequestsScreen> {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
-          'Your Requests',
+          AppLocale.tr('your_requests'),
           style: AppTypography.sectionHeading.copyWith(fontSize: 18),
         ),
         shape: const RoundedRectangleBorder(
@@ -98,17 +100,35 @@ class _YourRequestsScreenState extends State<YourRequestsScreen> {
                   }
 
                   if (filtered.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                    return RefreshIndicator(
+                      onRefresh: () => Backend.instance.syncRequests(),
+                      color: AppColors.primary,
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(
+                          parent: BouncingScrollPhysics(),
+                        ),
                         children: [
-                          Icon(Icons.inbox_outlined, size: 48, color: AppColors.textSecondary.withValues(alpha: 0.5)),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No $_selectedFilter requests found',
-                            style: AppTypography.fontBase.copyWith(
-                              fontSize: 14,
-                              color: AppColors.textSecondary,
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.4,
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.inbox_outlined,
+                                    size: 48,
+                                    color: AppColors.textSecondary.withValues(alpha: 0.5),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'No $_selectedFilter requests found',
+                                    style: AppTypography.fontBase.copyWith(
+                                      fontSize: 14,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -116,14 +136,20 @@ class _YourRequestsScreenState extends State<YourRequestsScreen> {
                     );
                   }
 
-                  return ListView.builder(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      final req = filtered[index];
-                      return _buildDynamicRequestCard(context, req);
-                    },
+                  return RefreshIndicator(
+                    onRefresh: () => Backend.instance.syncRequests(),
+                    color: AppColors.primary,
+                    child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) {
+                        final req = filtered[index];
+                        return _buildDynamicRequestCard(context, req);
+                      },
+                    ),
                   );
                 },
               ),
@@ -326,12 +352,22 @@ class _YourRequestsScreenState extends State<YourRequestsScreen> {
               leading: const Icon(Icons.cancel_outlined, color: Color(0xFFDC2626)),
               title: const Text('Cancel Request', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.w600, fontSize: 14)),
               subtitle: const Text('Withdraw this submission immediately', style: TextStyle(fontSize: 12)),
-              onTap: () {
-                RequestsStore.instance.cancelRequest(req.id);
+              onTap: () async {
                 Navigator.of(ctx).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Request has been cancelled.')),
-                );
+                final success = await RequestsStore.instance.cancelRequest(req.id);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        success
+                            ? 'Request has been cancelled.'
+                            : 'Could not cancel request. It may already be processed or network failed.',
+                      ),
+                      backgroundColor:
+                          success ? AppColors.statusGreen : AppColors.error,
+                    ),
+                  );
+                }
               },
             ),
             const SizedBox(height: 12),

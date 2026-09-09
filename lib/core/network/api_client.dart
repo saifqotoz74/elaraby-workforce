@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -17,12 +18,27 @@ class ApiClient {
   static const _kToken = 'api_token';
   static const _kNationalId = 'last_national_id';
 
-  /// Compile-time environment variable: `--dart-define=API_BASE_URL=https://...`
+  /// Compile-time environment variable: `--dart-define=API_BASE_URL=https://...` or `--dart-define=API_URL=https://...`
   static const String _envBaseUrl =
       String.fromEnvironment('API_BASE_URL', defaultValue: '');
+  static const String _envApiUrl =
+      String.fromEnvironment('API_URL', defaultValue: '');
 
   /// Point this at the deployed server for release builds or dynamic override.
   static String? overrideBaseUrl;
+
+  /// Shared persistent HTTP client instance enabling TCP connection reuse (keep-alive).
+  /// Can be overridden with a mock client for testing.
+  http.Client client = http.Client();
+
+  /// Global callback invoked whenever an API call receives a 401 Unauthorized (e.g. token_revoked)
+  static void Function()? onSessionExpired;
+
+  /// Programmatic flag to simulate offline mode in tests
+  static bool offlineMockMode = false;
+
+  /// Global callback invoked whenever network reachability status transitions
+  static void Function(bool online)? onNetworkStateChanged;
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
@@ -32,8 +48,21 @@ class ApiClient {
   SharedPreferences? _prefs;
   String? _cachedToken;
 
+  bool get _isTest {
+    try {
+      return Platform.environment.containsKey('FLUTTER_TEST');
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
+
+    if (_isTest) {
+      _cachedToken = _prefs?.getString(_kToken);
+      return;
+    }
 
     // Load token from hardware-backed secure storage.
     try {
@@ -62,6 +91,7 @@ class ApiClient {
   String get baseUrl {
     if (overrideBaseUrl != null) return overrideBaseUrl!;
     if (_envBaseUrl.isNotEmpty) return _envBaseUrl;
+    if (_envApiUrl.isNotEmpty) return _envApiUrl;
     return _defaultLiveUrl;
   }
 
@@ -78,6 +108,14 @@ class ApiClient {
 
   Future<void> setToken(String? value) async {
     _cachedToken = value;
+    if (_isTest) {
+      if (value == null) {
+        await _prefs?.remove(_kToken);
+      } else {
+        await _prefs?.setString(_kToken, value);
+      }
+      return;
+    }
     try {
       if (value == null) {
         await _secureStorage.delete(key: _kToken);
@@ -103,14 +141,25 @@ class ApiClient {
     String path, {
     Duration timeout = const Duration(seconds: 6),
   }) async {
+    if (offlineMockMode) {
+      onNetworkStateChanged?.call(false);
+      return null;
+    }
     try {
-      final res = await http.get(
+      final res = await client.get(
         Uri.parse('$baseUrl$path'),
         headers: _headers,
       ).timeout(timeout);
+      onNetworkStateChanged?.call(true);
+      if (res.statusCode == 401) {
+        setToken(null);
+        onSessionExpired?.call();
+        return null;
+      }
       if (res.statusCode >= 400) return null;
       return jsonDecode(res.body) as Map<String, dynamic>;
     } catch (_) {
+      onNetworkStateChanged?.call(false);
       return null;
     }
   }
@@ -120,16 +169,27 @@ class ApiClient {
     Map<String, dynamic> body, {
     Duration timeout = const Duration(seconds: 6),
   }) async {
+    if (offlineMockMode) {
+      onNetworkStateChanged?.call(false);
+      return null;
+    }
     try {
-      final res = await http.post(
+      final res = await client.post(
         Uri.parse('$baseUrl$path'),
         headers: _headers,
         body: jsonEncode(body),
       ).timeout(timeout);
+      onNetworkStateChanged?.call(true);
+      if (res.statusCode == 401) {
+        setToken(null);
+        onSessionExpired?.call();
+        return {'_status': 401, 'error': 'token_revoked'};
+      }
       final json = jsonDecode(res.body) as Map<String, dynamic>;
       if (res.statusCode >= 400) return {'_status': res.statusCode, ...json};
       return json;
     } catch (_) {
+      onNetworkStateChanged?.call(false);
       return null;
     }
   }

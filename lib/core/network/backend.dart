@@ -107,7 +107,7 @@ class AppVersionInfo {
 }
 
 /// Outcome of a server-verified credential check.
-enum AuthResult { success, invalid, locked }
+enum AuthResult { success, invalid, locked, networkError }
 
 /// Structured response of an OTP request.
 class OtpResponse {
@@ -137,9 +137,28 @@ class OtpResponse {
 /// local stores (offline-first).
 class Backend {
   static final Backend instance = Backend._();
-  Backend._();
+  Backend._() {
+    ApiClient.onNetworkStateChanged = (isOnline) {
+      online.value = isOnline;
+    };
+  }
 
   final ApiClient _api = ApiClient.instance;
+
+  String? _resetToken;
+
+  /// Unified teardown: clears all user sessions, cached tokens, and in-memory
+  /// stores across features to guarantee zero data leakage between users.
+  Future<void> clearAllUserData() async {
+    await _api.setToken(null);
+    await LocalStore.instance.clearSession();
+    RequestsStore.instance.clear();
+    HomeContent.instance.clear();
+    BenefitsContent.instance.clear();
+    try {
+      await PushService.instance.unregisterToken();
+    } catch (_) {}
+  }
 
   /// True when the last health check / API call succeeded.
   final ValueNotifier<bool> online = ValueNotifier(false);
@@ -184,16 +203,36 @@ class Backend {
       'nationalId': nationalId,
       'code': code,
     });
-    if (res == null) return AuthResult.invalid; // offline: caller falls back
+    if (res == null) return AuthResult.networkError; // network dropped/offline
     if (res['_status'] == 429) return AuthResult.locked;
     if (res['ok'] != true) return AuthResult.invalid;
+    if (res['resetToken'] is String) {
+      _resetToken = res['resetToken'] as String;
+    }
     _applyEmployee(res['employee'] as Map<String, dynamic>);
     return AuthResult.success;
   }
 
   Future<bool> setPin(String nationalId, String pin) async {
-    final res = await _api.post('/auth/pin', {'nationalId': nationalId, 'pin': pin});
-    return res?['ok'] == true;
+    final res = await _api.post('/auth/pin', {
+      'nationalId': nationalId,
+      'pin': pin,
+      if (_resetToken != null) 'resetToken': _resetToken,
+    });
+    if (res?['ok'] == true) {
+      _resetToken = null;
+      if (res?['token'] is String) {
+        await _api.setToken(res!['token'] as String);
+      }
+      if (res?['employee'] is Map<String, dynamic>) {
+        _applyEmployee(res!['employee'] as Map<String, dynamic>);
+      }
+      PushService.instance.registerCurrentToken();
+      HomeContent.instance.load();
+      BenefitsContent.instance.load();
+      return true;
+    }
+    return false;
   }
 
   /// Verifies the PIN against the server and stores the session token.
@@ -220,6 +259,7 @@ class Backend {
     return AuthResult.success;
   }
 
+  /// Changes the user's PIN on the server and invalidates previous sessions.
   Future<AuthResult> changePin(String currentPin, String newPin) async {
     final res = await _api.post('/auth/pin/change', {
       'currentPin': currentPin,
@@ -242,19 +282,21 @@ class Backend {
 
   void _applyEmployee(Map<String, dynamic> employee) {
     LocalStore.instance.saveProfile(EmployeeProfile(
-      name: employee['name'] as String? ?? 'Ahmed Ghannam',
-      employeeCode: employee['employeeCode'] as String? ?? 'EG-20481',
-      factory: employee['factory'] as String? ?? '10th of Ramadan',
-      department: employee['department'] as String? ?? 'Production A',
-      position: employee['position'] as String? ?? '',
-      supervisor: employee['supervisor'] as String? ?? '',
-      phone: employee['phone'] as String? ?? '',
-      address: LocalStore.instance.profile.address,
-      emergencyContact: LocalStore.instance.profile.emergencyContact,
+      name: employee['name'] as String? ?? LocalStore.instance.profile.name,
+      employeeCode: employee['employeeCode'] as String? ?? LocalStore.instance.profile.employeeCode,
+      factory: employee['factory'] as String? ?? LocalStore.instance.profile.factory,
+      department: employee['department'] as String? ?? LocalStore.instance.profile.department,
+      position: employee['position'] as String? ?? LocalStore.instance.profile.position,
+      supervisor: employee['supervisor'] as String? ?? LocalStore.instance.profile.supervisor,
+      phone: employee['phone'] as String? ?? LocalStore.instance.profile.phone,
+      address: employee['address'] as String? ?? LocalStore.instance.profile.address,
+      emergencyContact: employee['emergencyContact'] as String? ?? LocalStore.instance.profile.emergencyContact,
+      emergencyName: employee['emergencyName'] as String? ?? LocalStore.instance.profile.emergencyName,
+      emergencyRelationship: employee['emergencyRelationship'] as String? ?? LocalStore.instance.profile.emergencyRelationship,
     ));
     final balance = employee['vacationBalance'];
-    if (balance is int) {
-      LocalStore.instance.setVacationBalance(balance);
+    if (balance is num) {
+      LocalStore.instance.setVacationBalance(balance.toInt());
     }
   }
 
@@ -262,6 +304,8 @@ class Backend {
   /// Replaces the local request list with the server's (single source of
   /// truth when online). Returns false when offline.
   Future<bool> syncRequests() async {
+    // Flush any offline-queued requests first so nothing is lost
+    await RequestsStore.instance.flushPending();
     final res = await _api.get('/requests');
     final list = res?['requests'] as List<dynamic>?;
     if (list == null) return false;
@@ -273,24 +317,70 @@ class Backend {
     return true;
   }
 
-  Future<void> submitRequest({
+  /// Updates employee profile fields on the backend and updates local store.
+  Future<bool> updateProfile({
+    String? phone,
+    String? address,
+    String? emergencyContact,
+    String? emergencyName,
+    String? emergencyRelationship,
+  }) async {
+    final payload = <String, dynamic>{
+      if (phone != null) 'phone': phone,
+      if (address != null) 'address': address,
+      if (emergencyContact != null) 'emergencyContact': emergencyContact,
+      if (emergencyName != null) 'emergencyName': emergencyName,
+      if (emergencyRelationship != null) 'emergencyRelationship': emergencyRelationship,
+    };
+    final res = await _api.post('/me', payload);
+    if (res != null && res['ok'] == true && res['employee'] is Map<String, dynamic>) {
+      _applyEmployee(res['employee'] as Map<String, dynamic>);
+      return true;
+    }
+    return false;
+  }
+
+  Future<EmployeeRequest?> submitRequest({
     required String type,
     required String title,
     required Map<String, String> details,
     int? days,
+    String? idempotencyKey,
+    void Function(String error)? onPermanentError,
   }) async {
     final res = await _api.post('/requests', {
       'type': type,
       'title': title,
       'details': details,
       'days': days,
+      if (idempotencyKey != null) 'idempotencyKey': idempotencyKey,
     });
-    final balance = res?['vacationBalance'];
-    if (balance is int) LocalStore.instance.setVacationBalance(balance);
+    if (res != null && res['_status'] != null) {
+      final status = res['_status'] as int;
+      if (status >= 400 && status < 500 && status != 408) {
+        onPermanentError?.call(res['error'] as String? ?? 'request_rejected');
+      }
+      return null;
+    }
+    if (res == null) return null;
+    final balance = res['vacationBalance'];
+    if (balance is num) LocalStore.instance.setVacationBalance(balance.toInt());
+    if (res['request'] is Map<String, dynamic>) {
+      return _mapRequest(res['request'] as Map<String, dynamic>);
+    }
+    return null;
   }
 
-  Future<void> cancelRequest(String id) async {
-    await _api.post('/requests/$id/cancel', {});
+  Future<bool> cancelRequest(String id) async {
+    final res = await _api.post('/requests/$id/cancel', {});
+    if (res != null && res['ok'] == true) {
+      final balance = res['vacationBalance'];
+      if (balance is num) {
+        await LocalStore.instance.setVacationBalance(balance.toInt());
+      }
+      return true;
+    }
+    return false;
   }
 
   EmployeeRequest _mapRequest(Map<String, dynamic> json) {
@@ -371,5 +461,34 @@ class Backend {
     final res = await _api.get('/app/version', timeout: const Duration(seconds: 4));
     if (res == null) return null;
     return AppVersionInfo.fromJson(res);
+  }
+
+  // ---------- Anonymous Concerns ----------
+  Future<Map<String, dynamic>?> submitConcern({
+    required String category,
+    required String details,
+    String? attachedPhoto,
+  }) async {
+    final body = <String, dynamic>{
+      'category': category,
+      'details': details,
+      if (attachedPhoto != null) 'attachedPhoto': attachedPhoto,
+    };
+    final res = await _api.post('/concerns', body);
+    if (res != null && res['success'] == true) {
+      online.value = true;
+      return res;
+    }
+    return res;
+  }
+
+  // ---------- Account Deletion ----------
+  Future<bool> deleteAccount({required String pin}) async {
+    final res = await _api.post('/employee/delete-account', {'pin': pin});
+    if (res != null && res['success'] == true) {
+      await clearAllUserData();
+      return true;
+    }
+    return false;
   }
 }

@@ -11,10 +11,11 @@ const BACKUP_FILE = path.join(DATA_DIR, 'db.backup.json');
 const SEED_FILE = path.join(__dirname, '..', 'data', 'db.json');
 
 const EMPTY = () => ({
-  counters: { request: 100, notification: 100, audit: 100 },
+  counters: { request: 100, notification: 100, audit: 100, concern: 100 },
   employees: [],
   otpCodes: [],
   requests: [],
+  concerns: [],
   announcements: [],
   news: [],
   benefits: [],
@@ -33,10 +34,11 @@ const EMPTY = () => ({
     titleEn: 'Update Available',
     message: 'يتوفر إصدار جديد من تطبيق العربي كونكت. يرجى التحديث لمتابعة استخدام التطبيق بكفاءة وأمان.',
     messageEn: 'A new version of Elaraby Connect is available. Please update to continue using the application securely.',
-    updateUrl: 'https://server-six-xi-42.vercel.app',
+    updateUrl: process.env.APP_UPDATE_URL || 'https://server-six-xi-42.vercel.app',
   },
 });
 
+let _firestoreLoaded = false;
 let _data = null;
 let _lastBackupTime = 0;
 let _firestoreInitTriggered = false;
@@ -90,36 +92,78 @@ function data() {
           } else if (_data) {
             firestore.syncToFirestore(_data).catch(() => {});
           }
-        }).catch(() => {});
+          _firestoreLoaded = true;
+        }).catch(() => {
+          _firestoreLoaded = true;
+        });
+      } else {
+        _firestoreLoaded = true;
       }
-    }).catch(() => {});
+    }).catch(() => {
+      _firestoreLoaded = true;
+    });
   }
 
   return _data;
 }
 
+let _isSaving = false;
+let _saveQueued = false;
+
+async function _flushAsync() {
+  if (_isSaving) {
+    _saveQueued = true;
+    return;
+  }
+  _isSaving = true;
+  try {
+    if (!_data) return;
+    await fs.promises.mkdir(DATA_DIR, { recursive: true });
+    const serialized = JSON.stringify(_data, null, 2);
+    const tmp = DB_FILE + '.' + process.pid + '.' + Date.now() + '.tmp';
+    await fs.promises.writeFile(tmp, serialized);
+    await fs.promises.rename(tmp, DB_FILE);
+
+    // Background sync to Cloud Firestore if connected and initial sync completed
+    if (firestore && _firestoreLoaded) {
+      firestore.syncToFirestore(_data).catch(() => {});
+    }
+
+    // Periodic backup rotation
+    const now = Date.now();
+    if (now - _lastBackupTime > BACKUP_INTERVAL_MS || !fs.existsSync(BACKUP_FILE)) {
+      try {
+        await fs.promises.copyFile(DB_FILE, BACKUP_FILE);
+        _lastBackupTime = now;
+      } catch (_) {}
+    }
+  } catch (err) {
+    console.error('[db] save error:', err.message);
+  } finally {
+    _isSaving = false;
+    if (_saveQueued) {
+      _saveQueued = false;
+      _flushAsync();
+    }
+  }
+}
+
+let _debounceTimer = null;
+const DEBOUNCE_MS = 50;
+
 function save() {
-  if (!_data) return;
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  const serialized = JSON.stringify(_data, null, 2);
-  const tmp = DB_FILE + '.' + process.pid + '.' + Date.now() + '.tmp';
-  
-  fs.writeFileSync(tmp, serialized);
-  fs.renameSync(tmp, DB_FILE);
+  if (_debounceTimer) clearTimeout(_debounceTimer);
+  _debounceTimer = setTimeout(() => {
+    _flushAsync().catch(() => {});
+  }, DEBOUNCE_MS);
+}
 
-  // Background sync to Cloud Firestore if connected
-  if (firestore) {
-    firestore.syncToFirestore(_data).catch(() => {});
+function flushSync() {
+  if (_debounceTimer) {
+    clearTimeout(_debounceTimer);
+    _debounceTimer = null;
   }
-
-  // Periodic backup rotation
-  const now = Date.now();
-  if (now - _lastBackupTime > BACKUP_INTERVAL_MS || !fs.existsSync(BACKUP_FILE)) {
-    try {
-      fs.copyFileSync(DB_FILE, BACKUP_FILE);
-      _lastBackupTime = now;
-    } catch (_) {}
-  }
+  return _flushAsync();
 }
 
 function nextId(collection) {
@@ -128,4 +172,4 @@ function nextId(collection) {
   return d.counters[collection];
 }
 
-module.exports = { data, save, nextId };
+module.exports = { data, save, flushSync, nextId };

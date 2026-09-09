@@ -3,6 +3,7 @@ import '../../../../core/localization/app_locale.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/app_network_image.dart';
 import '../../data/home_content.dart';
 
 class CompanyNewsScreen extends StatelessWidget {
@@ -330,12 +331,12 @@ class _NewsArticle {
 
   Widget image({double? height}) {
     if (imageUrl != null) {
-      return Image.network(
-        ApiClient.instance.resolveUrl(imageUrl!),
+      return AppNetworkImage(
+        imageUrl: ApiClient.instance.resolveUrl(imageUrl!),
         width: double.infinity,
         height: height,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Image.asset(
+        errorWidget: Image.asset(
           imagePath,
           width: double.infinity,
           height: height,

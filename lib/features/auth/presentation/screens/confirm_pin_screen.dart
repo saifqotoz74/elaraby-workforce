@@ -29,10 +29,10 @@ class _ConfirmPinScreenState extends State<ConfirmPinScreen> {
     if (_confirmedPin == widget.createdPin) {
       await LocalStore.instance.setPin(widget.createdPin);
       await LocalStore.instance.setOnboarded(true);
-      // Mirror the PIN to the server (hashed there too).
+      // Mirror the PIN to the server and establish session token.
       final nationalId = ApiClient.instance.lastNationalId;
       if (nationalId != null) {
-        Backend.instance.setPin(nationalId, widget.createdPin);
+        await Backend.instance.setPin(nationalId, widget.createdPin);
       }
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(

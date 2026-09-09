@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 
@@ -40,30 +41,37 @@ class NumericKeypad extends StatelessWidget {
       children: [
         const SizedBox(width: 72, height: 72),
         _buildKey('0'),
-        Container(
-          width: 72,
-          height: 72,
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Color(0x06000000),
-                blurRadius: 8,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: onDeletePressed,
-              customBorder: const CircleBorder(),
-              child: const Center(
-                child: Icon(
-                  Icons.backspace_outlined,
-                  color: AppColors.textPrimary,
-                  size: 22,
+        Semantics(
+          button: true,
+          label: 'Delete',
+          child: Container(
+            width: 72,
+            height: 72,
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0x06000000),
+                  blurRadius: 8,
+                  offset: Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  onDeletePressed();
+                },
+                customBorder: const CircleBorder(),
+                child: const Center(
+                  child: Icon(
+                    Icons.backspace_outlined,
+                    color: AppColors.textPrimary,
+                    size: 22,
+                  ),
                 ),
               ),
             ),
@@ -74,32 +82,39 @@ class NumericKeypad extends StatelessWidget {
   }
 
   Widget _buildKey(String number) {
-    return Container(
-      width: 72,
-      height: 72,
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => onNumberPressed(number),
-          customBorder: const CircleBorder(),
-          child: Center(
-            child: Text(
-              number,
-              style: AppTypography.fontBase.copyWith(
-                fontSize: 26,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+    return Semantics(
+      button: true,
+      label: number,
+      child: Container(
+        width: 72,
+        height: 72,
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x06000000),
+              blurRadius: 8,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.lightImpact();
+              onNumberPressed(number);
+            },
+            customBorder: const CircleBorder(),
+            child: Center(
+              child: Text(
+                number,
+                style: AppTypography.fontBase.copyWith(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ),
           ),

@@ -5,6 +5,7 @@ import '../../data/benefits_content.dart';
 import '../../../inbox/presentation/screens/inbox_screen.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/app_network_image.dart';
 import 'benefit_detail_screen.dart';
 import 'trip_detail_screen.dart';
 
@@ -100,10 +101,18 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
 
           // Scrollable Body
           Expanded(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                await BenefitsContent.instance.load();
+                if (mounted) setState(() {});
+              },
+              color: AppColors.primary,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 16),
@@ -161,7 +170,13 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
                   if (_serverBenefits.isNotEmpty) ...[
                     _buildSectionHeader(AppLocale.tr('ben_section_perks')),
                     const SizedBox(height: 12),
-                    ..._serverBenefits.map((b) => Padding(
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _serverBenefits.length,
+                      itemBuilder: (context, index) {
+                        final b = _serverBenefits[index];
+                        return Padding(
                           padding: const EdgeInsets.only(bottom: 14),
                           child: _buildPerkCard(
                             title: '${b.discount} – ${b.title}',
@@ -184,7 +199,9 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
                               );
                             },
                           ),
-                        )),
+                        );
+                      },
+                    ),
                   ] else ...[
                     _buildSectionHeader(AppLocale.tr('ben_section_perks')),
                     const SizedBox(height: 12),
@@ -295,7 +312,9 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => TripDetailScreen(),
+                                  builder: (_) => const TripDetailScreen(
+                                    tripId: 'trip_1',
+                                  ),
                                 ),
                               );
                             },
@@ -311,7 +330,8 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
-                                  builder: (_) => TripDetailScreen(
+                                  builder: (_) => const TripDetailScreen(
+                                    tripId: 'trip_2',
                                     title: 'Siwa Oasis Escape',
                                     destination: 'Siwa Oasis • Matrouh',
                                     price: 'EGP 800',
@@ -378,6 +398,7 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
               ),
             ),
           ),
+        ),
         ],
       ),
     );
@@ -451,12 +472,12 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (heroImageUrl != null)
-                Image.network(
-                  ApiClient.instance.resolveUrl(heroImageUrl),
+                AppNetworkImage(
+                  imageUrl: ApiClient.instance.resolveUrl(heroImageUrl),
                   width: double.infinity,
                   height: 130,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Image.asset(
+                  errorWidget: Image.asset(
                     imagePath,
                     width: double.infinity,
                     height: 130,
@@ -533,12 +554,12 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (heroImageUrl != null)
-                Image.network(
-                  ApiClient.instance.resolveUrl(heroImageUrl),
+                AppNetworkImage(
+                  imageUrl: ApiClient.instance.resolveUrl(heroImageUrl),
                   width: 240,
                   height: 110,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Image.asset(
+                  errorWidget: Image.asset(
                     imagePath,
                     width: 240,
                     height: 110,

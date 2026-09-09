@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'dart:typed_data';
 
 import 'package:pdf/pdf.dart';
@@ -46,10 +47,57 @@ class SalarySlipData {
   String get deductionsLabel => '-EGP ${_format(deductions)}';
 }
 
+Uint8List? _cachedPdfBytes;
+String? _cachedPdfKey;
+
+/// Clears cached PDF binary data.
+void clearPdfCache() {
+  _cachedPdfBytes = null;
+  _cachedPdfKey = null;
+}
+
+pw.Font? _cachedCairoRegular;
+pw.Font? _cachedCairoBold;
+
 /// Builds the real PDF statement and opens the system share sheet.
 Future<void> shareSalarySlipPdf(SalarySlipData data) async {
   final profile = LocalStore.instance.profile;
-  final pdf = pw.Document();
+  final cacheKey = '${profile.employeeCode}_${data.period}_${data.netPay}';
+
+  if (_cachedPdfKey == cacheKey && _cachedPdfBytes != null) {
+    await Printing.sharePdf(
+      bytes: _cachedPdfBytes!,
+      filename: 'Salary_Slip_${data.period.replaceAll(' ', '_')}.pdf',
+    );
+    return;
+  }
+
+  pw.Font? regularFont = _cachedCairoRegular;
+  pw.Font? boldFont = _cachedCairoBold;
+  if (regularFont == null && !Platform.environment.containsKey('FLUTTER_TEST')) {
+    try {
+      regularFont = await PdfGoogleFonts.cairoRegular().timeout(const Duration(seconds: 5));
+      boldFont = await PdfGoogleFonts.cairoBold().timeout(const Duration(seconds: 5));
+      _cachedCairoRegular = regularFont;
+      _cachedCairoBold = boldFont;
+    } catch (_) {
+      // In headless test environments or offline mode, gracefully fall back to base font
+    }
+  }
+
+  final bool hasUnicode = regularFont != null && boldFont != null;
+  final theme = hasUnicode
+      ? pw.ThemeData.withFont(base: regularFont, bold: boldFont)
+      : pw.ThemeData.base();
+
+  String safeText(String text, [String fallback = '']) {
+    if (hasUnicode) return text;
+    final sanitized = text.replaceAll(RegExp(r'[^\x20-\x7E]'), '').trim();
+    if (sanitized.isNotEmpty) return sanitized;
+    return fallback.isNotEmpty ? fallback : 'Elaraby Employee';
+  }
+
+  final pdf = pw.Document(theme: theme);
 
   pdf.addPage(
     pw.Page(
@@ -79,8 +127,8 @@ Future<void> shareSalarySlipPdf(SalarySlipData data) async {
                 ),
                 pw.SizedBox(height: 4),
                 pw.Text(
-                  'Payroll Statement — ${data.period}',
-                  style: pw.TextStyle(
+                  'Payroll Statement - ${data.period}',
+                  style: const pw.TextStyle(
                     color: PdfColors.white,
                     fontSize: 12,
                   ),
@@ -89,10 +137,10 @@ Future<void> shareSalarySlipPdf(SalarySlipData data) async {
             ),
           ),
           pw.SizedBox(height: 24),
-          _pdfRow('Employee', profile.name),
+          _pdfRow('Employee', safeText(profile.name, profile.employeeCode)),
           _pdfRow('Employee ID', profile.employeeCode),
-          _pdfRow('Factory', profile.factory),
-          _pdfRow('Department', profile.department),
+          _pdfRow('Factory', safeText(profile.factory, 'Main Complex')),
+          _pdfRow('Department', safeText(profile.department, 'Operations')),
           _pdfRow('Payment Method', data.paymentMethod),
           _pdfRow('Paid On', data.paidOn),
           pw.SizedBox(height: 16),
@@ -121,6 +169,9 @@ Future<void> shareSalarySlipPdf(SalarySlipData data) async {
   );
 
   final Uint8List bytes = await pdf.save();
+  _cachedPdfKey = cacheKey;
+  _cachedPdfBytes = bytes;
+
   await Printing.sharePdf(
     bytes: bytes,
     filename: 'Salary_Slip_${data.period.replaceAll(' ', '_')}.pdf',

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../../core/localization/app_locale.dart';
+import '../../../../core/network/backend.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/ui_feedback.dart';
 
 class EmployeeDataScreen extends StatefulWidget {
   const EmployeeDataScreen({super.key});
@@ -17,113 +19,31 @@ class _EmployeeDataScreenState extends State<EmployeeDataScreen> {
   Future<void> _save(EmployeeProfile updated) async {
     await LocalStore.instance.saveProfile(updated);
     setState(() {});
+    final synced = await Backend.instance.updateProfile(
+      phone: updated.phone,
+      address: updated.address,
+      emergencyContact: updated.emergencyContact,
+      emergencyName: updated.emergencyName,
+      emergencyRelationship: updated.emergencyRelationship,
+    );
+    if (!mounted) return;
+    if (synced) {
+      UiFeedback.showSuccess(context, AppLocale.tr('emp_saved'));
+    } else {
+      UiFeedback.showWarning(context, AppLocale.tr('emp_saved_offline'));
+    }
   }
 
   void _showEditSheet(String fieldTitle, String currentValue, ValueChanged<String> onSaved) {
-    final controller = TextEditingController(text: currentValue);
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-          ),
-          child: Container(
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE5E7EB),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  '${AppLocale.tr('emp_edit_title')}: $fieldTitle',
-                  style: AppTypography.fontBase.copyWith(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  AppLocale.tr('emp_edit_note'),
-                  style: AppTypography.fontBase.copyWith(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: controller,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    labelText: fieldTitle,
-                    labelStyle: const TextStyle(color: AppColors.primary),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      final newVal = controller.text.trim();
-                      if (newVal.isNotEmpty) {
-                        onSaved(newVal);
-                        Navigator.of(ctx).pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(AppLocale.tr('emp_saved')),
-                            backgroundColor: AppColors.statusGreen,
-                          ),
-                        );
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      AppLocale.tr('common_save'),
-                      style: AppTypography.buttonText.copyWith(fontSize: 14),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-            ),
-          ),
-        );
-      },
+      builder: (ctx) => _EditFieldBottomSheet(
+        fieldTitle: fieldTitle,
+        currentValue: currentValue,
+        onSaved: onSaved,
+      ),
     );
   }
 
@@ -364,6 +284,131 @@ class _EmployeeDataScreenState extends State<EmployeeDataScreen> {
               constraints: const BoxConstraints(),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _EditFieldBottomSheet extends StatefulWidget {
+  final String fieldTitle;
+  final String currentValue;
+  final ValueChanged<String> onSaved;
+
+  const _EditFieldBottomSheet({
+    required this.fieldTitle,
+    required this.currentValue,
+    required this.onSaved,
+  });
+
+  @override
+  State<_EditFieldBottomSheet> createState() => _EditFieldBottomSheetState();
+}
+
+class _EditFieldBottomSheetState extends State<_EditFieldBottomSheet> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.currentValue);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE5E7EB),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '${AppLocale.tr('emp_edit_title')}: ${widget.fieldTitle}',
+              style: AppTypography.fontBase.copyWith(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              AppLocale.tr('emp_edit_note'),
+              style: AppTypography.fontBase.copyWith(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: widget.fieldTitle,
+                labelStyle: const TextStyle(color: AppColors.primary),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () {
+                  final newVal = _controller.text.trim();
+                  if (newVal.isNotEmpty) {
+                    Navigator.of(context).pop();
+                    widget.onSaved(newVal);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  AppLocale.tr('common_save'),
+                  style: AppTypography.buttonText.copyWith(fontSize: 14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ),
       ),
     );
   }

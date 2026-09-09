@@ -42,9 +42,9 @@ class _SalarySlipScreenState extends State<SalarySlipScreen> {
     setState(() {
       _serverData = SalarySlipData(
         period: payroll['period'] as String? ?? SalarySlipData.defaultPeriod,
-        basicSalary: payroll['basicSalary'] as int? ?? 7000,
-        allowances: payroll['allowances'] as int? ?? 950,
-        deductions: payroll['deductions'] as int? ?? 200,
+        basicSalary: (payroll['basicSalary'] as num?)?.toInt() ?? 7000,
+        allowances: (payroll['allowances'] as num?)?.toInt() ?? 950,
+        deductions: (payroll['deductions'] as num?)?.toInt() ?? 200,
         paidOn: payroll['paidOn'] as String? ?? '',
         paymentMethod: payroll['paymentMethod'] as String? ?? 'Bank Transfer',
       );
@@ -94,6 +94,13 @@ class _SalarySlipScreenState extends State<SalarySlipScreen> {
           style: AppTypography.sectionHeading.copyWith(fontSize: 18),
         ),
         centerTitle: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
+            tooltip: AppLocale.instance.isArabic ? 'تحديث' : 'Refresh',
+            onPressed: _loadStatement,
+          ),
+        ],
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
@@ -108,6 +115,33 @@ class _SalarySlipScreenState extends State<SalarySlipScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (_serverData == null)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.info_outline, size: 18, color: AppColors.primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                AppLocale.instance.isArabic
+                                    ? 'تنبيه: يتم عرض بيانات استرشادية، اضغط زر التحديث لجلب كشف الراتب المباشر.'
+                                    : 'Notice: Displaying cached statement, tap refresh to sync live payroll.',
+                                style: AppTypography.fontBase.copyWith(
+                                  fontSize: 12,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     // Top Summary Card
                     Container(
                       width: double.infinity,
@@ -165,6 +199,19 @@ class _SalarySlipScreenState extends State<SalarySlipScreen> {
                               ],
                             ),
                           ),
+                          if (_serverData == null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                AppLocale.instance.isArabic
+                                    ? 'بيان تجريبي - جاري المزامنة مع السيرفر'
+                                    : 'Preview statement - Syncing with server',
+                                style: AppTypography.fontBase.copyWith(
+                                  fontSize: 11,
+                                  color: AppColors.textLight,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ),

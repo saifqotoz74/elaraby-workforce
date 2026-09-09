@@ -1,6 +1,8 @@
 import 'dart:convert';
-
+import 'dart:io' show Platform;
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Local employee profile — defaults match the seeded demo identity until a
@@ -33,11 +35,13 @@ class EmployeeProfile {
   });
 
   String get initials {
-    final parts = name.trim().split(RegExp(r'\s+'));
+    final clean = name.trim();
+    if (clean.isEmpty) return 'EC';
+    final parts = clean.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
     if (parts.length >= 2) {
       return '${parts.first[0]}${parts[1][0]}'.toUpperCase();
     }
-    return name.isEmpty ? 'AG' : name[0].toUpperCase();
+    return clean[0].toUpperCase();
   }
 
   /// Phone shown as `+20 100 •••••92` in OTP-style hints.
@@ -109,7 +113,7 @@ class EmployeeProfile {
 /// Single wrapper over [SharedPreferences] for everything that must survive
 /// an app restart: locale, session, PIN, profile, settings, inbox read state,
 /// trip bookings and the survey.
-class LocalStore {
+class LocalStore extends ChangeNotifier {
   static final LocalStore instance = LocalStore._();
   LocalStore._();
 
@@ -124,10 +128,25 @@ class LocalStore {
   static const _kTripPrefix = 'trip_booking_';
   static const _kVacationDays = 'vacation_days_remaining';
 
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+  );
+
   SharedPreferences? _prefs;
   EmployeeProfile _profile = const EmployeeProfile();
+  String? _cachedPinHash;
 
   EmployeeProfile get profile => _profile;
+  bool get hasSavedProfile => _prefs?.containsKey(_kProfile) ?? false;
+
+  bool get _isTest {
+    try {
+      return Platform.environment.containsKey('FLUTTER_TEST');
+    } catch (_) {
+      return false;
+    }
+  }
 
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
@@ -140,6 +159,39 @@ class LocalStore {
         // Corrupted profile falls back to defaults on next save.
       }
     }
+
+    if (_isTest) {
+      _cachedPinHash = _prefs!.getString(_kPinHash);
+      return;
+    }
+
+    // Load PIN hash from hardware-backed secure storage
+    try {
+      _cachedPinHash = await _secureStorage.read(key: _kPinHash);
+    } catch (_) {
+      _cachedPinHash = null;
+    }
+
+    // Seamless legacy migration: if pin_hash was in SharedPreferences, migrate to secure storage
+    if (_cachedPinHash == null && _prefs!.containsKey(_kPinHash)) {
+      final legacy = _prefs!.getString(_kPinHash);
+      if (legacy != null && legacy.isNotEmpty) {
+        _cachedPinHash = legacy;
+        try {
+          await _secureStorage.write(key: _kPinHash, value: legacy);
+        } catch (_) {}
+      }
+      await _prefs!.remove(_kPinHash);
+    }
+
+    // Load encrypted drafts into memory cache
+    try {
+      final secRaw = await _secureStorage.read(key: 'sec_draft_raise_concern');
+      if (secRaw != null) {
+        _secureDrafts['raise_concern'] =
+            jsonDecode(secRaw) as Map<String, dynamic>;
+      }
+    } catch (_) {}
   }
 
   SharedPreferences get _p {
@@ -155,6 +207,53 @@ class LocalStore {
   Future<void> setLocaleCode(String code) async =>
       _p.setString(_kLocale, code);
 
+  // ---- Theme Mode (System, Light, Dark / Factory Night Shift) ----
+  static const _kThemeMode = 'app_theme_mode';
+  String get themeMode => _prefs?.getString(_kThemeMode) ?? 'system';
+  Future<void> setThemeMode(String mode) async =>
+      _p.setString(_kThemeMode, mode);
+
+  final Map<String, Map<String, dynamic>> _secureDrafts = {};
+
+  // ---- Form Drafts (Prevents lost work during factory network dropouts) ----
+  Future<void> saveDraft(String formKey, Map<String, dynamic> data) async {
+    final serialized = jsonEncode(data);
+    if (formKey == 'raise_concern') {
+      _secureDrafts[formKey] = data;
+      if (!_isTest) {
+        try {
+          await _secureStorage.write(key: 'sec_draft_$formKey', value: serialized);
+          await _p.remove('draft_$formKey');
+          return;
+        } catch (_) {}
+      }
+    }
+    await _p.setString('draft_$formKey', serialized);
+  }
+
+  Map<String, dynamic>? getDraft(String formKey) {
+    if (formKey == 'raise_concern' && _secureDrafts.containsKey(formKey)) {
+      return _secureDrafts[formKey];
+    }
+    final raw = _prefs?.getString('draft_$formKey');
+    if (raw == null) return null;
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> clearDraft(String formKey) async {
+    _secureDrafts.remove(formKey);
+    if (formKey == 'raise_concern' && !_isTest) {
+      try {
+        await _secureStorage.delete(key: 'sec_draft_$formKey');
+      } catch (_) {}
+    }
+    await _p.remove('draft_$formKey');
+  }
+
   // ---- Session ----
   bool get isOnboarded => _prefs?.getBool(_kOnboarded) ?? false;
   Future<void> setOnboarded(bool value) async => _p.setBool(_kOnboarded, value);
@@ -163,39 +262,114 @@ class LocalStore {
   /// Wipes everything user-specific (logout / re-onboarding).
   Future<void> clearSession() async {
     _profile = const EmployeeProfile();
+    _cachedPinHash = null;
+    if (!_isTest) {
+      try {
+        await _secureStorage.delete(key: _kPinHash);
+      } catch (_) {}
+    }
     await _p.remove(_kProfile);
     await _p.remove(_kOnboarded);
     await _p.remove(_kPinHash);
     await _p.remove(_kSurveySubmitted);
     await _p.remove(_kInboxRead);
     await _p.remove(_kRefCounter);
+    await _p.remove('salary_gate_fails');
+    await _p.remove('salary_gate_lockout_until');
     await _p.reload();
+    notifyListeners();
   }
 
-  // ---- PIN (hashed; swap for secure storage / server check in production) ----
-  Future<bool> hasPin() async => _p.getString(_kPinHash) != null;
+  // ---- PIN (hardware-backed secure storage with AES-256 GCM) ----
+  Future<bool> hasPin() async {
+    if (_cachedPinHash != null) return true;
+    if (_isTest) {
+      _cachedPinHash = _p.getString(_kPinHash);
+      return _cachedPinHash != null;
+    }
+    try {
+      _cachedPinHash = await _secureStorage.read(key: _kPinHash);
+    } catch (_) {}
+    return _cachedPinHash != null || _p.getString(_kPinHash) != null;
+  }
 
-  Future<void> setPin(String pin) async =>
-      _p.setString(_kPinHash, _hash(pin));
+  Future<void> setPin(String pin) async {
+    final hashed = _hash(pin);
+    _cachedPinHash = hashed;
+    if (_isTest) {
+      await _p.setString(_kPinHash, hashed);
+      return;
+    }
+    try {
+      await _secureStorage.write(key: _kPinHash, value: hashed);
+    } catch (_) {}
+    // Ensure plaintext key is never retained in SharedPreferences
+    await _p.remove(_kPinHash);
+  }
 
-  Future<bool> verifyPin(String pin) async =>
-      _p.getString(_kPinHash) == _hash(pin);
+  Future<bool> verifyPin(String pin) async {
+    final candidate = _hash(pin);
+    final legacyCandidate = _legacyHash(pin);
 
-  String _hash(String pin) =>
+    var stored = _cachedPinHash;
+    if (stored == null && !_isTest) {
+      try {
+        stored = await _secureStorage.read(key: _kPinHash);
+        _cachedPinHash = stored;
+      } catch (_) {}
+    } else if (stored == null && _isTest) {
+      stored = _p.getString(_kPinHash);
+      _cachedPinHash = stored;
+    }
+
+    if (stored != null) {
+      if (stored == candidate) return true;
+      if (stored == legacyCandidate) {
+        await setPin(pin);
+        return true;
+      }
+      return false;
+    }
+
+    // Fallback check in SharedPreferences for legacy un-migrated setups
+    final legacyStored = _p.getString(_kPinHash);
+    if (legacyStored != null) {
+      if (legacyStored == candidate || legacyStored == legacyCandidate) {
+        await setPin(pin);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  String _hash(String pin) {
+    final salt = utf8.encode('elaraby_connect_workforce_secure_salt_v2');
+    var hmac = Hmac(sha256, salt);
+    var digest = hmac.convert(utf8.encode(pin)).bytes;
+    for (var i = 0; i < 1000; i++) {
+      digest = hmac.convert(digest).bytes;
+    }
+    return digest.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  }
+
+  String _legacyHash(String pin) =>
       sha256.convert(utf8.encode('elaraby_connect::$pin')).toString();
 
   // ---- Profile ----
   Future<void> saveProfile(EmployeeProfile profile) async {
     _profile = profile;
     await _p.setString(_kProfile, jsonEncode(profile.toJson()));
+    notifyListeners();
   }
 
   // ---- Settings toggles ----
   bool getSetting(String key, {bool defaultValue = false}) =>
       _prefs?.getBool('$_kSettingsPrefix$key') ?? defaultValue;
 
-  Future<void> setSetting(String key, bool value) async =>
-      _p.setBool('$_kSettingsPrefix$key', value);
+  Future<void> setSetting(String key, bool value) async {
+    await _p.setBool('$_kSettingsPrefix$key', value);
+    notifyListeners();
+  }
 
   // ---- Survey ----
   bool get surveySubmitted => _prefs?.getBool(_kSurveySubmitted) ?? false;
@@ -233,12 +407,39 @@ class LocalStore {
       _prefs?.getInt(_kVacationDays) ?? defaultVacationDays;
 
   /// Direct set — used when the server is the source of truth.
-  Future<void> setVacationBalance(int days) async =>
-      _p.setInt(_kVacationDays, days < 0 ? 0 : days);
+  Future<void> setVacationBalance(int days) async {
+    await _p.setInt(_kVacationDays, days < 0 ? 0 : days);
+    notifyListeners();
+  }
 
   Future<void> deductVacationDays(int days) async {
     final remaining = vacationDaysRemaining - days;
     await _p.setInt(
         _kVacationDays, remaining < 0 ? 0 : remaining);
+    notifyListeners();
+  }
+
+  Future<void> addVacationDays(int days) async {
+    final remaining = vacationDaysRemaining + days;
+    await _p.setInt(_kVacationDays, remaining);
+    notifyListeners();
+  }
+
+  // ---- Persistent Salary Gate Lockout & Attempts ----
+  int get salaryGateFailedAttempts =>
+      _prefs?.getInt('salary_gate_fails') ?? 0;
+
+  Future<void> setSalaryGateFailedAttempts(int count) async =>
+      _p.setInt('salary_gate_fails', count);
+
+  int get salaryGateLockoutUntil =>
+      _prefs?.getInt('salary_gate_lockout_until') ?? 0;
+
+  Future<void> setSalaryGateLockoutUntil(int epochMs) async =>
+      _p.setInt('salary_gate_lockout_until', epochMs);
+
+  Future<void> resetSalaryGateLockout() async {
+    await _p.remove('salary_gate_fails');
+    await _p.remove('salary_gate_lockout_until');
   }
 }

@@ -55,12 +55,12 @@ class _ServicesScreenState extends State<ServicesScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Services',
+                      AppLocale.tr('services_title'),
                       style: AppTypography.welcomeTitle,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Everything you need in one place.',
+                      AppLocale.tr('services_subtitle'),
                       style: AppTypography.dateSubtitle,
                     ),
                   ],

@@ -19,6 +19,25 @@ function load() {
     }
     if (!(key in process.env)) process.env[key] = value;
   }
+  validateSecurity();
 }
 
-module.exports = { load };
+function validateSecurity() {
+  const isProd = process.env.NODE_ENV === 'production';
+  if (!isProd) return;
+
+  const jwtSecret = process.env.JWT_SECRET;
+  const adminPass = process.env.ADMIN_PASS;
+
+  if (!jwtSecret || jwtSecret === 'dev-secret-change-me-in-production') {
+    console.error('FATAL: JWT_SECRET must be set to a cryptographically secure random string in production.');
+    process.exit(1);
+  }
+
+  if (!adminPass || adminPass === 'elaraby2026') {
+    console.error('FATAL: ADMIN_PASS must be changed from the default password in production.');
+    process.exit(1);
+  }
+}
+
+module.exports = { load, validateSecurity };

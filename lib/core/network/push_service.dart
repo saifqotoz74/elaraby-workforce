@@ -20,6 +20,8 @@ class PushService {
   static final PushService instance = PushService._();
   PushService._();
 
+  static void Function(Map<String, dynamic> data)? onNotificationTapped;
+
   bool _initialized = false;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
@@ -68,7 +70,13 @@ class PushService {
     await _localNotifications.initialize(
       initSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        // Notification tapped
+        final payload = response.payload;
+        if (payload != null && payload.isNotEmpty) {
+          try {
+            final data = jsonDecode(payload) as Map<String, dynamic>;
+            onNotificationTapped?.call(data);
+          } catch (_) {}
+        }
       },
     );
 
@@ -142,6 +150,12 @@ class PushService {
     try {
       final token = await FirebaseMessaging.instance.getToken();
       await _registerToken(token);
+    } catch (_) {}
+  }
+
+  Future<void> unregisterToken() async {
+    try {
+      await FirebaseMessaging.instance.deleteToken();
     } catch (_) {}
   }
 }

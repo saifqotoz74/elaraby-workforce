@@ -88,15 +88,15 @@ class CustomBottomNavBar extends StatelessWidget {
                         color: isSelected ? AppColors.navActive : AppColors.navInactive,
                         size: 24,
                       ),
-                      if (isSelected) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          item.label,
-                          style: AppTypography.navLabelActive,
-                        ),
-                      ] else ...[
-                        const SizedBox(height: 4),
-                      ],
+                      const SizedBox(height: 4),
+                      Text(
+                        item.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: isSelected
+                            ? AppTypography.navLabelActive
+                            : AppTypography.navLabelInactive,
+                      ),
                     ],
                   ),
                 ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/localization/app_locale.dart';
 import '../../../../core/storage/local_store.dart';
@@ -18,6 +19,7 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
   DateTime? _fromDate;
   DateTime? _toDate;
   final TextEditingController _notesController = TextEditingController();
+  bool _submitting = false;
 
   final List<String> _leaveTypes = [
     'Annual Leave',
@@ -26,17 +28,63 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
     'Unpaid Leave',
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _loadDraft();
+    _notesController.addListener(_persistDraft);
+  }
+
+  @override
+  void dispose() {
+    _notesController.removeListener(_persistDraft);
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  void _loadDraft() {
+    final draft = LocalStore.instance.getDraft('leave_request');
+    if (draft != null) {
+      if (draft['leaveType'] is String &&
+          _leaveTypes.contains(draft['leaveType'])) {
+        _selectedLeaveType = draft['leaveType'] as String;
+      }
+      if (draft['notes'] is String) {
+        _notesController.text = draft['notes'] as String;
+      }
+    }
+  }
+
+  void _persistDraft() {
+    LocalStore.instance.saveDraft('leave_request', {
+      'leaveType': _selectedLeaveType,
+      'notes': _notesController.text,
+    });
+  }
+
   int get _vacationRemaining => LocalStore.instance.vacationDaysRemaining;
 
-  /// Inclusive day count between the two picked dates.
+  /// Working days count between the two picked dates (excluding Friday & Saturday official rest days).
   int get _estimatedDays {
     if (_fromDate == null || _toDate == null) return 0;
-    final diff = _toDate!.difference(_fromDate!).inDays + 1;
-    return diff > 0 ? diff : 0;
+    var count = 0;
+    var cur = DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day);
+    final end = DateTime(_toDate!.year, _toDate!.month, _toDate!.day);
+    while (!cur.isAfter(end)) {
+      if (cur.weekday != DateTime.friday && cur.weekday != DateTime.saturday) {
+        count++;
+      }
+      cur = DateTime(cur.year, cur.month, cur.day + 1);
+    }
+    // If leave requested on weekend days only (e.g. weekend shift workers or emergency leave), count requested days
+    if (count == 0 && !end.isBefore(DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day))) {
+      count = end.difference(DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day)).inDays + 1;
+    }
+    return count;
   }
 
   bool get _datesValid =>
-      _fromDate != null && _toDate != null && _estimatedDays > 0;
+      _fromDate != null && _toDate != null && !_toDate!.isBefore(_fromDate!);
 
   bool get _exceedsBalance =>
       _datesValid && _selectedLeaveType == 'Annual Leave' &&
@@ -68,25 +116,56 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
   String _formatDate(DateTime date) =>
       DateFormat('dd MMM yyyy').format(date);
 
-  @override
-  void dispose() {
-    _notesController.dispose();
-    super.dispose();
+  bool get _isDirty =>
+      !_submitting &&
+      (_notesController.text.trim().isNotEmpty ||
+          _fromDate != null ||
+          _toDate != null);
+
+  Future<bool> _confirmDiscard() async {
+    final shouldDiscard = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(AppLocale.tr('leave_discard_title')),
+        content: Text(AppLocale.tr('leave_discard_message')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(AppLocale.tr('leave_discard_stay')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(AppLocale.tr('leave_discard_confirm')),
+          ),
+        ],
+      ),
+    );
+    return shouldDiscard ?? false;
   }
 
   @override
   Widget build(BuildContext context) {
     final estimatedDays = _estimatedDays;
 
-    return Scaffold(
-      backgroundColor: AppColors.scaffoldBackground,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
+    return PopScope(
+      canPop: !_isDirty,
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (didPop) return;
+        final shouldDiscard = await _confirmDiscard();
+        if (shouldDiscard && context.mounted) {
+          LocalStore.instance.clearDraft('leave_request');
+          Navigator.of(context).pop(result);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.scaffoldBackground,
+        appBar: AppBar(
+          backgroundColor: AppColors.surface,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+            onPressed: () => Navigator.of(context).maybePop(),
+          ),
         title: Text(
           AppLocale.tr('request_leave'),
           style: AppTypography.sectionHeading.copyWith(fontSize: 18),
@@ -270,29 +349,46 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
                                   : AppColors.shiftBg,
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  AppLocale.tr('leave_estimated_duration'),
-                                  style: AppTypography.fontBase.copyWith(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textPrimary,
-                                  ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      AppLocale.tr('leave_estimated_duration'),
+                                      style: AppTypography.fontBase.copyWith(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    Text(
+                                      _exceedsBalance
+                                          ? AppLocale.tr('leave_exceeds_balance')
+                                          : '$estimatedDays ${AppLocale.tr('vac_days_unit')}',
+                                      style: AppTypography.fontBase.copyWith(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: _exceedsBalance
+                                            ? AppColors.announcementHeader
+                                            : AppColors.primary,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                Text(
-                                  _exceedsBalance
-                                      ? AppLocale.tr('leave_exceeds_balance')
-                                      : '$estimatedDays ${AppLocale.tr('vac_days_unit')}',
-                                  style: AppTypography.fontBase.copyWith(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                    color: _exceedsBalance
-                                        ? AppColors.announcementHeader
-                                        : AppColors.primary,
+                                if (_datesValid && !_exceedsBalance) ...[
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    AppLocale.instance.isArabic
+                                        ? '• يتم احتساب أيام العمل الفعلية فقط (مستبعداً العطلات الرسمية: الجمعة والسبت)'
+                                        : '• Actual working days only (excluding official rest days: Fri & Sat)',
+                                    style: AppTypography.fontBase.copyWith(
+                                      fontSize: 11,
+                                      color: AppColors.textSecondary,
+                                    ),
                                   ),
-                                ),
+                                ],
                               ],
                             ),
                           ),
@@ -311,7 +407,7 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _datesValid && !_exceedsBalance ? _submit : null,
+                  onPressed: _datesValid && !_exceedsBalance && !_submitting ? _submit : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.35),
@@ -322,17 +418,27 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: Text(
-                    AppLocale.tr('leave_submit'),
-                    style: AppTypography.buttonText.copyWith(fontSize: 15),
-                  ),
+                  child: _submitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Text(
+                          AppLocale.tr('leave_submit'),
+                          style: AppTypography.buttonText.copyWith(fontSize: 15),
+                        ),
                 ),
               ),
             ),
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _dateField({DateTime? date, required VoidCallback onTap}) {
@@ -368,6 +474,9 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
   }
 
   void _submit() {
+    if (_submitting) return;
+    HapticFeedback.heavyImpact();
+    setState(() => _submitting = true);
     final ref = 'LEV-2026-${LocalStore.instance.nextRefNumber()}';
     final isAnnual = _selectedLeaveType == 'Annual Leave';
 
@@ -398,6 +507,8 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
     if (isAnnual) {
       LocalStore.instance.deductVacationDays(_estimatedDays);
     }
+
+    LocalStore.instance.clearDraft('leave_request');
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

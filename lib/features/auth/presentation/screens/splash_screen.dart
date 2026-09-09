@@ -22,7 +22,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkAppAndNavigate() async {
-    final splashMinWait = Future.delayed(const Duration(milliseconds: 2500));
+    final splashMinWait = Future.delayed(const Duration(milliseconds: 400));
 
     // Check version config from server
     AppVersionInfo? versionInfo;

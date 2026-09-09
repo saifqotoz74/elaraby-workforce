@@ -1,7 +1,7 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 import '../../../../core/localization/app_locale.dart';
-import '../../../../core/network/api_client.dart';
 import '../../../../core/network/backend.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -36,6 +36,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
   }
 
   Future<void> _checkBiometrics() async {
+    if (Platform.environment.containsKey('FLUTTER_TEST')) return;
     final enabled =
         LocalStore.instance.getSetting('fingerprint', defaultValue: true);
     if (!enabled) return;
@@ -61,7 +62,10 @@ class _PinLockScreenState extends State<PinLockScreen> {
         ),
       );
       if (!mounted) return;
-      if (ok) _enterApp();
+      if (ok) {
+        Backend.instance.syncProfile();
+        _enterApp();
+      }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -154,8 +158,34 @@ class _PinLockScreenState extends State<PinLockScreen> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    await LocalStore.instance.clearSession();
-    await ApiClient.instance.setToken(null);
+    await Backend.instance.clearAllUserData();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const GetStartedScreen()),
+      (route) => false,
+    );
+  }
+
+  Future<void> _switchEmployee() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(AppLocale.tr('auth_switch_employee')),
+        content: Text(AppLocale.tr('auth_switch_employee_confirm')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(AppLocale.tr('common_cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(AppLocale.tr('common_ok')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await Backend.instance.clearAllUserData();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const GetStartedScreen()),
@@ -217,7 +247,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                 onDeletePressed: _onDeletePressed,
               ),
               const SizedBox(height: 8),
-              if (_biometricAvailable)
+              if (_biometricAvailable) ...[
                 Center(
                   child: TextButton.icon(
                     onPressed: _authenticateBiometric,
@@ -232,21 +262,46 @@ class _PinLockScreenState extends State<PinLockScreen> {
                       ),
                     ),
                   ),
-                )
-              else
-                Center(
-                  child: TextButton(
-                    onPressed: _forgotPin,
-                    child: Text(
-                      AppLocale.tr('auth_forgot_pin'),
-                      style: AppTypography.fontBase.copyWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
+                ),
+                const SizedBox(height: 4),
+              ],
+              Center(
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 12,
+                  children: [
+                    TextButton(
+                      onPressed: _forgotPin,
+                      child: Text(
+                        AppLocale.tr('auth_forgot_pin'),
+                        style: AppTypography.fontBase.copyWith(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
-                  ),
+                    Text(
+                      '•',
+                      style: TextStyle(
+                        color: AppColors.textSecondary.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _switchEmployee,
+                      child: Text(
+                        AppLocale.tr('auth_switch_employee'),
+                        style: AppTypography.fontBase.copyWith(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+              ),
               const SizedBox(height: 16),
             ],
           ),

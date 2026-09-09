@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: elaraby-workforce-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - JWT_SECRET=${JWT_SECRET:-elaraby-production-super-secret-key-2026}
+      - ADMIN_PASS=${ADMIN_PASS:-ElarabySecureAdminPass2026!}
+      - CORS_ORIGIN=*
+    volumes:
+      - api-data:/app/data
+      - api-uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => { if (r.statusCode !== 200) process.exit(1); })"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  api-data:
+    driver: local
+  api-uploads:
+    driver: local

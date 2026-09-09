@@ -26,28 +26,46 @@ function verifyHash(secret, stored) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-// ---- OTP ----
-function createOtp(db, nationalId) {
+// ---- OTP (In-Memory Ephemeral Store with Auto-Expiring TTL) ----
+const _otpStore = new Map();
+
+function createOtp(dbInstance, nationalId) {
   const code = String(crypto.randomInt(100000, 999999));
-  db.otpCodes = db.otpCodes.filter((o) => o.nationalId !== nationalId);
-  db.otpCodes.push({
+  const existing = _otpStore.get(nationalId);
+  if (existing && existing.timer) {
+    clearTimeout(existing.timer);
+  }
+  const timer = setTimeout(() => {
+    _otpStore.delete(nationalId);
+  }, OTP_TTL_MS);
+  if (timer.unref) timer.unref();
+
+  _otpStore.set(nationalId, {
     nationalId,
     codeHash: hash(code),
     expiresAt: Date.now() + OTP_TTL_MS,
+    timer,
   });
+
+  // Ensure db.otpCodes is empty so it never writes ephemeral codes to disk
+  if (dbInstance && dbInstance.otpCodes && dbInstance.otpCodes.length > 0) {
+    dbInstance.otpCodes = [];
+  }
   return code;
 }
 
-function verifyOtp(db, nationalId, code) {
-  const rec = db.otpCodes.find((o) => o.nationalId === nationalId);
+function verifyOtp(dbInstance, nationalId, code) {
+  const rec = _otpStore.get(nationalId);
   if (!rec) return false;
   if (Date.now() > rec.expiresAt) {
-    db.otpCodes = db.otpCodes.filter((o) => o.nationalId !== nationalId);
+    if (rec.timer) clearTimeout(rec.timer);
+    _otpStore.delete(nationalId);
     return false;
   }
   const ok = verifyHash(code, rec.codeHash);
   if (ok) {
-    db.otpCodes = db.otpCodes.filter((o) => o.nationalId !== nationalId);
+    if (rec.timer) clearTimeout(rec.timer);
+    _otpStore.delete(nationalId);
   }
   return ok;
 }
@@ -87,6 +105,30 @@ function verifyToken(token) {
   }
 }
 
+const { data: db } = require('./db');
+
+// ---- O(1) Employee Indexed Lookup Cache ----
+let _cachedEmployeesRef = null;
+let _cachedEmployeesLen = -1;
+const _empById = new Map();
+const _empByNationalId = new Map();
+
+function getEmployeeById(id) {
+  const employees = db().employees || [];
+  if (_cachedEmployeesRef !== employees || _cachedEmployeesLen !== employees.length) {
+    _empById.clear();
+    _empByNationalId.clear();
+    for (let i = 0; i < employees.length; i++) {
+      const emp = employees[i];
+      if (emp.id) _empById.set(emp.id, emp);
+      if (emp.nationalId) _empByNationalId.set(emp.nationalId, emp);
+    }
+    _cachedEmployeesRef = employees;
+    _cachedEmployeesLen = employees.length;
+  }
+  return _empById.get(id);
+}
+
 // ---- express middlewares ----
 function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
@@ -95,7 +137,15 @@ function requireAuth(req, res, next) {
   if (!payload || payload.scope !== 'employee') {
     return res.status(401).json({ error: 'unauthorized' });
   }
+  const employee = getEmployeeById(payload.sub);
+  if (!employee || employee.active === false) {
+    return res.status(401).json({ error: 'account_deactivated' });
+  }
+  if ((employee.tokenVersion || 0) !== (payload.tokenVersion || 0)) {
+    return res.status(401).json({ error: 'token_revoked' });
+  }
   req.employeeId = payload.sub;
+  req.employee = employee;
   next();
 }
 
@@ -105,6 +155,15 @@ function requireAdmin(req, res, next) {
   const payload = verifyToken(token);
   if (!payload || payload.scope !== 'admin') {
     return res.status(401).json({ error: 'unauthorized' });
+  }
+  const currentDb = db();
+  if (currentDb.adminDeactivated === true) {
+    return res.status(401).json({ error: 'account_deactivated' });
+  }
+  if (currentDb.adminTokenVersion !== undefined && payload.tokenVersion !== undefined) {
+    if (currentDb.adminTokenVersion !== payload.tokenVersion) {
+      return res.status(401).json({ error: 'token_revoked' });
+    }
   }
   req.admin = payload;
   next();
@@ -132,4 +191,5 @@ module.exports = {
   requireAuth,
   requireAdmin,
   requireRole,
+  getEmployeeById,
 };

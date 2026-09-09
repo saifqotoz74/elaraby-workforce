@@ -7,6 +7,7 @@ import '../../../../core/network/backend.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/national_id_validator.dart';
 import '../widgets/auth_progress_bar.dart';
 import 'profile_confirmation_screen.dart';
 
@@ -35,8 +36,6 @@ class _OtpScreenState extends State<OtpScreen> {
   static const _codeLength = 6;
   static const _resendSeconds = 30;
 
-  String? _devCode;
-
   final TextEditingController _codeController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   Timer? _timer;
@@ -48,7 +47,6 @@ class _OtpScreenState extends State<OtpScreen> {
   @override
   void initState() {
     super.initState();
-    _devCode = widget.devCode;
     _focusNode.requestFocus();
     _startTimer();
   }
@@ -90,13 +88,24 @@ class _OtpScreenState extends State<OtpScreen> {
       _wrongCode = false;
       _lockedMessage = null;
     });
-    // Server-side verification when the OTP was requested from the backend;
-    // offline pass-through otherwise (never blocks the flow).
-    final serverMode = widget.nationalId != null;
-    final result = serverMode
-        ? await Backend.instance.verifyOtp(widget.nationalId!, code)
-        : await Future<AuthResult>.delayed(
-            const Duration(milliseconds: 300), () => AuthResult.success);
+    final String? nid = widget.nationalId;
+    if (nid == null || nid.isEmpty) {
+      if (!mounted) return;
+      setState(() => _verifying = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocale.instance.isArabic
+                ? 'رقم الهوية الوطنية غير متوفر، يرجى إعادة المحاولة'
+                : 'National ID is missing, please try again.',
+          ),
+          backgroundColor: AppColors.announcementHeader,
+        ),
+      );
+      return;
+    }
+
+    final result = await Backend.instance.verifyOtp(nid, code);
     if (!mounted) return;
     if (result == AuthResult.locked) {
       // The server does not tell us the remaining window — assume the full
@@ -106,6 +115,23 @@ class _OtpScreenState extends State<OtpScreen> {
         _lockedMessage = AppLocale.trLocked(15);
         _codeController.clear();
       });
+      _focusNode.requestFocus();
+      return;
+    }
+    if (result == AuthResult.networkError) {
+      setState(() => _verifying = false);
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocale.instance.isArabic
+                ? 'تعذر الاتصال بالخادم، يرجى التأكد من اتصالك بالإنترنت والمحاولة مجدداً'
+                : 'Unable to connect to server. Please check your internet connection and try again.',
+          ),
+          backgroundColor: AppColors.announcementHeader,
+          duration: const Duration(seconds: 4),
+        ),
+      );
       _focusNode.requestFocus();
       return;
     }
@@ -132,9 +158,8 @@ class _OtpScreenState extends State<OtpScreen> {
     _startTimer();
     final messenger = ScaffoldMessenger.of(context);
     if (widget.nationalId != null) {
-      final res = await Backend.instance.requestOtp(widget.nationalId!);
+      await Backend.instance.requestOtp(widget.nationalId!);
       if (!mounted) return;
-      if (res.devCode != null) setState(() => _devCode = res.devCode);
     }
     messenger.showSnackBar(
       SnackBar(content: Text(AppLocale.tr('auth_code_resent'))),
@@ -261,20 +286,8 @@ class _OtpScreenState extends State<OtpScreen> {
                   ),
                 ),
               ),
-              if (_devCode != null) ...[
-                const SizedBox(height: 8),
-                Center(
-                  child: Text(
-                    '${AppLocale.tr('auth_dev_code')} $_devCode',
-                    style: AppTypography.fontBase.copyWith(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
 
-              // Hidden field that actually captures the keyboard input
+              // Field that captures the keyboard input
               SizedBox(
                 height: 0,
                 child: Opacity(
@@ -283,8 +296,17 @@ class _OtpScreenState extends State<OtpScreen> {
                     controller: _codeController,
                     focusNode: _focusNode,
                     autofocus: true,
+                    autofillHints: const [AutofillHints.oneTimeCode],
                     keyboardType: TextInputType.number,
                     inputFormatters: [
+                      TextInputFormatter.withFunction((oldValue, newValue) {
+                        final normalized =
+                            EgyptianNationalIdValidator.normalizeDigits(newValue.text);
+                        return TextEditingValue(
+                          text: normalized,
+                          selection: TextSelection.collapsed(offset: normalized.length),
+                        );
+                      }),
                       FilteringTextInputFormatter.digitsOnly,
                       LengthLimitingTextInputFormatter(_codeLength),
                     ],

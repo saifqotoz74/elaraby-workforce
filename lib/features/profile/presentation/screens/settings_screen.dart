@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/localization/app_locale.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
 import 'help_support_screen.dart';
 
@@ -93,7 +94,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Section 3: Help & Info
+            // Section 3: Appearance & Shift Mode
+            _buildSectionHeader(AppLocale.instance.isArabic ? 'المظهر ووردية المصنع' : 'Appearance & Shift Mode'),
+            const SizedBox(height: 8),
+            Container(
+              decoration: _cardDecoration(),
+              child: Column(
+                children: [
+                  _buildThemeOptionTile(
+                    title: AppLocale.instance.isArabic ? 'تلقائي (حسب إعدادات الهاتف)' : 'System Default',
+                    mode: ThemeMode.system,
+                    icon: Icons.brightness_auto_rounded,
+                  ),
+                  const Divider(height: 1, indent: 64, color: AppColors.scaffoldBackground),
+                  _buildThemeOptionTile(
+                    title: AppLocale.instance.isArabic ? 'الوضع الفاتح (النهاري)' : 'Light Mode',
+                    mode: ThemeMode.light,
+                    icon: Icons.light_mode_rounded,
+                  ),
+                  const Divider(height: 1, indent: 64, color: AppColors.scaffoldBackground),
+                  _buildThemeOptionTile(
+                    title: AppLocale.instance.isArabic ? 'الوضع الليلي (لورديات المصنع)' : 'Dark / Night Shift Mode',
+                    mode: ThemeMode.dark,
+                    icon: Icons.nightlight_round,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Section 4: Help & Info
             _buildSectionHeader('Help & Info'),
             const SizedBox(height: 8),
             Container(
@@ -250,6 +280,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             if (hasChevron)
               const Icon(Icons.chevron_right, color: AppColors.textSecondary, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThemeOptionTile({
+    required String title,
+    required ThemeMode mode,
+    required IconData icon,
+  }) {
+    final isSelected = AppTheme.themeModeNotifier.value == mode;
+    return InkWell(
+      onTap: () {
+        AppTheme.setThemeMode(mode);
+        setState(() {});
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.primarySoft : AppColors.scaffoldBackground,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                icon,
+                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                title,
+                style: AppTypography.fontBase.copyWith(
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                ),
+              ),
+            ),
+            if (isSelected)
+              const Icon(
+                Icons.check_circle_rounded,
+                color: AppColors.primary,
+                size: 20,
+              ),
           ],
         ),
       ),

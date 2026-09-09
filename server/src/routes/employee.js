@@ -1,5 +1,6 @@
 // Employee-facing API: auth (OTP + PIN), profile, requests, inbox, content.
 const express = require('express');
+const crypto = require('crypto');
 const { data: db, save, nextId } = require('../db');
 const {
   createOtp,
@@ -29,6 +30,10 @@ function publicEmployee(e) {
     position: e.position,
     supervisor: e.supervisor,
     phone: e.phone,
+    address: e.address,
+    emergencyContact: e.emergencyContact,
+    emergencyName: e.emergencyName,
+    emergencyRelationship: e.emergencyRelationship,
     vacationBalance: e.vacationBalance,
     hasPin: !!e.pinHash,
   };
@@ -70,10 +75,9 @@ router.post('/auth/otp', async (req, res) => {
     if (!e.active) return false;
     const empNat = String(e.nationalId || '').replace(/\D/g, '');
     const empPhone = String(e.phone || '').replace(/\D/g, '');
-    return empNat === digits ||
-           empPhone === digits ||
-           empPhone.endsWith(digits) ||
-           (digits.length >= 10 && empPhone.includes(digits.slice(-10)));
+    const normalizedQuery = digits.replace(/^20/, '0');
+    const normalizedEmpPhone = empPhone.replace(/^20/, '0');
+    return empNat === digits || empPhone === digits || (digits.length >= 10 && normalizedEmpPhone === normalizedQuery);
   });
 
   if (!employee) {
@@ -88,12 +92,12 @@ router.post('/auth/otp', async (req, res) => {
   const code = createOtp(db(), effectiveNationalId);
   clearFailures(db(), `otp_ip:${req.ip}`);
 
-  // Record in audit logs so HR admin can always see active OTP in real time
+  // Record in audit logs without exposing the plaintext OTP
   db().auditLogs = db().auditLogs || [];
   db().auditLogs.unshift({
     id: `AUD-${Date.now()}`,
     action: 'OTP_REQUESTED',
-    details: `Verification code generated for ${employee.name} (${effectiveNationalId}) [Phone: ${employee.phone}]: ${code}`,
+    details: `Verification code dispatched to ${employee.name} (${effectiveNationalId})`,
     admin: 'SYSTEM',
     ip: req.ip,
     timestamp: Date.now(),
@@ -102,7 +106,6 @@ router.post('/auth/otp', async (req, res) => {
   save();
 
   // Twilio configured -> real SMS (code never leaves the server).
-  // Otherwise dev mode: return the code so the emulator flow works.
   const smsSent = await twilio.sendSms(
     employee.phone,
     `Elaraby Connect: your verification code is ${code}. It expires in 5 minutes.`,
@@ -122,11 +125,9 @@ router.post('/auth/otp', async (req, res) => {
   res.json({
     found: true,
     hasPin: !!employee.pinHash,
-    phone: employee.phone,
     maskedPhone,
-    employeeName: employee.name,
     smsSent: !!smsSent,
-    ...(isDev || !smsSent ? { devCode: code } : {}),
+    ...(process.env.NODE_ENV !== 'production' && (!smsSent || process.env.NODE_ENV === 'test') ? { devCode: code } : {}),
   });
 });
 
@@ -157,19 +158,25 @@ router.post('/auth/pin', (req, res) => {
   const employee = db().employees.find((e) => e.nationalId === nationalId);
   if (!employee) return res.status(404).json({ error: 'not_found' });
 
-  // Security guard: If PIN is already set, require valid pin_reset token or employee auth
-  if (employee.pinHash) {
-    const authHeader = req.headers.authorization;
-    const token = resetToken || (authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null);
-    const verified = token ? verifyToken(token) : null;
-    if (!verified || (verified.sub !== employee.id && verified.nationalId !== employee.nationalId)) {
-      return res.status(403).json({ error: 'pin_already_set_requires_verification' });
-    }
+  // Security guard: Setting a PIN always requires a verified resetToken or employee auth
+  const authHeader = req.headers.authorization;
+  const token = resetToken || (authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null);
+  const verified = token ? verifyToken(token) : null;
+  if (!verified || (verified.sub !== employee.id && verified.nationalId !== employee.nationalId)) {
+    return res.status(403).json({
+      error: employee.pinHash ? 'pin_already_set_requires_verification' : 'verification_required',
+    });
+  }
+
+  if (/^(\d)\1{3}$/.test(String(pin || ''))) {
+    return res.status(400).json({ error: 'weak_pin', message: 'PIN cannot be repeating digits' });
   }
 
   employee.pinHash = hash(pin);
+  employee.tokenVersion = (employee.tokenVersion || 0) + 1;
   save();
-  res.json({ ok: true });
+  const sessionToken = signToken({ sub: employee.id, scope: 'employee', tokenVersion: employee.tokenVersion });
+  res.json({ ok: true, token: sessionToken, employee: publicEmployee(employee) });
 });
 
 router.post('/auth/pin/verify', (req, res) => {
@@ -187,7 +194,7 @@ router.post('/auth/pin/verify', (req, res) => {
     return res.status(401).json({ error: 'invalid_pin' });
   }
   clearFailures(db(), `pin:${nationalId}`);
-  const token = signToken({ sub: employee.id, scope: 'employee' });
+  const token = signToken({ sub: employee.id, scope: 'employee', tokenVersion: employee.tokenVersion || 0 });
   res.json({ ok: true, token, employee: publicEmployee(employee) });
 });
 
@@ -206,9 +213,14 @@ router.post('/auth/pin/change', requireAuth, (req, res) => {
   if (!/^\d{4}$/.test(String(newPin || ''))) {
     return res.status(400).json({ error: 'pin_must_be_4_digits' });
   }
+  if (/^(\d)\1{3}$/.test(String(newPin || ''))) {
+    return res.status(400).json({ error: 'weak_pin', message: 'PIN cannot be repeating digits' });
+  }
   employee.pinHash = hash(newPin);
+  employee.tokenVersion = (employee.tokenVersion || 0) + 1;
   save();
-  res.json({ ok: true });
+  const token = signToken({ sub: employee.id, scope: 'employee', tokenVersion: employee.tokenVersion });
+  res.json({ ok: true, token });
 });
 
 // ---------- Profile ----------
@@ -216,6 +228,32 @@ router.get('/me', requireAuth, (req, res) => {
   const employee = db().employees.find((e) => e.id === req.employeeId);
   if (!employee) return res.status(404).json({ error: 'not_found' });
   res.json({ employee: publicEmployee(employee) });
+});
+
+router.patch('/me', requireAuth, (req, res) => {
+  const employee = db().employees.find((e) => e.id === req.employeeId);
+  if (!employee) return res.status(404).json({ error: 'not_found' });
+  const allowed = ['phone', 'address', 'emergencyContact', 'emergencyName', 'emergencyRelationship'];
+  for (const key of allowed) {
+    if (req.body?.[key] !== undefined) {
+      employee[key] = String(req.body[key]).trim();
+    }
+  }
+  save();
+  res.json({ ok: true, employee: publicEmployee(employee) });
+});
+
+router.post('/me', requireAuth, (req, res) => {
+  const employee = db().employees.find((e) => e.id === req.employeeId);
+  if (!employee) return res.status(404).json({ error: 'not_found' });
+  const allowed = ['phone', 'address', 'emergencyContact', 'emergencyName', 'emergencyRelationship'];
+  for (const key of allowed) {
+    if (req.body?.[key] !== undefined) {
+      employee[key] = String(req.body[key]).trim();
+    }
+  }
+  save();
+  res.json({ ok: true, employee: publicEmployee(employee) });
 });
 
 // ---------- Shift Presets & Resolution ----------
@@ -354,11 +392,38 @@ router.get('/home', requireAuth, (req, res) => {
 
 // ---------- Requests ----------
 router.get('/requests', requireAuth, (req, res) => {
-  res.json({ requests: myRequests(db(), req.employeeId) });
+  const all = myRequests(db(), req.employeeId);
+  if (req.query.page || req.query.limit) {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit, 10) || 20));
+    const start = (page - 1) * limit;
+    const items = all.slice(start, start + limit);
+    return res.json({
+      requests: items,
+      total: all.length,
+      page,
+      limit,
+      totalPages: Math.ceil(all.length / limit),
+    });
+  }
+  res.json({ requests: all });
 });
 
+// Idempotency store for sensitive financial & leave request submissions
+const _idempotencyStore = new Map();
+
 router.post('/requests', requireAuth, (req, res) => {
-  const { type, title, details, days } = req.body || {};
+  const { type, title, details, days, idempotencyKey } = req.body || {};
+  const idempKey = req.headers['x-idempotency-key'] || idempotencyKey;
+
+  if (idempKey) {
+    const cacheKey = `${req.employeeId}:${idempKey}`;
+    const cached = _idempotencyStore.get(cacheKey);
+    if (cached && Date.now() < cached.expiresAt) {
+      return res.json(cached.response);
+    }
+  }
+
   if (!type || !title) return res.status(400).json({ error: 'type_and_title_required' });
   const me = db().employees.find((e) => e.id === req.employeeId);
   const ref = `REQ-2026-${nextId('request')}`;
@@ -398,7 +463,19 @@ router.post('/requests', requireAuth, (req, res) => {
   };
   db().requests.push(request);
   save();
-  res.json({ request, vacationBalance: me?.vacationBalance });
+
+  const responsePayload = { request, vacationBalance: me?.vacationBalance };
+  if (idempKey) {
+    const cacheKey = `${req.employeeId}:${idempKey}`;
+    const timer = setTimeout(() => _idempotencyStore.delete(cacheKey), 2 * 60 * 1000);
+    if (timer.unref) timer.unref();
+    _idempotencyStore.set(cacheKey, {
+      response: responsePayload,
+      expiresAt: Date.now() + 2 * 60 * 1000,
+    });
+  }
+
+  res.json(responsePayload);
 });
 
 router.post('/requests/:id/cancel', requireAuth, (req, res) => {
@@ -415,14 +492,14 @@ router.post('/requests/:id/cancel', requireAuth, (req, res) => {
     request.details?.leaveType === 'annual' ||
     String(request.title).toLowerCase().includes('annual leave')
   );
+  const me = db().employees.find((e) => e.id === req.employeeId);
   if (isAnnualLeave) {
-    const me = db().employees.find((e) => e.id === req.employeeId);
     const days = Number(request.details?.days) || 0;
     if (me && days > 0) me.vacationBalance += days;
   }
   db().requests = db().requests.filter((r) => r.id !== request.id);
   save();
-  res.json({ ok: true });
+  res.json({ ok: true, vacationBalance: me ? me.vacationBalance : undefined });
 });
 
 // ---------- Inbox ----------
@@ -430,7 +507,24 @@ router.get('/inbox', requireAuth, (req, res) => {
   const notifications = db()
     .notifications.filter((n) => n.employeeId === req.employeeId)
     .sort((a, b) => b.createdAt - a.createdAt);
-  res.json({ notifications, unread: notifications.filter((n) => !n.read).length });
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  if (req.query.page || req.query.limit) {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit, 10) || 20));
+    const start = (page - 1) * limit;
+    const items = notifications.slice(start, start + limit);
+    return res.json({
+      notifications: items,
+      unread: unreadCount,
+      total: notifications.length,
+      page,
+      limit,
+      totalPages: Math.ceil(notifications.length / limit),
+    });
+  }
+
+  res.json({ notifications, unread: unreadCount });
 });
 
 router.post('/inbox/read', requireAuth, (req, res) => {
@@ -527,9 +621,18 @@ router.post('/employee/delete-account', requireAuth, (req, res) => {
   const employee = db().employees.find((e) => e.id === req.employeeId);
   if (!employee) return res.status(404).json({ error: 'employee_not_found' });
 
+  const { pin } = req.body || {};
+  if (pin) {
+    if (!employee.pinHash || !verifyHash(String(pin), employee.pinHash)) {
+      return res.status(401).json({ error: 'invalid_pin' });
+    }
+  }
+
   employee.deletionRequested = true;
   employee.deletionRequestedAt = Date.now();
-  employee.pinHash = null; // revoke credentials
+  employee.active = false;
+  employee.pinHash = hash(crypto.randomBytes(32).toString('hex')); // scramble credentials permanently
+  employee.tokenVersion = (employee.tokenVersion || 0) + 1;
 
   // Revoke FCM tokens
   if (db().fcmTokens) {
@@ -550,6 +653,45 @@ router.post('/employee/delete-account', requireAuth, (req, res) => {
 
   save();
   res.json({ ok: true, message: 'Account deletion request processed' });
+});
+
+// ---------- Anonymous Concerns (Workplace Health, Safety, & Ethics) ----------
+router.post('/concerns', (req, res) => {
+  const { category, details, attachedPhoto } = req.body || {};
+  if (!category || !details) {
+    return res.status(400).json({ error: 'category_and_details_required' });
+  }
+
+  const d = db();
+  d.concerns = d.concerns || [];
+  const ref = `CON-${Date.now().toString().slice(-6)}`;
+  const entry = {
+    id: `con_${nextId('concern')}`,
+    refNumber: ref,
+    category: String(category).trim(),
+    details: String(details).trim(),
+    attachedPhoto: attachedPhoto ? String(attachedPhoto).trim() : null,
+    status: 'received',
+    createdAt: Date.now(),
+  };
+
+  d.concerns.unshift(entry);
+  if (d.concerns.length > 500) d.concerns.length = 500;
+
+  // Record audit log without identifying any user (strictly anonymous)
+  d.auditLogs = d.auditLogs || [];
+  d.auditLogs.unshift({
+    id: nextId('audit'),
+    timestamp: Date.now(),
+    actor: 'ANONYMOUS_EMPLOYEE',
+    action: 'concern_submitted',
+    targetId: entry.id,
+    details: `Anonymous concern submitted for category: ${entry.category}`,
+    ip: 'REDACTED',
+  });
+
+  save();
+  res.json({ ok: true, refNumber: ref, message: 'Concern received anonymously' });
 });
 
 module.exports = router;
