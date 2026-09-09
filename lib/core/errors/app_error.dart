@@ -2,6 +2,21 @@ import 'dart:async';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 
+/// Explicit classification of application and network errors.
+/// Enables fine-grained UI recovery and guarantees that timeouts,
+/// 401, 403, 404, 429, or 500 errors are NEVER misclassified as "offline".
+enum AppErrorKind {
+  offline,
+  timeout,
+  unauthorized,
+  forbidden,
+  notFound,
+  rateLimit,
+  serverError,
+  validation,
+  unknown,
+}
+
 /// Base typed error domain representation for the Elaraby Connect platform.
 sealed class AppError implements Exception {
   final String message;
@@ -16,6 +31,18 @@ sealed class AppError implements Exception {
     this.cause,
   });
 
+  /// The specific domain category of this error.
+  AppErrorKind get kind;
+
+  bool get isOffline => kind == AppErrorKind.offline;
+  bool get isTimeout => kind == AppErrorKind.timeout;
+  bool get isUnauthorized => kind == AppErrorKind.unauthorized;
+  bool get isForbidden => kind == AppErrorKind.forbidden;
+  bool get isNotFound => kind == AppErrorKind.notFound;
+  bool get isRateLimit => kind == AppErrorKind.rateLimit;
+  bool get isServerError => kind == AppErrorKind.serverError;
+  bool get isValidation => kind == AppErrorKind.validation;
+
   /// User-facing localized message in Arabic.
   String get userFacingMessageAr;
 
@@ -28,7 +55,7 @@ sealed class AppError implements Exception {
 
   @override
   String toString() =>
-      '$runtimeType: $message (code: $code, status: $statusCode)';
+      '$runtimeType ($kind): $message (code: $code, status: $statusCode)';
 
   /// Maps an HTTP status code, response body, and optional exception to a typed [AppError].
   static AppError fromResponse(
@@ -79,8 +106,9 @@ sealed class AppError implements Exception {
           cause,
         );
       case 408:
+      case 504:
         return TimeoutError(
-          serverMsg ?? 'Request timed out',
+          serverMsg ?? 'Request timed out waiting for server response',
           serverCode ?? 'timeout',
           statusCode,
           cause,
@@ -97,7 +125,7 @@ sealed class AppError implements Exception {
       default:
         if (statusCode >= 500 && statusCode < 600) {
           return ServerError(
-            serverMsg ?? 'Internal server error occurred',
+            serverMsg ?? 'Internal server error occurred ($statusCode)',
             serverCode ?? 'server_error',
             statusCode,
             cause,
@@ -149,6 +177,8 @@ sealed class AppError implements Exception {
   }
 }
 
+/// Offline network error — emitted only when there is true network disconnection
+/// or client socket lookup failure, never on HTTP status codes.
 class NetworkError extends AppError {
   const NetworkError([
     super.message = 'Network connection failed',
@@ -156,6 +186,9 @@ class NetworkError extends AppError {
     int? statusCode,
     dynamic cause,
   ]) : super(code: code, statusCode: statusCode, cause: cause);
+
+  @override
+  AppErrorKind get kind => AppErrorKind.offline;
 
   @override
   String get userFacingMessageAr =>
@@ -166,6 +199,10 @@ class NetworkError extends AppError {
       'Network connection failed. Please check your internet connection and try again.';
 }
 
+/// Type alias for explicit semantic naming of offline condition.
+typedef OfflineError = NetworkError;
+
+/// Timeout error — distinct from offline, representing client or gateway timeout.
 class TimeoutError extends AppError {
   const TimeoutError([
     super.message = 'Request timed out',
@@ -173,6 +210,9 @@ class TimeoutError extends AppError {
     int? statusCode = 408,
     dynamic cause,
   ]) : super(code: code, statusCode: statusCode, cause: cause);
+
+  @override
+  AppErrorKind get kind => AppErrorKind.timeout;
 
   @override
   String get userFacingMessageAr =>
@@ -183,6 +223,7 @@ class TimeoutError extends AppError {
       'Request timed out before receiving a response. Please try again.';
 }
 
+/// HTTP 401 Unauthorized / Token Revocation error.
 class UnauthorizedError extends AppError {
   const UnauthorizedError([
     super.message = 'Authentication required or session expired',
@@ -190,6 +231,9 @@ class UnauthorizedError extends AppError {
     int? statusCode = 401,
     dynamic cause,
   ]) : super(code: code, statusCode: statusCode, cause: cause);
+
+  @override
+  AppErrorKind get kind => AppErrorKind.unauthorized;
 
   @override
   String get userFacingMessageAr =>
@@ -202,6 +246,7 @@ class UnauthorizedError extends AppError {
 
 typedef AuthError = UnauthorizedError;
 
+/// HTTP 403 Forbidden error.
 class ForbiddenError extends AppError {
   const ForbiddenError([
     super.message = 'Access forbidden for this account',
@@ -209,6 +254,9 @@ class ForbiddenError extends AppError {
     int? statusCode = 403,
     dynamic cause,
   ]) : super(code: code, statusCode: statusCode, cause: cause);
+
+  @override
+  AppErrorKind get kind => AppErrorKind.forbidden;
 
   @override
   String get userFacingMessageAr =>
@@ -219,6 +267,7 @@ class ForbiddenError extends AppError {
       'You do not have permission to access this resource or perform this action.';
 }
 
+/// HTTP 400 Bad Request / Validation error.
 class ValidationError extends AppError {
   final Map<String, dynamic>? fieldErrors;
 
@@ -231,6 +280,9 @@ class ValidationError extends AppError {
   });
 
   @override
+  AppErrorKind get kind => AppErrorKind.validation;
+
+  @override
   String get userFacingMessageAr => message.isNotEmpty
       ? message
       : 'البيانات المدخلة غير صحيحة. يرجى مراجعة المدخلات.';
@@ -241,6 +293,7 @@ class ValidationError extends AppError {
       : 'Invalid input data. Please verify your entries.';
 }
 
+/// HTTP 500..599 Server Error.
 class ServerError extends AppError {
   const ServerError([
     super.message = 'Internal server error occurred',
@@ -248,6 +301,9 @@ class ServerError extends AppError {
     int? statusCode = 500,
     dynamic cause,
   ]) : super(code: code, statusCode: statusCode, cause: cause);
+
+  @override
+  AppErrorKind get kind => AppErrorKind.serverError;
 
   @override
   String get userFacingMessageAr =>
@@ -258,6 +314,7 @@ class ServerError extends AppError {
       'Internal server error. The issue has been logged and is being resolved.';
 }
 
+/// HTTP 404 Not Found error.
 class NotFoundError extends AppError {
   const NotFoundError([
     super.message = 'Requested resource was not found',
@@ -265,6 +322,9 @@ class NotFoundError extends AppError {
     int? statusCode = 404,
     dynamic cause,
   ]) : super(code: code, statusCode: statusCode, cause: cause);
+
+  @override
+  AppErrorKind get kind => AppErrorKind.notFound;
 
   @override
   String get userFacingMessageAr =>
@@ -275,6 +335,7 @@ class NotFoundError extends AppError {
       'The requested resource or record was not found.';
 }
 
+/// HTTP 429 Too Many Requests error.
 class RateLimitError extends AppError {
   final int? retryAfterSeconds;
 
@@ -287,6 +348,9 @@ class RateLimitError extends AppError {
   ]) : super(code: code, statusCode: statusCode, cause: cause);
 
   @override
+  AppErrorKind get kind => AppErrorKind.rateLimit;
+
+  @override
   String get userFacingMessageAr => retryAfterSeconds != null
       ? 'تم تجاوز حد المحاولات المسموح به. يرجى الانتظار $retryAfterSeconds ثانية.'
       : 'تم تجاوز حد المحاولات المسموح به. يرجى الانتظار قليلاً قبل المحاولة مرة أخرى.';
@@ -297,6 +361,7 @@ class RateLimitError extends AppError {
       : 'Too many attempts. Please wait a moment before trying again.';
 }
 
+/// Unhandled or unexpected error.
 class UnknownError extends AppError {
   const UnknownError([
     super.message = 'An unexpected error occurred',
@@ -304,6 +369,9 @@ class UnknownError extends AppError {
     int? statusCode,
     dynamic cause,
   ]) : super(code: code, statusCode: statusCode, cause: cause);
+
+  @override
+  AppErrorKind get kind => AppErrorKind.unknown;
 
   @override
   String get userFacingMessageAr =>

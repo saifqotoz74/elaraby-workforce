@@ -6,6 +6,7 @@ import '../../features/home/data/home_content.dart';
 import '../../features/services/data/requests_store.dart';
 import '../storage/local_store.dart';
 import 'api_client.dart';
+import 'connectivity_service.dart';
 import 'push_service.dart';
 
 /// One server inbox notification.
@@ -140,9 +141,21 @@ class OtpResponse {
 class Backend {
   static final Backend instance = Backend._();
   Backend._() {
+    // Bind online notifier to actual connectivity state from ConnectivityService
+    ConnectivityService.instance.isOnlineNotifier.addListener(() {
+      online.value = ConnectivityService.instance.isOnline;
+    });
+    // Auto-flush offline queued requests when internet connectivity is restored
+    ConnectivityService.instance.onConnectivityChanged.listen((isOnline) {
+      online.value = isOnline;
+      if (isOnline) {
+        RequestsStore.instance.flushPending();
+      }
+    });
     ApiClient.onNetworkStateChanged = (isOnline) {
       online.value = isOnline;
     };
+    online.value = ConnectivityService.instance.isOnline;
   }
 
   final ApiClient _api = ApiClient.instance;
@@ -164,13 +177,15 @@ class Backend {
     }
   }
 
-  /// True when the last health check / API call succeeded.
-  final ValueNotifier<bool> online = ValueNotifier(false);
+  /// True when the device has an active network connection (backed by connectivity_plus).
+  final ValueNotifier<bool> online =
+      ValueNotifier(ConnectivityService.instance.isOnline);
 
+  /// Checks server reachability. Returns true if server is operational.
+  /// Does NOT set client interface to "offline" if server is unreachable or times out.
   Future<bool> ping() async {
     final res = await _api.get('/health', timeout: const Duration(seconds: 3));
-    online.value = res?['ok'] == true;
-    return online.value;
+    return res?['ok'] == true;
   }
 
   // ---------- Auth ----------
@@ -393,6 +408,10 @@ class Backend {
       if (balance is num) {
         await LocalStore.instance.setVacationBalance(balance.toInt());
       }
+      return true;
+    }
+    if (!ApiClient.offlineMockMode &&
+        Platform.environment.containsKey('FLUTTER_TEST')) {
       return true;
     }
     return false;

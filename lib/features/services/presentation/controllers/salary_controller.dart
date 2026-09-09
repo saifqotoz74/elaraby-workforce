@@ -19,9 +19,14 @@ class SalaryNotifier extends StateNotifier<UiState<Map<String, dynamic>>> {
       final token = await _repo.unlockSalary(pin);
       if (token == null) {
         final lastErr = ApiClient.instance.lastError;
+        final isNetwork =
+            lastErr != null && (lastErr.isOffline || lastErr.isTimeout);
         state = UiState.error(
-          lastErr?.message ?? 'Invalid PIN or verification failed',
-          code: lastErr?.code ?? 'INVALID_PIN',
+          isNetwork
+              ? lastErr.userFacingMessage()
+              : 'Invalid PIN or verification failed',
+          code: isNetwork ? lastErr.code : 'INVALID_PIN',
+          error: lastErr,
         );
         return;
       }

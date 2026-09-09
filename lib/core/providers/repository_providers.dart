@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../data_sources/local_storage_data_source.dart';
 import '../network/api_client.dart';
 import '../network/backend.dart';
+import '../network/connectivity_service.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/drafts_repository.dart';
 import '../repositories/profile_repository.dart';
@@ -82,4 +83,13 @@ final salaryRepositoryProvider = Provider<SalaryRepository>((ref) {
 final requestsRepositoryProvider = Provider<RequestsRepository>((ref) {
   final storage = ref.watch(localStorageDataSourceProvider);
   return RequestsRepositoryImpl(storage: storage);
+});
+
+final connectivityServiceProvider = Provider<ConnectivityService>((ref) {
+  return ConnectivityService.instance;
+});
+
+final networkStateProvider = StreamProvider<bool>((ref) {
+  final service = ref.watch(connectivityServiceProvider);
+  return service.onConnectivityChanged;
 });

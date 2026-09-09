@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../errors/app_error.dart';
+import 'connectivity_service.dart';
 
 /// Thin HTTP client for the Elaraby Connect backend.
 ///
@@ -163,7 +164,8 @@ class ApiClient {
     Map<String, String>? extraHeaders,
     Duration timeout = const Duration(seconds: 6),
   }) async {
-    if (offlineMockMode) {
+    lastError = null;
+    if (offlineMockMode || !ConnectivityService.instance.isOnline) {
       onNetworkStateChanged?.call(false);
       const err = NetworkError('Device is currently operating in offline mode');
       lastError = err;
@@ -230,9 +232,13 @@ class ApiClient {
       lastError = null;
       return Result.success(json);
     } catch (e, st) {
-      onNetworkStateChanged?.call(false);
       final err = AppError.fromException(e, st);
       lastError = err;
+      // Only signal offline state if this is genuinely a network interface/connectivity failure,
+      // never for timeouts, format exceptions, or server-side drops.
+      if (err.isOffline) {
+        onNetworkStateChanged?.call(false);
+      }
       return Result.failure(err);
     }
   }

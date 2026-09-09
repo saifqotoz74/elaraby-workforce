@@ -6,6 +6,7 @@ import 'l10n/generated/app_localizations.dart';
 import 'core/navigation/app_router.dart';
 import 'core/network/api_client.dart';
 import 'core/network/backend.dart';
+import 'core/network/connectivity_service.dart';
 import 'core/network/push_service.dart';
 import 'core/storage/local_store.dart';
 import 'core/theme/app_theme.dart';
@@ -24,6 +25,7 @@ void main() async {
       30 * 1024 * 1024; // 30 MB max
   PaintingBinding.instance.imageCache.maximumSize = 50; // 50 images max
 
+  await ConnectivityService.instance.init();
   await LocalStore.instance.init();
   await ApiClient.instance.init();
   await RequestsStore.instance.load();
