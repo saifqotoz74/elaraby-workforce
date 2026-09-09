@@ -104,11 +104,17 @@ async function sendToToken(fcmToken, title, body) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          message: {
-            token: fcmToken,
-            notification: { title, body },
-            android: { priority: 'high' },
-          },
+            message: {
+              token: fcmToken,
+              notification: { title, body },
+              android: {
+                priority: 'high',
+                notification: {
+                  channel_id: 'elaraby_high_importance_channel',
+                  sound: 'default',
+                },
+              },
+            },
         }),
       },
     );
