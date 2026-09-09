@@ -213,7 +213,8 @@ class HelpSupportScreen extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const HrRequestScreen()),
+                          MaterialPageRoute(
+                              builder: (_) => const HrRequestScreen()),
                         );
                       },
                       style: ElevatedButton.styleFrom(
@@ -274,12 +275,15 @@ class HelpSupportScreen extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: isEmergency ? const Color(0xFFFEECEC) : AppColors.shiftBg,
+                  color:
+                      isEmergency ? const Color(0xFFFEECEC) : AppColors.shiftBg,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   icon,
-                  color: isEmergency ? AppColors.announcementButton : AppColors.primary,
+                  color: isEmergency
+                      ? AppColors.announcementButton
+                      : AppColors.primary,
                   size: 22,
                 ),
               ),
@@ -302,7 +306,9 @@ class HelpSupportScreen extends StatelessWidget {
                       style: AppTypography.fontBase.copyWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: isEmergency ? AppColors.announcementButton : AppColors.primary,
+                        color: isEmergency
+                            ? AppColors.announcementButton
+                            : AppColors.primary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -324,18 +330,26 @@ class HelpSupportScreen extends StatelessWidget {
             height: 38,
             child: OutlinedButton.icon(
               onPressed: onTap,
-              icon: Icon(actionIcon, size: 16, color: isEmergency ? AppColors.announcementButton : AppColors.primary),
+              icon: Icon(actionIcon,
+                  size: 16,
+                  color: isEmergency
+                      ? AppColors.announcementButton
+                      : AppColors.primary),
               label: Text(
                 actionLabel,
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: isEmergency ? AppColors.announcementButton : AppColors.primary,
+                  color: isEmergency
+                      ? AppColors.announcementButton
+                      : AppColors.primary,
                 ),
               ),
               style: OutlinedButton.styleFrom(
                 side: BorderSide(
-                  color: isEmergency ? const Color(0xFFFCA5A5) : const Color(0xFFBFDBFE),
+                  color: isEmergency
+                      ? const Color(0xFFFCA5A5)
+                      : const Color(0xFFBFDBFE),
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),

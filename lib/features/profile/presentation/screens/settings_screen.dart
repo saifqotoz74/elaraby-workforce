@@ -1,29 +1,20 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/localization/app_locale.dart';
-import '../../../../core/storage/local_store.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../controllers/settings_controller.dart';
 import 'help_support_screen.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(settingsStateProvider);
+    final notifier = ref.read(settingsStateProvider.notifier);
 
-class _SettingsScreenState extends State<SettingsScreen> {
-  bool _fingerprintLogin =
-      LocalStore.instance.getSetting('fingerprint', defaultValue: true);
-  bool _salarySlipProtection =
-      LocalStore.instance.getSetting('salary_protection');
-  bool _enableNotifications =
-      LocalStore.instance.getSetting('notifications', defaultValue: true);
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
       appBar: AppBar(
@@ -56,21 +47,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _buildSwitchTile(
                     icon: Icons.fingerprint_rounded,
                     title: AppLocale.tr('settings_fingerprint'),
-                    value: _fingerprintLogin,
-                    onChanged: (val) {
-                      LocalStore.instance.setSetting('fingerprint', val);
-                      setState(() => _fingerprintLogin = val);
-                    },
+                    value: settings.biometricEnabled,
+                    onChanged: (val) => notifier.setBiometric(val),
                   ),
-                  const Divider(height: 1, indent: 64, color: AppColors.scaffoldBackground),
+                  const Divider(
+                      height: 1,
+                      indent: 64,
+                      color: AppColors.scaffoldBackground),
                   _buildSwitchTile(
                     icon: Icons.lock_outline_rounded,
                     title: AppLocale.tr('settings_salary_protection'),
-                    value: _salarySlipProtection,
-                    onChanged: (val) {
-                      LocalStore.instance.setSetting('salary_protection', val);
-                      setState(() => _salarySlipProtection = val);
-                    },
+                    value: settings.salaryProtectionEnabled,
+                    onChanged: (val) => notifier.setSalaryProtection(val),
                   ),
                 ],
               ),
@@ -85,38 +73,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: _buildSwitchTile(
                 icon: Icons.notifications_rounded,
                 title: AppLocale.tr('settings_notifications'),
-                value: _enableNotifications,
-                onChanged: (val) {
-                      LocalStore.instance.setSetting('notifications', val);
-                      setState(() => _enableNotifications = val);
-                    },
+                value: settings.notificationsEnabled,
+                onChanged: (val) => notifier.setNotifications(val),
               ),
             ),
             const SizedBox(height: 24),
 
             // Section 3: Appearance & Shift Mode
-            _buildSectionHeader(AppLocale.instance.isArabic ? 'المظهر ووردية المصنع' : 'Appearance & Shift Mode'),
+            _buildSectionHeader(AppLocale.instance.isArabic
+                ? 'المظهر ووردية المصنع'
+                : 'Appearance & Shift Mode'),
             const SizedBox(height: 8),
             Container(
               decoration: _cardDecoration(),
               child: Column(
                 children: [
                   _buildThemeOptionTile(
-                    title: AppLocale.instance.isArabic ? 'تلقائي (حسب إعدادات الهاتف)' : 'System Default',
+                    title: AppLocale.instance.isArabic
+                        ? 'تلقائي (حسب إعدادات الهاتف)'
+                        : 'System Default',
                     mode: ThemeMode.system,
+                    isSelected: settings.themeMode == ThemeMode.system.name ||
+                        settings.themeMode.isEmpty,
                     icon: Icons.brightness_auto_rounded,
+                    onTap: () => notifier.updateTheme(ThemeMode.system),
                   ),
-                  const Divider(height: 1, indent: 64, color: AppColors.scaffoldBackground),
+                  const Divider(
+                      height: 1,
+                      indent: 64,
+                      color: AppColors.scaffoldBackground),
                   _buildThemeOptionTile(
-                    title: AppLocale.instance.isArabic ? 'الوضع الفاتح (النهاري)' : 'Light Mode',
+                    title: AppLocale.instance.isArabic
+                        ? 'الوضع الفاتح (النهاري)'
+                        : 'Light Mode',
                     mode: ThemeMode.light,
+                    isSelected: settings.themeMode == ThemeMode.light.name,
                     icon: Icons.light_mode_rounded,
+                    onTap: () => notifier.updateTheme(ThemeMode.light),
                   ),
-                  const Divider(height: 1, indent: 64, color: AppColors.scaffoldBackground),
+                  const Divider(
+                      height: 1,
+                      indent: 64,
+                      color: AppColors.scaffoldBackground),
                   _buildThemeOptionTile(
-                    title: AppLocale.instance.isArabic ? 'الوضع الليلي (لورديات المصنع)' : 'Dark / Night Shift Mode',
+                    title: AppLocale.instance.isArabic
+                        ? 'الوضع الليلي (لورديات المصنع)'
+                        : 'Dark / Night Shift Mode',
                     mode: ThemeMode.dark,
+                    isSelected: settings.themeMode == ThemeMode.dark.name,
                     icon: Icons.nightlight_round,
+                    onTap: () => notifier.updateTheme(ThemeMode.dark),
                   ),
                 ],
               ),
@@ -137,11 +143,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     hasChevron: true,
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const HelpSupportScreen()),
                       );
                     },
                   ),
-                  const Divider(height: 1, indent: 64, color: AppColors.scaffoldBackground),
+                  const Divider(
+                      height: 1,
+                      indent: 64,
+                      color: AppColors.scaffoldBackground),
                   _buildNavTile(
                     icon: Icons.info_outline_rounded,
                     title: AppLocale.tr('settings_about'),
@@ -152,7 +162,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         context: context,
                         applicationName: 'Elaraby Connect',
                         applicationVersion: '1.0.0 (Build 2026)',
-                        applicationLegalese: '© 2026 Elaraby Group. All rights reserved.',
+                        applicationLegalese:
+                            '© 2026 Elaraby Group. All rights reserved.',
                       );
                     },
                   ),
@@ -279,7 +290,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             if (hasChevron)
-              const Icon(Icons.chevron_right, color: AppColors.textSecondary, size: 20),
+              const Icon(Icons.chevron_right,
+                  color: AppColors.textSecondary, size: 20),
           ],
         ),
       ),
@@ -289,14 +301,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildThemeOptionTile({
     required String title,
     required ThemeMode mode,
+    required bool isSelected,
     required IconData icon,
+    required VoidCallback onTap,
   }) {
-    final isSelected = AppTheme.themeModeNotifier.value == mode;
     return InkWell(
-      onTap: () {
-        AppTheme.setThemeMode(mode);
-        setState(() {});
-      },
+      onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -306,7 +316,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: isSelected ? AppColors.primarySoft : AppColors.scaffoldBackground,
+                color: isSelected
+                    ? AppColors.primarySoft
+                    : AppColors.scaffoldBackground,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(

@@ -27,7 +27,9 @@ class UpdateDialog extends StatelessWidget {
   Future<void> _launchUpdateUrl() async {
     var rawUrl = info.updateUrl.trim();
     if (rawUrl.isEmpty) return;
-    if (!rawUrl.startsWith('http://') && !rawUrl.startsWith('https://') && !rawUrl.startsWith('market://')) {
+    if (!rawUrl.startsWith('http://') &&
+        !rawUrl.startsWith('https://') &&
+        !rawUrl.startsWith('market://')) {
       rawUrl = 'https://$rawUrl';
     }
     final uri = Uri.tryParse(rawUrl);
@@ -95,9 +97,12 @@ class UpdateDialog extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    isForced ? Icons.error_outline_rounded : Icons.info_outline_rounded,
+                    isForced
+                        ? Icons.error_outline_rounded
+                        : Icons.info_outline_rounded,
                     size: 14,
-                    color: isForced ? const Color(0xFFDC2626) : AppColors.primary,
+                    color:
+                        isForced ? const Color(0xFFDC2626) : AppColors.primary,
                   ),
                   const SizedBox(width: 5),
                   Text(
@@ -107,7 +112,9 @@ class UpdateDialog extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: isForced ? const Color(0xFFDC2626) : AppColors.primary,
+                      color: isForced
+                          ? const Color(0xFFDC2626)
+                          : AppColors.primary,
                     ),
                   ),
                 ],

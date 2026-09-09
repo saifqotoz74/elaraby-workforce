@@ -16,8 +16,8 @@ class GetStartedScreen extends StatelessWidget {
         content: SingleChildScrollView(
           child: Text(
             isAr
-              ? 'يلتزم تطبيق العربي كونكت بحماية وتأمين بيانات جميع العاملين وفقاً لأحكام قانون حماية البيانات الشخصية رقم 151 لسنة 2020 ولائحة العمل الداخلية لمجموعة العربي. يتم تشفير كافة البيانات والمعلومات الوظيفية والمالية بأعلى معايير الأمان المؤسسية.'
-              : 'Elaraby Connect is committed to protecting employee data in accordance with Egyptian Personal Data Protection Law No. 151 of 2020 and Elaraby Group internal policies. All operational, financial, and employment records are securely encrypted.',
+                ? 'يلتزم تطبيق العربي كونكت بحماية وتأمين بيانات جميع العاملين وفقاً لأحكام قانون حماية البيانات الشخصية رقم 151 لسنة 2020 ولائحة العمل الداخلية لمجموعة العربي. يتم تشفير كافة البيانات والمعلومات الوظيفية والمالية بأعلى معايير الأمان المؤسسية.'
+                : 'Elaraby Connect is committed to protecting employee data in accordance with Egyptian Personal Data Protection Law No. 151 of 2020 and Elaraby Group internal policies. All operational, financial, and employment records are securely encrypted.',
             style: const TextStyle(fontSize: 13, height: 1.5),
           ),
         ),
@@ -56,7 +56,8 @@ class GetStartedScreen extends StatelessWidget {
                             height: 38,
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: const Color(0xFFE5E7EB)),
+                              border:
+                                  Border.all(color: const Color(0xFFE5E7EB)),
                             ),
                             clipBehavior: Clip.antiAlias,
                             child: Image.asset(
@@ -79,11 +80,13 @@ class GetStartedScreen extends StatelessWidget {
                       InkWell(
                         borderRadius: BorderRadius.circular(20),
                         onTap: () {
-                          final next = isAr ? const Locale('en') : const Locale('ar');
+                          final next =
+                              isAr ? const Locale('en') : const Locale('ar');
                           AppLocale.instance.setLocale(next);
                         },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
                             color: AppColors.surface,
                             borderRadius: BorderRadius.circular(20),
@@ -101,7 +104,8 @@ class GetStartedScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: 4),
-                              const Icon(Icons.language_rounded, size: 16, color: AppColors.primary),
+                              const Icon(Icons.language_rounded,
+                                  size: 16, color: AppColors.primary),
                             ],
                           ),
                         ),
@@ -141,8 +145,8 @@ class GetStartedScreen extends StatelessWidget {
                   const SizedBox(height: 14),
                   Text(
                     isAr
-                      ? 'بيئة عملك الرقمية المتكاملة.\nكل الأدوات والمعلومات التي تحتاجها، في مكان واحد'
-                      : 'Your digital workplace.\nAll the tools and information you need,\nin one place',
+                        ? 'بيئة عملك الرقمية المتكاملة.\nكل الأدوات والمعلومات التي تحتاجها، في مكان واحد'
+                        : 'Your digital workplace.\nAll the tools and information you need,\nin one place',
                     style: AppTypography.fontBase.copyWith(
                       fontSize: 15,
                       color: AppColors.textSecondary,
@@ -158,7 +162,8 @@ class GetStartedScreen extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const NationalIdScreen()),
+                          MaterialPageRoute(
+                              builder: (_) => const NationalIdScreen()),
                         );
                       },
                       style: ElevatedButton.styleFrom(
@@ -182,7 +187,9 @@ class GetStartedScreen extends StatelessWidget {
                     child: InkWell(
                       onTap: () => _showPrivacyPolicy(context),
                       child: Text(
-                        isAr ? 'سياسة الخصوصية • الشروط والأحكام' : 'Privacy Policy • Terms & Conditions',
+                        isAr
+                            ? 'سياسة الخصوصية • الشروط والأحكام'
+                            : 'Privacy Policy • Terms & Conditions',
                         style: AppTypography.fontBase.copyWith(
                           fontSize: 12,
                           color: AppColors.primary,

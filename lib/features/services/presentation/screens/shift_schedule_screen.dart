@@ -29,7 +29,15 @@ class _ShiftScheduleScreenState extends State<ShiftScheduleScreen> {
     final now = DateTime.now();
     final sunday = DateTime(now.year, now.month, now.day - (now.weekday % 7));
     final dayNamesEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    final dayNamesAr = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    final dayNamesAr = [
+      'الأحد',
+      'الاثنين',
+      'الثلاثاء',
+      'الأربعاء',
+      'الخميس',
+      'الجمعة',
+      'السبت'
+    ];
     final dayNames = isAr ? dayNamesAr : dayNamesEn;
 
     setState(() {
@@ -37,10 +45,14 @@ class _ShiftScheduleScreenState extends State<ShiftScheduleScreen> {
         final date = DateTime(sunday.year, sunday.month, sunday.day + i);
         final shift = days[i]['shift'] as String? ?? 'morning';
         final timeStr = isAr
-            ? (days[i]['timeAr'] as String? ?? days[i]['time'] as String? ?? 'عطلة أسبوعية')
+            ? (days[i]['timeAr'] as String? ??
+                days[i]['time'] as String? ??
+                'عطلة أسبوعية')
             : (days[i]['time'] as String? ?? 'Rest Day');
         final nameStr = isAr
-            ? (days[i]['shiftNameAr'] as String? ?? days[i]['name'] as String? ?? 'الوردية الأولى')
+            ? (days[i]['shiftNameAr'] as String? ??
+                days[i]['name'] as String? ??
+                'الوردية الأولى')
             : (days[i]['name'] as String? ?? 'Morning Shift');
 
         return _DayShift(
@@ -63,7 +75,15 @@ class _ShiftScheduleScreenState extends State<ShiftScheduleScreen> {
     final now = DateTime.now();
     final sunday = DateTime(now.year, now.month, now.day - (now.weekday % 7));
     final dayNamesEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    final dayNamesAr = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    final dayNamesAr = [
+      'الأحد',
+      'الاثنين',
+      'الثلاثاء',
+      'الأربعاء',
+      'الخميس',
+      'الجمعة',
+      'السبت'
+    ];
     final dayNames = isAr ? dayNamesAr : dayNamesEn;
 
     return List.generate(7, (i) {
@@ -125,56 +145,60 @@ class _ShiftScheduleScreenState extends State<ShiftScheduleScreen> {
               parent: BouncingScrollPhysics(),
             ),
             padding: const EdgeInsets.all(16),
-          children: [
-            if (_serverDays == null)
-              Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.info_outline, size: 18, color: AppColors.primary),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        AppLocale.instance.isArabic
-                            ? 'وضع عدم الاتصال: يتم عرض جدول استرشادي لحين الاتصال بالخادم.'
-                            : 'Offline mode: Showing cached schedule until connected to server.',
-                        style: AppTypography.fontBase.copyWith(
-                          fontSize: 12,
-                          color: AppColors.textPrimary,
+            children: [
+              if (_serverDays == null)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline,
+                          size: 18, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          AppLocale.instance.isArabic
+                              ? 'وضع عدم الاتصال: يتم عرض جدول استرشادي لحين الاتصال بالخادم.'
+                              : 'Offline mode: Showing cached schedule until connected to server.',
+                          style: AppTypography.fontBase.copyWith(
+                            fontSize: 12,
+                            color: AppColors.textPrimary,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+              Text(
+                '${AppLocale.tr('shift_week_of')} $weekStart – $weekEnd ${DateTime.now().year}',
+                style: AppTypography.welcomeTitle.copyWith(fontSize: 18),
               ),
-            Text(
-              '${AppLocale.tr('shift_week_of')} $weekStart – $weekEnd ${DateTime.now().year}',
-              style: AppTypography.welcomeTitle.copyWith(fontSize: 18),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _buildLegendItem(
-                    color: AppColors.primary, label: AppLocale.tr('shift_confirmed')),
-                const SizedBox(width: 16),
-                _buildLegendItem(
-                    color: AppColors.textSecondary,
-                    label: AppLocale.tr('shift_rest_day')),
-              ],
-            ),
-            const SizedBox(height: 16),
-            ...days.map((d) => _buildShiftCard(d)),
-          ],
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _buildLegendItem(
+                      color: AppColors.primary,
+                      label: AppLocale.tr('shift_confirmed')),
+                  const SizedBox(width: 16),
+                  _buildLegendItem(
+                      color: AppColors.textSecondary,
+                      label: AppLocale.tr('shift_rest_day')),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ...days.map((d) => _buildShiftCard(d)),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
   }
 
   Widget _buildLegendItem({required Color color, required String label}) {
@@ -227,7 +251,8 @@ class _ShiftScheduleScreenState extends State<ShiftScheduleScreen> {
               ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 child: Row(
                   children: [
                     SizedBox(
@@ -240,7 +265,9 @@ class _ShiftScheduleScreenState extends State<ShiftScheduleScreen> {
                             style: AppTypography.fontBase.copyWith(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: shift.isToday ? AppColors.primary : AppColors.textPrimary,
+                              color: shift.isToday
+                                  ? AppColors.primary
+                                  : AppColors.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -248,7 +275,9 @@ class _ShiftScheduleScreenState extends State<ShiftScheduleScreen> {
                             shift.date,
                             style: AppTypography.fontBase.copyWith(
                               fontSize: 11,
-                              color: shift.isToday ? AppColors.primary : AppColors.textSecondary,
+                              color: shift.isToday
+                                  ? AppColors.primary
+                                  : AppColors.textSecondary,
                             ),
                           ),
                         ],
@@ -272,7 +301,9 @@ class _ShiftScheduleScreenState extends State<ShiftScheduleScreen> {
                             shift.shiftName,
                             style: AppTypography.fontBase.copyWith(
                               fontSize: 12,
-                              color: shift.isToday ? AppColors.primary : AppColors.textSecondary,
+                              color: shift.isToday
+                                  ? AppColors.primary
+                                  : AppColors.textSecondary,
                             ),
                           ),
                         ],
@@ -282,7 +313,9 @@ class _ShiftScheduleScreenState extends State<ShiftScheduleScreen> {
                       width: 8,
                       height: 8,
                       decoration: BoxDecoration(
-                        color: shift.isConfirmed ? AppColors.primary : AppColors.textSecondary,
+                        color: shift.isConfirmed
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
                         shape: BoxShape.circle,
                       ),
                     ),

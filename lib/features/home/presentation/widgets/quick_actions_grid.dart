@@ -31,7 +31,8 @@ class QuickActionsGrid extends StatelessWidget {
             icon: Icons.beach_access_rounded,
             onTap: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const VacationBalanceScreen()),
+                MaterialPageRoute(
+                    builder: (_) => const VacationBalanceScreen()),
               );
             },
           ),

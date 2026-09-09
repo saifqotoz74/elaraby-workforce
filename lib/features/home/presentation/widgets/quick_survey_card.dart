@@ -49,7 +49,9 @@ class _QuickSurveyCardState extends State<QuickSurveyCard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        isAr ? 'شكراً لمشاركتك رأيك!' : 'Thank you for your feedback!',
+                        isAr
+                            ? 'شكراً لمشاركتك رأيك!'
+                            : 'Thank you for your feedback!',
                         style: AppTypography.fontBase.copyWith(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -148,7 +150,9 @@ class _QuickSurveyCardState extends State<QuickSurveyCard> {
                             child: Text(
                               '$rating',
                               style: AppTypography.surveyRatingNumber.copyWith(
-                                color: isSelected ? Colors.white : AppColors.textPrimary,
+                                color: isSelected
+                                    ? Colors.white
+                                    : AppColors.textPrimary,
                               ),
                             ),
                           ),

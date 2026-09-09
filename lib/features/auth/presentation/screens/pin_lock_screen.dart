@@ -232,7 +232,9 @@ class _PinLockScreenState extends State<PinLockScreen> {
                     margin: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
                       color: isFilled
-                          ? (_wrong ? AppColors.announcementHeader : AppColors.primary)
+                          ? (_wrong
+                              ? AppColors.announcementHeader
+                              : AppColors.primary)
                           : const Color(0xFFD1D5DB),
                       shape: BoxShape.circle,
                     ),

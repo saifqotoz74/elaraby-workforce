@@ -34,7 +34,8 @@ class _EmployeeDataScreenState extends State<EmployeeDataScreen> {
     }
   }
 
-  void _showEditSheet(String fieldTitle, String currentValue, ValueChanged<String> onSaved) {
+  void _showEditSheet(
+      String fieldTitle, String currentValue, ValueChanged<String> onSaved) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -90,11 +91,25 @@ class _EmployeeDataScreenState extends State<EmployeeDataScreen> {
                       );
                     },
                   ),
-                  const Divider(height: 1, indent: 16, endIndent: 16, color: AppColors.scaffoldBackground),
-                  _buildDataField(label: AppLocale.tr('emp_code'), value: _profile.employeeCode),
-                  const Divider(height: 1, indent: 16, endIndent: 16, color: AppColors.scaffoldBackground),
+                  const Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: AppColors.scaffoldBackground),
+                  _buildDataField(
+                      label: AppLocale.tr('emp_code'),
+                      value: _profile.employeeCode),
+                  const Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: AppColors.scaffoldBackground),
                   _buildDataField(label: 'National ID', value: '290101•••••92'),
-                  const Divider(height: 1, indent: 16, endIndent: 16, color: AppColors.scaffoldBackground),
+                  const Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: AppColors.scaffoldBackground),
                   _buildDataField(
                     label: AppLocale.tr('emp_phone'),
                     value: _profile.phone,
@@ -119,19 +134,52 @@ class _EmployeeDataScreenState extends State<EmployeeDataScreen> {
               decoration: _cardDecoration(),
               child: Column(
                 children: [
-                  _buildDataField(label: AppLocale.tr('factory_label'), value: _profile.factory),
-                  const Divider(height: 1, indent: 16, endIndent: 16, color: AppColors.scaffoldBackground),
-                  _buildDataField(label: AppLocale.tr('dept_label'), value: _profile.department),
-                  const Divider(height: 1, indent: 16, endIndent: 16, color: AppColors.scaffoldBackground),
-                  _buildDataField(label: AppLocale.tr('emp_position'), value: _profile.position),
-                  const Divider(height: 1, indent: 16, endIndent: 16, color: AppColors.scaffoldBackground),
-                  _buildDataField(label: 'Work Line', value: 'Production Line A'),
-                  const Divider(height: 1, indent: 16, endIndent: 16, color: AppColors.scaffoldBackground),
+                  _buildDataField(
+                      label: AppLocale.tr('factory_label'),
+                      value: _profile.factory),
+                  const Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: AppColors.scaffoldBackground),
+                  _buildDataField(
+                      label: AppLocale.tr('dept_label'),
+                      value: _profile.department),
+                  const Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: AppColors.scaffoldBackground),
+                  _buildDataField(
+                      label: AppLocale.tr('emp_position'),
+                      value: _profile.position),
+                  const Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: AppColors.scaffoldBackground),
+                  _buildDataField(
+                      label: 'Work Line', value: 'Production Line A'),
+                  const Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: AppColors.scaffoldBackground),
                   _buildDataField(label: 'Shift', value: 'Morning Shift'),
-                  const Divider(height: 1, indent: 16, endIndent: 16, color: AppColors.scaffoldBackground),
+                  const Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: AppColors.scaffoldBackground),
                   _buildDataField(label: 'Joining Date', value: '14 Mar 2024'),
-                  const Divider(height: 1, indent: 16, endIndent: 16, color: AppColors.scaffoldBackground),
-                  _buildDataField(label: AppLocale.tr('emp_supervisor'), value: _profile.supervisor),
+                  const Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: AppColors.scaffoldBackground),
+                  _buildDataField(
+                      label: AppLocale.tr('emp_supervisor'),
+                      value: _profile.supervisor),
                 ],
               ),
             ),
@@ -156,7 +204,11 @@ class _EmployeeDataScreenState extends State<EmployeeDataScreen> {
                       );
                     },
                   ),
-                  const Divider(height: 1, indent: 16, endIndent: 16, color: AppColors.scaffoldBackground),
+                  const Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: AppColors.scaffoldBackground),
                   _buildDataField(
                     label: AppLocale.tr('emp_relationship'),
                     value: _profile.emergencyRelationship,
@@ -165,11 +217,16 @@ class _EmployeeDataScreenState extends State<EmployeeDataScreen> {
                       _showEditSheet(
                         AppLocale.tr('emp_relationship'),
                         _profile.emergencyRelationship,
-                        (v) => _save(_profile.copyWith(emergencyRelationship: v)),
+                        (v) =>
+                            _save(_profile.copyWith(emergencyRelationship: v)),
                       );
                     },
                   ),
-                  const Divider(height: 1, indent: 16, endIndent: 16, color: AppColors.scaffoldBackground),
+                  const Divider(
+                      height: 1,
+                      indent: 16,
+                      endIndent: 16,
+                      color: AppColors.scaffoldBackground),
                   _buildDataField(
                     label: AppLocale.tr('emp_phone'),
                     value: _profile.emergencyContact,
@@ -196,7 +253,8 @@ class _EmployeeDataScreenState extends State<EmployeeDataScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_rounded, color: AppColors.primary, size: 20),
+                  const Icon(Icons.info_rounded,
+                      color: AppColors.primary, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -278,7 +336,8 @@ class _EmployeeDataScreenState extends State<EmployeeDataScreen> {
           ),
           if (hasEdit)
             IconButton(
-              icon: const Icon(Icons.edit_note_rounded, color: AppColors.primary, size: 24),
+              icon: const Icon(Icons.edit_note_rounded,
+                  color: AppColors.primary, size: 24),
               onPressed: onEdit,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
@@ -369,14 +428,16 @@ class _EditFieldBottomSheetState extends State<_EditFieldBottomSheet> {
               decoration: InputDecoration(
                 labelText: widget.fieldTitle,
                 labelStyle: const TextStyle(color: AppColors.primary),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                  borderSide:
+                      const BorderSide(color: AppColors.primary, width: 1.5),
                 ),
               ),
             ),

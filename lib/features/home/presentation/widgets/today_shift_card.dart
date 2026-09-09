@@ -85,8 +85,10 @@ class TodayShiftCard extends StatelessWidget {
                               ),
                               decoration: BoxDecoration(
                                 color: isOff
-                                    ? const Color(0xFF6B7280).withValues(alpha: 0.15)
-                                    : const Color(0xFF10B981).withValues(alpha: 0.15),
+                                    ? const Color(0xFF6B7280)
+                                        .withValues(alpha: 0.15)
+                                    : const Color(0xFF10B981)
+                                        .withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Row(

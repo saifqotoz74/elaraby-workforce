@@ -46,7 +46,8 @@ class HomeHeader extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    DateFormat('EEEE, dd MMMM', AppLocale.instance.currentLocale.languageCode)
+                    DateFormat('EEEE, dd MMMM',
+                            AppLocale.instance.currentLocale.languageCode)
                         .format(DateTime.now()),
                     style: AppTypography.dateSubtitle,
                   ),

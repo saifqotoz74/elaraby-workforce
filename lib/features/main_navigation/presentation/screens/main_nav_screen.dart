@@ -66,11 +66,13 @@ class _MainNavScreenState extends State<MainNavScreen> {
                 return Container(
                   width: double.infinity,
                   color: const Color(0xFFB45309),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.cloud_off_rounded, color: Colors.white, size: 15),
+                      const Icon(Icons.cloud_off_rounded,
+                          color: Colors.white, size: 15),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(

@@ -118,7 +118,8 @@ class _NationalIdScreenState extends State<NationalIdScreen> {
               const SizedBox(height: 8),
               Text(
                 AppLocale.tr('auth_national_id_subtitle'),
-                style: AppTypography.dateSubtitle.copyWith(fontSize: 14, height: 1.4),
+                style: AppTypography.dateSubtitle
+                    .copyWith(fontSize: 14, height: 1.4),
               ),
               const SizedBox(height: 48),
 
@@ -202,10 +203,12 @@ class _NationalIdScreenState extends State<NationalIdScreen> {
                     inputFormatters: [
                       TextInputFormatter.withFunction((oldValue, newValue) {
                         final normalized =
-                            EgyptianNationalIdValidator.normalizeDigits(newValue.text);
+                            EgyptianNationalIdValidator.normalizeDigits(
+                                newValue.text);
                         return TextEditingValue(
                           text: normalized,
-                          selection: TextSelection.collapsed(offset: normalized.length),
+                          selection: TextSelection.collapsed(
+                              offset: normalized.length),
                         );
                       }),
                       FilteringTextInputFormatter.digitsOnly,
@@ -226,7 +229,8 @@ class _NationalIdScreenState extends State<NationalIdScreen> {
                   onPressed: isValid && !_requesting ? _continue : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.35),
+                    disabledBackgroundColor:
+                        AppColors.primary.withValues(alpha: 0.35),
                     foregroundColor: Colors.white,
                     disabledForegroundColor: Colors.white,
                     elevation: 0,
@@ -245,7 +249,8 @@ class _NationalIdScreenState extends State<NationalIdScreen> {
                         )
                       : Text(
                           AppLocale.tr('auth_continue'),
-                          style: AppTypography.buttonText.copyWith(fontSize: 15),
+                          style:
+                              AppTypography.buttonText.copyWith(fontSize: 15),
                         ),
                 ),
               ),

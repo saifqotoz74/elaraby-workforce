@@ -310,8 +310,7 @@ class AppLocale extends ChangeNotifier {
 
     // Trips
     'trip_details': 'Company Trip Details',
-    'trip_confirmed':
-        'Seat confirmed! Check your Inbox for trip instructions.',
+    'trip_confirmed': 'Seat confirmed! Check your Inbox for trip instructions.',
     'trip_cancelled': 'Trip reservation cancelled.',
 
     // Inbox
@@ -329,7 +328,6 @@ class AppLocale extends ChangeNotifier {
     'help_emergency_call': 'Emergency Call',
     'help_cannot_open': 'No app found to open this link',
 
-
     // Announcement detail (policy article)
     'ann_detail_badge': 'POLICY UPDATE',
     'ann_detail_published': 'Published 01 Aug 2026 • HR Operations',
@@ -342,21 +340,26 @@ class AppLocale extends ChangeNotifier {
     'shift_name_night': 'Night Shift',
     'ann_detail_guidelines_title': 'Key Guidelines & Changes',
     'ann_guide_break_t': 'Break Times',
-    'ann_guide_break_d': '45-minute lunch break and one 15-minute rest break per shift.',
+    'ann_guide_break_d':
+        '45-minute lunch break and one 15-minute rest break per shift.',
     'ann_guide_bus_t': 'Transportation Buses',
-    'ann_guide_bus_d': 'All company bus routes and timing will synchronize 30 minutes before shifts start.',
+    'ann_guide_bus_d':
+        'All company bus routes and timing will synchronize 30 minutes before shifts start.',
     'ann_guide_ot_t': 'Overtime & Allowances',
-    'ann_guide_ot_d': 'Shift allowances for night shifts will increase by 15% effective from the first pay cycle.',
+    'ann_guide_ot_d':
+        'Shift allowances for night shifts will increase by 15% effective from the first pay cycle.',
     'ann_contact_btn': 'Have Questions? Contact Supervisor',
     'ann_contact_sent': 'HR representative has been notified.',
 
     // News demo articles
     'news_read': 'Read Article',
-    'news_demo1_title': 'New Manufacturing Facilities to Increase Production Capacity',
+    'news_demo1_title':
+        'New Manufacturing Facilities to Increase Production Capacity',
     'news_demo1_cat': 'Expansion',
     'news_demo1_body':
         'Elaraby Group announces the opening of two state-of-the-art production lines in 10th of Ramadan Industrial Zone, creating over 600 new specialized technical jobs and boosting export capabilities across the MENA region.',
-    'news_demo2_title': 'Annual Safety Excellence Award Winners Announced for Q2',
+    'news_demo2_title':
+        'Annual Safety Excellence Award Winners Announced for Q2',
     'news_demo2_cat': 'Safety & Quality',
     'news_demo2_body':
         'Production Line A in Benha has achieved 180 continuous days with zero incidents. Management commends the dedication and strict adherence to workplace safety guidelines.',
@@ -372,7 +375,8 @@ class AppLocale extends ChangeNotifier {
     // Benefit detail
     'ben_valid_branches': 'Valid at all branches',
     'ben_redeem_title': 'How to Redeem',
-    'ben_redeem_body': 'Simply present your Employee ID or National ID at checkout to enjoy your discount.',
+    'ben_redeem_body':
+        'Simply present your Employee ID or National ID at checkout to enjoy your discount.',
     'ben_terms_title': 'Terms & Exclusions',
     'ben_terms_1': 'Not valid on already-discounted items',
     'ben_terms_2': 'Limited to one use per visit',
@@ -410,7 +414,8 @@ class AppLocale extends ChangeNotifier {
     'biometric_prompt': 'Unlock Elaraby Connect',
     'biometric_button': 'Unlock with fingerprint',
     'biometric_failed': 'Biometric authentication failed — use your PIN.',
-    'biometric_not_setup': 'Fingerprint is not set up on this device. Use your PIN.',
+    'biometric_not_setup':
+        'Fingerprint is not set up on this device. Use your PIN.',
 
     // Settings sections
     'settings_security': 'Security & Fast Access',
@@ -420,7 +425,8 @@ class AppLocale extends ChangeNotifier {
     'emp_saved_offline': 'Changes saved locally (will sync when online)',
     'leave_request_submitted': 'Leave request submitted successfully',
     'leave_request_failed': 'Failed to submit leave request. Please try again.',
-    'network_offline_warning': 'You are currently offline. Changes will sync automatically.',
+    'network_offline_warning':
+        'You are currently offline. Changes will sync automatically.',
   };
 
   static const Map<String, String> _ar = {
@@ -516,8 +522,7 @@ class AppLocale extends ChangeNotifier {
     'auth_otp_help_body':
         'تأكد من توفر الشبكة وحاول إعادة إرسال الرمز. إذا لم يصل، اتصل بخدمة الدعم الفني على تحويلة 4022.',
     'auth_create_pin_title': 'أنشئ الرمز السري',
-    'auth_create_pin_subtitle':
-        'ستستخدمه لتسجيل الدخول وفتح مفردات المرتب',
+    'auth_create_pin_subtitle': 'ستستخدمه لتسجيل الدخول وفتح مفردات المرتب',
     'auth_confirm_pin_title': 'أكد الرمز السري',
     'auth_confirm_pin_subtitle': 'أدخل نفس الرمز مرة أخرى للتأكيد',
     'auth_pin_mismatch': 'الرمزان غير متطابقين. حاول مرة أخرى.',
@@ -554,7 +559,8 @@ class AppLocale extends ChangeNotifier {
 
     // Change PIN
     'change_pin_step_current_title': 'أدخل الرمز الحالي',
-    'change_pin_step_current_subtitle': 'أدخل رمزك السري الحالي المكوّن من 4 أرقام',
+    'change_pin_step_current_subtitle':
+        'أدخل رمزك السري الحالي المكوّن من 4 أرقام',
     'change_pin_step_new_title': 'أنشئ رمزاً جديداً',
     'change_pin_step_new_subtitle': 'اختر رمزاً سرياً جديداً من 4 أرقام لحسابك',
     'change_pin_step_confirm_title': 'أكد الرمز الجديد',
@@ -602,7 +608,8 @@ class AppLocale extends ChangeNotifier {
     'emp_position': 'الوظيفة',
     'emp_supervisor': 'المشرف المباشر',
     'emp_edit_title': 'تعديل البيانات',
-    'emp_edit_note': 'سيتم إرسال تعديلات البيانات الشخصية إلى الموارد البشرية للمراجعة.',
+    'emp_edit_note':
+        'سيتم إرسال تعديلات البيانات الشخصية إلى الموارد البشرية للمراجعة.',
     'emp_saved': 'تم تحديث البيانات بنجاح.',
     'emp_relationship': 'صلة القرابة',
     'emp_hr_only': 'بعض البيانات لا يمكن تعديلها إلا من قبل الموارد البشرية.',
@@ -704,7 +711,6 @@ class AppLocale extends ChangeNotifier {
     'help_emergency_call': 'اتصال طارئ',
     'help_cannot_open': 'لا يوجد تطبيق لفتح هذا الرابط',
 
-
     // Announcement detail (policy article)
     'ann_detail_badge': 'تحديث سياسة',
     'ann_detail_published': 'نُشر في 01 أغسطس 2026 • عمليات الموارد البشرية',
@@ -717,11 +723,14 @@ class AppLocale extends ChangeNotifier {
     'shift_name_night': 'الوردية الليلية',
     'ann_detail_guidelines_title': 'أهم الإرشادات والتغييرات',
     'ann_guide_break_t': 'أوقات الراحة',
-    'ann_guide_break_d': 'استراحة غداء 45 دقيقة واستراحة راحة 15 دقيقة لكل وردية.',
+    'ann_guide_break_d':
+        'استراحة غداء 45 دقيقة واستراحة راحة 15 دقيقة لكل وردية.',
     'ann_guide_bus_t': 'أتوبيسات النقل',
-    'ann_guide_bus_d': 'جميع خطوط ومواعيد أتوبيسات الشركة ستتزامن قبل بدء الورديات بـ 30 دقيقة.',
+    'ann_guide_bus_d':
+        'جميع خطوط ومواعيد أتوبيسات الشركة ستتزامن قبل بدء الورديات بـ 30 دقيقة.',
     'ann_guide_ot_t': 'الإضافي والبدلات',
-    'ann_guide_ot_d': 'ستزيد بدلات الوردية الليلية بنسبة 15% اعتباراً من أول دورة رواتب.',
+    'ann_guide_ot_d':
+        'ستزيد بدلات الوردية الليلية بنسبة 15% اعتباراً من أول دورة رواتب.',
     'ann_contact_btn': 'عندك سؤال؟ تواصل مع المشرف',
     'ann_contact_sent': 'تم إشعار ممثل الموارد البشرية.',
 
@@ -747,7 +756,8 @@ class AppLocale extends ChangeNotifier {
     // Benefit detail
     'ben_valid_branches': 'صالح في جميع الفروع',
     'ben_redeem_title': 'طريقة الاستخدام',
-    'ben_redeem_body': 'ما عليك سوى إظهار بطاقة الموظف أو الرقم القومي عند الدفع للاستمتاع بالخصم.',
+    'ben_redeem_body':
+        'ما عليك سوى إظهار بطاقة الموظف أو الرقم القومي عند الدفع للاستمتاع بالخصم.',
     'ben_terms_title': 'الشروط والاستثناءات',
     'ben_terms_1': 'لا ينطبق على أصناف عليها خصم مسبق',
     'ben_terms_2': 'يُسمح باستخدامه مرة واحدة في الزيارة',
@@ -785,16 +795,19 @@ class AppLocale extends ChangeNotifier {
     'biometric_prompt': 'افتح Elaraby Connect',
     'biometric_button': 'الدخول بالبصمة',
     'biometric_failed': 'فشل التحقق بالبصمة — استخدم رمزك السري.',
-    'biometric_not_setup': 'البصمة غير مُعدّة على هذا الجهاز. استخدم الرمز السري.',
+    'biometric_not_setup':
+        'البصمة غير مُعدّة على هذا الجهاز. استخدم الرمز السري.',
 
     // Settings sections
     'settings_security': 'الأمان والوصول السريع',
     'settings_notifications_header': 'الإشعارات',
 
     // Feedback & offline
-    'emp_saved_offline': 'تم الحفظ محلياً (سيتم المزامنة عند الاتصال بالإنترنت)',
+    'emp_saved_offline':
+        'تم الحفظ محلياً (سيتم المزامنة عند الاتصال بالإنترنت)',
     'leave_request_submitted': 'تم تقديم طلب الإجازة بنجاح',
     'leave_request_failed': 'تعذر إرسال طلب الإجازة. يرجى المحاولة مرة أخرى.',
-    'network_offline_warning': 'أنت الآن في وضع عدم الاتصال. ستتم المزامنة تلقائياً.',
+    'network_offline_warning':
+        'أنت الآن في وضع عدم الاتصال. ستتم المزامنة تلقائياً.',
   };
 }

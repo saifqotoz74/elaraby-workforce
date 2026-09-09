@@ -37,7 +37,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       final now = DateTime.now();
-      if (_lastRefreshed == null || now.difference(_lastRefreshed!) > _kRefreshCooldown) {
+      if (_lastRefreshed == null ||
+          now.difference(_lastRefreshed!) > _kRefreshCooldown) {
         _refresh();
       }
     }

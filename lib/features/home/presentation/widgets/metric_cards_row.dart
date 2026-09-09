@@ -24,11 +24,13 @@ class MetricCardsRow extends StatelessWidget {
               child: InkWell(
                 onTap: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const VacationBalanceScreen()),
+                    MaterialPageRoute(
+                        builder: (_) => const VacationBalanceScreen()),
                   );
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(20),
@@ -75,7 +77,8 @@ class MetricCardsRow extends StatelessWidget {
                   );
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
                   decoration: BoxDecoration(
                     color: AppColors.surface,
                     borderRadius: BorderRadius.circular(20),

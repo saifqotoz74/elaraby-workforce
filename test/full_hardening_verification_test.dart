@@ -17,7 +17,8 @@ void main() {
   });
 
   group('Full Hardening Verification Tests', () {
-    test('LocalStore is a ChangeNotifier and emits notifications on mutations', () async {
+    test('LocalStore is a ChangeNotifier and emits notifications on mutations',
+        () async {
       final store = LocalStore.instance;
       expect(store, isA<ChangeNotifier>());
 
@@ -27,7 +28,8 @@ void main() {
       store.addListener(listener);
 
       // 1. Profile mutation triggers notification
-      await store.saveProfile(const EmployeeProfile(name: 'Test Worker', employeeCode: 'EMP-999'));
+      await store.saveProfile(
+          const EmployeeProfile(name: 'Test Worker', employeeCode: 'EMP-999'));
       expect(notificationCount, 1);
       expect(store.profile.name, 'Test Worker');
 
@@ -51,7 +53,8 @@ void main() {
       store.removeListener(listener);
     });
 
-    test('Salary Gate persistent lockout getters, setters, and reset', () async {
+    test('Salary Gate persistent lockout getters, setters, and reset',
+        () async {
       final store = LocalStore.instance;
 
       expect(store.salaryGateFailedAttempts, 0);
@@ -69,7 +72,9 @@ void main() {
       expect(store.salaryGateLockoutUntil, 0);
     });
 
-    test('Backend submitConcern and deleteAccount methods exist and handle offline gracefully', () async {
+    test(
+        'Backend submitConcern and deleteAccount methods exist and handle offline gracefully',
+        () async {
       ApiClient.offlineMockMode = true;
 
       final concernResult = await Backend.instance.submitConcern(
@@ -84,7 +89,9 @@ void main() {
       ApiClient.offlineMockMode = false;
     });
 
-    test('RequestsStore does not refund annual days when non-annual leave is rejected', () async {
+    test(
+        'RequestsStore does not refund annual days when non-annual leave is rejected',
+        () async {
       final store = LocalStore.instance;
       await store.setVacationBalance(10);
 

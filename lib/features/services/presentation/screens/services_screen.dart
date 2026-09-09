@@ -112,7 +112,8 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     subtitle: AppLocale.tr('svc_salary_subtitle'),
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const SalarySlipScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const SalarySlipScreen()),
                       );
                     },
                   ),
@@ -123,7 +124,8 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     subtitle: AppLocale.tr('svc_shift_subtitle'),
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const ShiftScheduleScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const ShiftScheduleScreen()),
                       );
                     },
                   ),
@@ -131,10 +133,12 @@ class _ServicesScreenState extends State<ServicesScreen> {
                   _buildServiceTile(
                     icon: Icons.beach_access_outlined,
                     title: AppLocale.tr('vacation_balance'),
-                    subtitle: '${LocalStore.instance.vacationDaysRemaining} ${AppLocale.tr('svc_days_remaining')}',
+                    subtitle:
+                        '${LocalStore.instance.vacationDaysRemaining} ${AppLocale.tr('svc_days_remaining')}',
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const VacationBalanceScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const VacationBalanceScreen()),
                       );
                     },
                   ),
@@ -153,7 +157,8 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     badgeColor: const Color(0xFFEA580C),
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const RequestLeaveScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const RequestLeaveScreen()),
                       );
                     },
                   ),
@@ -164,7 +169,8 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     subtitle: AppLocale.tr('svc_hr_subtitle'),
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const HrRequestScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const HrRequestScreen()),
                       );
                     },
                   ),
@@ -175,7 +181,8 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     subtitle: AppLocale.tr('svc_concern_subtitle'),
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const RaiseConcernScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const RaiseConcernScreen()),
                       );
                     },
                   ),
@@ -190,7 +197,8 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     subtitle: AppLocale.tr('svc_view_profile'),
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const EmployeeDataScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const EmployeeDataScreen()),
                       );
                     },
                   ),
@@ -261,10 +269,12 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.history_rounded, color: AppColors.textPrimary, size: 22),
+                    icon: const Icon(Icons.history_rounded,
+                        color: AppColors.textPrimary, size: 22),
                     onPressed: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const YourRequestsScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const YourRequestsScreen()),
                       );
                     },
                     padding: EdgeInsets.zero,
@@ -306,7 +316,9 @@ class _ServicesScreenState extends State<ServicesScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    remainingCount > 0 ? '+$remainingCount other requests' : '${requests.length} total requests',
+                    remainingCount > 0
+                        ? '+$remainingCount other requests'
+                        : '${requests.length} total requests',
                     style: AppTypography.fontBase.copyWith(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -316,7 +328,8 @@ class _ServicesScreenState extends State<ServicesScreen> {
                   GestureDetector(
                     onTap: () {
                       Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const YourRequestsScreen()),
+                        MaterialPageRoute(
+                            builder: (_) => const YourRequestsScreen()),
                       );
                     },
                     child: Row(
@@ -330,7 +343,8 @@ class _ServicesScreenState extends State<ServicesScreen> {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.primary),
+                        const Icon(Icons.arrow_forward_rounded,
+                            size: 16, color: AppColors.primary),
                       ],
                     ),
                   ),
@@ -467,7 +481,8 @@ class _ServicesScreenState extends State<ServicesScreen> {
                 ),
                 if (badgeText != null) ...[
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: badgeBg ?? AppColors.shiftBg,
                       borderRadius: BorderRadius.circular(8),
@@ -538,7 +553,9 @@ class _ServicesScreenState extends State<ServicesScreen> {
                       ),
                     ),
                     Icon(
-                      isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      isExpanded
+                          ? Icons.keyboard_arrow_up
+                          : Icons.keyboard_arrow_down,
                       color: AppColors.primary,
                     ),
                   ],

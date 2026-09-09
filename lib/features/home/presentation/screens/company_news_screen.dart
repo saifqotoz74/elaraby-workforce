@@ -132,7 +132,8 @@ class CompanyNewsScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
                             color: AppColors.shiftBg,
                             borderRadius: BorderRadius.circular(6),
@@ -149,7 +150,8 @@ class CompanyNewsScreen extends StatelessWidget {
                         if (item.readTime.isNotEmpty)
                           Text(
                             item.readTime,
-                            style: AppTypography.dateSubtitle.copyWith(fontSize: 11),
+                            style: AppTypography.dateSubtitle
+                                .copyWith(fontSize: 11),
                           ),
                       ],
                     ),
@@ -193,7 +195,8 @@ class CompanyNewsScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 4),
-                            const Icon(Icons.arrow_forward_rounded, size: 14, color: AppColors.primary),
+                            const Icon(Icons.arrow_forward_rounded,
+                                size: 14, color: AppColors.primary),
                           ],
                         ),
                       ],
@@ -248,7 +251,8 @@ class CompanyNewsScreen extends StatelessWidget {
                       Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
                               color: AppColors.shiftBg,
                               borderRadius: BorderRadius.circular(6),

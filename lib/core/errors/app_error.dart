@@ -17,14 +17,14 @@ class AuthError extends AppError {
 }
 
 class ValidationError extends AppError {
-  const ValidationError(super.message)
-      : super(code: 'validation_error');
+  const ValidationError(super.message) : super(code: 'validation_error');
 }
 
 class ServerError extends AppError {
   final int? statusCode;
 
-  const ServerError([super.message = 'Internal server error occurred', this.statusCode])
+  const ServerError(
+      [super.message = 'Internal server error occurred', this.statusCode])
       : super(code: 'server_error');
 }
 

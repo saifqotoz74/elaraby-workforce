@@ -54,7 +54,8 @@ void main() {
       final gov = EgyptianNationalIdValidator.getGovernorate('29001011234592');
       expect(gov, equals('Dakahlia'));
 
-      final cairoGov = EgyptianNationalIdValidator.getGovernorate('30402290100123');
+      final cairoGov =
+          EgyptianNationalIdValidator.getGovernorate('30402290100123');
       expect(cairoGov, equals('Cairo'));
     });
   });

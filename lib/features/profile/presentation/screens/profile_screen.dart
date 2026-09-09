@@ -49,221 +49,229 @@ class ProfileScreen extends StatelessWidget {
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.all(16),
                 children: [
-                // Top Employee Info Card
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x06000000),
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: const BoxDecoration(
-                              color: AppColors.avatarBg,
-                              shape: BoxShape.circle,
-                            ),
-                            alignment: Alignment.center,
-                            child: Text(
-                              LocalStore.instance.profile.initials,
-                              style: AppTypography.fontBase.copyWith(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.avatarText,
+                  // Top Employee Info Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x06000000),
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: const BoxDecoration(
+                                color: AppColors.avatarBg,
+                                shape: BoxShape.circle,
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                LocalStore.instance.profile.initials,
+                                style: AppTypography.fontBase.copyWith(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.avatarText,
+                                ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  LocalStore.instance.profile.name,
-                                  style: AppTypography.fontBase.copyWith(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.textPrimary,
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    LocalStore.instance.profile.name,
+                                    style: AppTypography.fontBase.copyWith(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textPrimary,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'ID ${LocalStore.instance.profile.employeeCode}',
-                                  style: AppTypography.dateSubtitle.copyWith(fontSize: 13),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  AppLocale.tr('factory_label'),
-                                  style: AppTypography.dateSubtitle.copyWith(fontSize: 12),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  LocalStore.instance.profile.factory,
-                                  style: AppTypography.fontBase.copyWith(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textPrimary,
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'ID ${LocalStore.instance.profile.employeeCode}',
+                                    style: AppTypography.dateSubtitle
+                                        .copyWith(fontSize: 13),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  AppLocale.tr('dept_label'),
-                                  style: AppTypography.dateSubtitle.copyWith(fontSize: 12),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  LocalStore.instance.profile.department,
-                                  style: AppTypography.fontBase.copyWith(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textPrimary,
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    AppLocale.tr('factory_label'),
+                                    style: AppTypography.dateSubtitle
+                                        .copyWith(fontSize: 12),
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    LocalStore.instance.profile.factory,
+                                    style: AppTypography.fontBase.copyWith(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    AppLocale.tr('dept_label'),
+                                    style: AppTypography.dateSubtitle
+                                        .copyWith(fontSize: 12),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    LocalStore.instance.profile.department,
+                                    style: AppTypography.fontBase.copyWith(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // Option 1: Language
-                ListenableBuilder(
-                  listenable: AppLocale.instance,
-                  builder: (context, _) => _buildMenuCard(
-                    icon: Icons.language_rounded,
-                    title: AppLocale.tr('menu_language'),
-                    subtitle: AppLocale.instance.isArabic ? 'العربية' : 'English',
-                    onTap: () => _showLanguageModal(context),
+                  // Option 1: Language
+                  ListenableBuilder(
+                    listenable: AppLocale.instance,
+                    builder: (context, _) => _buildMenuCard(
+                      icon: Icons.language_rounded,
+                      title: AppLocale.tr('menu_language'),
+                      subtitle:
+                          AppLocale.instance.isArabic ? 'العربية' : 'English',
+                      onTap: () => _showLanguageModal(context),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
-                // Option 2: Settings
-                _buildMenuCard(
-                  icon: Icons.settings_outlined,
-                  title: AppLocale.tr('menu_settings'),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                // Option 3: Change PIN
-                _buildMenuCard(
-                  icon: Icons.lock_outline_rounded,
-                  title: AppLocale.tr('menu_change_pin'),
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ChangePinScreen()),
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                // Option 4: Privacy Policy & Terms
-                _buildMenuCard(
-                  icon: Icons.privacy_tip_outlined,
-                  title: AppLocale.instance.isArabic
-                      ? 'سياسة الخصوصية والشروط'
-                      : 'Privacy Policy & Terms',
-                  subtitle: AppLocale.instance.isArabic
-                      ? 'حماية البيانات وحقوق الموظف'
-                      : 'Data protection & worker rights',
-                  onTap: () => _showPrivacyPolicyModal(context),
-                ),
-                const SizedBox(height: 12),
-
-                // Option 5: Request Account Deletion
-                _buildMenuCard(
-                  icon: Icons.person_remove_outlined,
-                  title: AppLocale.instance.isArabic
-                      ? 'طلب حذف الحساب'
-                      : 'Request Account Deletion',
-                  subtitle: AppLocale.instance.isArabic
-                      ? 'إلغاء تنشيط الحساب ومسح البيانات'
-                      : 'Deactivate account & erase data',
-                  onTap: () => _confirmAccountDeletion(context),
-                ),
-                const SizedBox(height: 28),
-
-                // Logout Button
-                Container(
-                  width: double.infinity,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEECEC),
-                    borderRadius: BorderRadius.circular(14),
+                  // Option 2: Settings
+                  _buildMenuCard(
+                    icon: Icons.settings_outlined,
+                    title: AppLocale.tr('menu_settings'),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const SettingsScreen()),
+                      );
+                    },
                   ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => _confirmLogout(context),
+                  const SizedBox(height: 12),
+
+                  // Option 3: Change PIN
+                  _buildMenuCard(
+                    icon: Icons.lock_outline_rounded,
+                    title: AppLocale.tr('menu_change_pin'),
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const ChangePinScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Option 4: Privacy Policy & Terms
+                  _buildMenuCard(
+                    icon: Icons.privacy_tip_outlined,
+                    title: AppLocale.instance.isArabic
+                        ? 'سياسة الخصوصية والشروط'
+                        : 'Privacy Policy & Terms',
+                    subtitle: AppLocale.instance.isArabic
+                        ? 'حماية البيانات وحقوق الموظف'
+                        : 'Data protection & worker rights',
+                    onTap: () => _showPrivacyPolicyModal(context),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Option 5: Request Account Deletion
+                  _buildMenuCard(
+                    icon: Icons.person_remove_outlined,
+                    title: AppLocale.instance.isArabic
+                        ? 'طلب حذف الحساب'
+                        : 'Request Account Deletion',
+                    subtitle: AppLocale.instance.isArabic
+                        ? 'إلغاء تنشيط الحساب ومسح البيانات'
+                        : 'Deactivate account & erase data',
+                    onTap: () => _confirmAccountDeletion(context),
+                  ),
+                  const SizedBox(height: 28),
+
+                  // Logout Button
+                  Container(
+                    width: double.infinity,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEECEC),
                       borderRadius: BorderRadius.circular(14),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.logout_rounded,
-                            color: AppColors.announcementButton,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            AppLocale.instance.isArabic ? 'تسجيل الخروج' : 'Logout',
-                            style: AppTypography.fontBase.copyWith(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _confirmLogout(context),
+                        borderRadius: BorderRadius.circular(14),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.logout_rounded,
                               color: AppColors.announcementButton,
+                              size: 20,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Text(
+                              AppLocale.instance.isArabic
+                                  ? 'تسجيل الخروج'
+                                  : 'Logout',
+                              style: AppTypography.fontBase.copyWith(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.announcementButton,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 24),
-              ],
+                  const SizedBox(height: 24),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
   Widget _buildMenuCard({
     required IconData icon,
@@ -452,11 +460,13 @@ class ProfileScreen extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            const Icon(Icons.logout_rounded, color: AppColors.announcementButton),
+            const Icon(Icons.logout_rounded,
+                color: AppColors.announcementButton),
             const SizedBox(width: 8),
             Text(
               isAr ? 'تسجيل الخروج' : 'Log Out',
-              style: AppTypography.fontBase.copyWith(fontSize: 18, fontWeight: FontWeight.w700),
+              style: AppTypography.fontBase
+                  .copyWith(fontSize: 18, fontWeight: FontWeight.w700),
             ),
           ],
         ),
@@ -464,14 +474,16 @@ class ProfileScreen extends StatelessWidget {
           isAr
               ? 'هل أنت متأكد من رغبتك في تسجيل الخروج من حسابك؟'
               : 'Are you sure you want to log out of Elaraby Connect?',
-          style: AppTypography.fontBase.copyWith(fontSize: 14, color: AppColors.textPrimary),
+          style: AppTypography.fontBase
+              .copyWith(fontSize: 14, color: AppColors.textPrimary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(
               isAr ? 'إلغاء' : 'Cancel',
-              style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                  color: AppColors.textSecondary, fontWeight: FontWeight.w600),
             ),
           ),
           ElevatedButton(
@@ -488,7 +500,8 @@ class ProfileScreen extends StatelessWidget {
               backgroundColor: AppColors.announcementButton,
               foregroundColor: Colors.white,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
             child: Text(
               isAr ? 'تأكيد الخروج' : 'Log Out',
@@ -530,11 +543,14 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  const Icon(Icons.privacy_tip_rounded, color: AppColors.primary, size: 24),
+                  const Icon(Icons.privacy_tip_rounded,
+                      color: AppColors.primary, size: 24),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      isAr ? 'سياسة الخصوصية وحماية البيانات' : 'Privacy Policy & Terms',
+                      isAr
+                          ? 'سياسة الخصوصية وحماية البيانات'
+                          : 'Privacy Policy & Terms',
                       style: AppTypography.fontBase.copyWith(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -601,7 +617,8 @@ For privacy questions or support, contact HR & IT at workforce-support@elarabygr
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                   child: Text(
@@ -625,12 +642,14 @@ For privacy questions or support, contact HR & IT at workforce-support@elarabygr
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            const Icon(Icons.warning_amber_rounded, color: AppColors.announcementButton),
+            const Icon(Icons.warning_amber_rounded,
+                color: AppColors.announcementButton),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 isAr ? 'طلب حذف الحساب' : 'Request Account Deletion',
-                style: AppTypography.fontBase.copyWith(fontSize: 18, fontWeight: FontWeight.w700),
+                style: AppTypography.fontBase
+                    .copyWith(fontSize: 18, fontWeight: FontWeight.w700),
               ),
             ),
           ],
@@ -639,14 +658,16 @@ For privacy questions or support, contact HR & IT at workforce-support@elarabygr
           isAr
               ? 'تنبيه: هذا الإجراء يرسل طلباً رسمياً لإدارة الموارد البشرية لتجميد وحذف بيانات حسابك من التطبيق وإلغاء تسجيل الدخول على هذا الجهاز. هل تود المتابعة؟'
               : 'Notice: This sends a formal request to HR to deactivate your workforce account and erase access credentials on this device. Do you wish to proceed?',
-          style: AppTypography.fontBase.copyWith(fontSize: 14, color: AppColors.textPrimary),
+          style: AppTypography.fontBase
+              .copyWith(fontSize: 14, color: AppColors.textPrimary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: Text(
               isAr ? 'إلغاء' : 'Cancel',
-              style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                  color: AppColors.textSecondary, fontWeight: FontWeight.w600),
             ),
           ),
           ElevatedButton(
@@ -664,10 +685,12 @@ For privacy questions or support, contact HR & IT at workforce-support@elarabygr
                     return StatefulBuilder(
                       builder: (context, setDialogState) {
                         return AlertDialog(
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
                           title: Text(
                             isAr ? 'تأكيد الرمز السري' : 'Confirm PIN',
-                            style: AppTypography.fontBase.copyWith(fontWeight: FontWeight.w700),
+                            style: AppTypography.fontBase
+                                .copyWith(fontWeight: FontWeight.w700),
                           ),
                           content: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -676,7 +699,8 @@ For privacy questions or support, contact HR & IT at workforce-support@elarabygr
                                 isAr
                                     ? 'يرجى إدخال رمز PIN المكون من 4 أرقام لتأكيد حذف الحساب:'
                                     : 'Please enter your 4-digit PIN to confirm deletion:',
-                                style: AppTypography.fontBase.copyWith(fontSize: 13),
+                                style: AppTypography.fontBase
+                                    .copyWith(fontSize: 13),
                               ),
                               const SizedBox(height: 12),
                               TextField(
@@ -687,7 +711,8 @@ For privacy questions or support, contact HR & IT at workforce-support@elarabygr
                                 decoration: InputDecoration(
                                   counterText: '',
                                   errorText: error,
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                  border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10)),
                                 ),
                               ),
                             ],
@@ -701,12 +726,16 @@ For privacy questions or support, contact HR & IT at workforce-support@elarabygr
                               onPressed: () async {
                                 final candidate = ctrl.text.trim();
                                 if (candidate.length != 4) {
-                                  setDialogState(() => error = isAr ? 'أدخل 4 أرقام' : 'Enter 4 digits');
+                                  setDialogState(() => error =
+                                      isAr ? 'أدخل 4 أرقام' : 'Enter 4 digits');
                                   return;
                                 }
-                                final ok = await LocalStore.instance.verifyPin(candidate);
+                                final ok = await LocalStore.instance
+                                    .verifyPin(candidate);
                                 if (!ok) {
-                                  setDialogState(() => error = isAr ? 'رمز PIN غير صحيح' : 'Incorrect PIN');
+                                  setDialogState(() => error = isAr
+                                      ? 'رمز PIN غير صحيح'
+                                      : 'Incorrect PIN');
                                   return;
                                 }
                                 if (pinCtx.mounted) {
@@ -755,7 +784,8 @@ For privacy questions or support, contact HR & IT at workforce-support@elarabygr
               backgroundColor: AppColors.announcementButton,
               foregroundColor: Colors.white,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
             child: Text(
               isAr ? 'تأكيد الحذف' : 'Confirm Deletion',

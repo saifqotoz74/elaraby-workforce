@@ -74,10 +74,13 @@ Future<void> shareSalarySlipPdf(SalarySlipData data) async {
 
   pw.Font? regularFont = _cachedCairoRegular;
   pw.Font? boldFont = _cachedCairoBold;
-  if (regularFont == null && !Platform.environment.containsKey('FLUTTER_TEST')) {
+  if (regularFont == null &&
+      !Platform.environment.containsKey('FLUTTER_TEST')) {
     try {
-      regularFont = await PdfGoogleFonts.cairoRegular().timeout(const Duration(seconds: 5));
-      boldFont = await PdfGoogleFonts.cairoBold().timeout(const Duration(seconds: 5));
+      regularFont = await PdfGoogleFonts.cairoRegular()
+          .timeout(const Duration(seconds: 5));
+      boldFont =
+          await PdfGoogleFonts.cairoBold().timeout(const Duration(seconds: 5));
       _cachedCairoRegular = regularFont;
       _cachedCairoBold = boldFont;
     } catch (_) {

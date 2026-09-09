@@ -162,9 +162,8 @@ class RequestsStore extends ChangeNotifier {
   void replaceAll(List<EmployeeRequest> serverRequests) {
     final localPending = _requests.where((r) => r.isPendingSync).toList();
     final serverRefs = serverRequests.map((s) => s.refNumber).toSet();
-    final remainingPending = localPending
-        .where((p) => !serverRefs.contains(p.refNumber))
-        .toList();
+    final remainingPending =
+        localPending.where((p) => !serverRefs.contains(p.refNumber)).toList();
 
     _requests = [...remainingPending, ...serverRequests];
     _persist();

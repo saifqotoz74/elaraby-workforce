@@ -67,8 +67,11 @@ class ServerTodayShift {
       ServerTodayShift(
         shiftKey: json['shiftKey'] as String? ?? 'morning',
         shiftName: json['shiftName'] as String? ?? 'Morning Shift',
-        shiftNameAr: json['shiftNameAr'] as String? ?? 'الوردية الأولى (صباحية)',
-        time: json['time'] as String? ?? json['timeEn'] as String? ?? '07:00 AM – 03:00 PM',
+        shiftNameAr:
+            json['shiftNameAr'] as String? ?? 'الوردية الأولى (صباحية)',
+        time: json['time'] as String? ??
+            json['timeEn'] as String? ??
+            '07:00 AM – 03:00 PM',
         timeAr: json['timeAr'] as String? ?? '07:00 ص – 03:00 م',
         line: json['line'] as String? ?? 'Elaraby Group • Public Relations',
         lineAr: json['lineAr'] as String? ?? 'مجموعة العربي • العلاقات العامة',
@@ -93,7 +96,9 @@ class HomeContent extends ChangeNotifier {
     final rawAnnouncement = res?['announcement'] as Map<String, dynamic>?;
     final rawNews = res?['news'] as List<dynamic>?;
     final rawTodayShift = res?['todayShift'] as Map<String, dynamic>?;
-    if (rawAnnouncement == null && rawNews == null && rawTodayShift == null) return;
+    if (rawAnnouncement == null && rawNews == null && rawTodayShift == null) {
+      return;
+    }
 
     if (rawAnnouncement != null) {
       announcement = ServerAnnouncement(
@@ -106,19 +111,17 @@ class HomeContent extends ChangeNotifier {
       );
     }
     if (rawNews != null) {
-      news = rawNews
-          .map((e) {
-            final m = e as Map<String, dynamic>;
-            return ServerNews(
-              id: m['id'] as String,
-              title: m['title'] as String? ?? '',
-              body: m['body'] as String? ?? '',
-              imageUrl: m['imageUrl'] as String?,
-              createdAt:
-                  DateTime.fromMillisecondsSinceEpoch(m['createdAt'] as int? ?? 0),
-            );
-          })
-          .toList();
+      news = rawNews.map((e) {
+        final m = e as Map<String, dynamic>;
+        return ServerNews(
+          id: m['id'] as String,
+          title: m['title'] as String? ?? '',
+          body: m['body'] as String? ?? '',
+          imageUrl: m['imageUrl'] as String?,
+          createdAt:
+              DateTime.fromMillisecondsSinceEpoch(m['createdAt'] as int? ?? 0),
+        );
+      }).toList();
     }
     if (rawTodayShift != null) {
       todayShift = ServerTodayShift.fromJson(rawTodayShift);

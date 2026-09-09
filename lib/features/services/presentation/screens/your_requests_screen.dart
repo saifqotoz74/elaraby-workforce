@@ -1,24 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/localization/app_locale.dart';
-import '../../../../core/network/backend.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../data/requests_store.dart';
+import '../controllers/requests_controller.dart';
 import 'hr_request_screen.dart';
 
-class YourRequestsScreen extends StatefulWidget {
+class YourRequestsScreen extends ConsumerStatefulWidget {
   const YourRequestsScreen({super.key});
 
   @override
-  State<YourRequestsScreen> createState() => _YourRequestsScreenState();
+  ConsumerState<YourRequestsScreen> createState() => _YourRequestsScreenState();
 }
 
-class _YourRequestsScreenState extends State<YourRequestsScreen> {
+class _YourRequestsScreenState extends ConsumerState<YourRequestsScreen> {
   String _selectedFilter = 'All';
   final List<String> _filters = ['All', 'In Review', 'Approved', 'Rejected'];
 
   @override
   Widget build(BuildContext context) {
+    final requestsState = ref.watch(requestsStateProvider);
+
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
       appBar: AppBar(
@@ -58,12 +61,17 @@ class _YourRequestsScreenState extends State<YourRequestsScreen> {
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 150),
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 18, vertical: 8),
                           decoration: BoxDecoration(
-                            color: isSelected ? AppColors.primary : AppColors.surface,
+                            color: isSelected
+                                ? AppColors.primary
+                                : AppColors.surface,
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: isSelected ? AppColors.primary : Colors.transparent,
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : Colors.transparent,
                             ),
                           ),
                           child: Text(
@@ -71,7 +79,9 @@ class _YourRequestsScreenState extends State<YourRequestsScreen> {
                             style: AppTypography.fontBase.copyWith(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: isSelected ? Colors.white : AppColors.textSecondary,
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppColors.textSecondary,
                             ),
                           ),
                         ),
@@ -84,24 +94,72 @@ class _YourRequestsScreenState extends State<YourRequestsScreen> {
 
             // Dynamic Requests List
             Expanded(
-              child: ListenableBuilder(
-                listenable: RequestsStore.instance,
-                builder: (context, _) {
-                  final all = RequestsStore.instance.allRequests;
+              child: Builder(
+                builder: (context) {
+                  if (requestsState.isLoading && !requestsState.hasData) {
+                    return const Center(
+                      child:
+                          CircularProgressIndicator(color: AppColors.primary),
+                    );
+                  }
+
+                  if (requestsState.isError && !requestsState.hasData) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline_rounded,
+                                size: 48, color: AppColors.error),
+                            const SizedBox(height: 12),
+                            Text(
+                              requestsState.errorMessage ??
+                                  'Failed to load requests',
+                              style: AppTypography.fontBase
+                                  .copyWith(color: AppColors.textSecondary),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () => ref
+                                  .read(requestsStateProvider.notifier)
+                                  .loadRequests(forceRefresh: true),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  final all = requestsState.data ?? [];
                   List<EmployeeRequest> filtered;
                   if (_selectedFilter == 'In Review') {
-                    filtered = RequestsStore.instance.inReviewRequests;
+                    filtered = all
+                        .where((r) => r.status == RequestStatus.inReview)
+                        .toList();
                   } else if (_selectedFilter == 'Approved') {
-                    filtered = RequestsStore.instance.approvedRequests;
+                    filtered = all
+                        .where((r) => r.status == RequestStatus.approved)
+                        .toList();
                   } else if (_selectedFilter == 'Rejected') {
-                    filtered = RequestsStore.instance.rejectedRequests;
+                    filtered = all
+                        .where((r) => r.status == RequestStatus.rejected)
+                        .toList();
                   } else {
                     filtered = all;
                   }
 
                   if (filtered.isEmpty) {
                     return RefreshIndicator(
-                      onRefresh: () => Backend.instance.syncRequests(),
+                      onRefresh: () => ref
+                          .read(requestsStateProvider.notifier)
+                          .refreshFromBackend(),
                       color: AppColors.primary,
                       child: ListView(
                         physics: const AlwaysScrollableScrollPhysics(
@@ -117,7 +175,8 @@ class _YourRequestsScreenState extends State<YourRequestsScreen> {
                                   Icon(
                                     Icons.inbox_outlined,
                                     size: 48,
-                                    color: AppColors.textSecondary.withValues(alpha: 0.5),
+                                    color: AppColors.textSecondary
+                                        .withValues(alpha: 0.5),
                                   ),
                                   const SizedBox(height: 12),
                                   Text(
@@ -137,13 +196,16 @@ class _YourRequestsScreenState extends State<YourRequestsScreen> {
                   }
 
                   return RefreshIndicator(
-                    onRefresh: () => Backend.instance.syncRequests(),
+                    onRefresh: () => ref
+                        .read(requestsStateProvider.notifier)
+                        .refreshFromBackend(),
                     color: AppColors.primary,
                     child: ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(
                         parent: BouncingScrollPhysics(),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
                       itemCount: filtered.length,
                       itemBuilder: (context, index) {
                         final req = filtered[index];
@@ -193,13 +255,16 @@ class _YourRequestsScreenState extends State<YourRequestsScreen> {
             children: [
               Text(
                 req.title,
-                style: AppTypography.fontBase.copyWith(fontSize: 15, fontWeight: FontWeight.w700),
+                style: AppTypography.fontBase
+                    .copyWith(fontSize: 15, fontWeight: FontWeight.w700),
               ),
-              _buildStatusPill(req.statusLabel, bg: pillBg, text: pillTextColor),
+              _buildStatusPill(req.statusLabel,
+                  bg: pillBg, text: pillTextColor),
             ],
           ),
           const SizedBox(height: 2),
-          Text('Ref: ${req.refNumber}', style: AppTypography.dateSubtitle.copyWith(fontSize: 12)),
+          Text('Ref: ${req.refNumber}',
+              style: AppTypography.dateSubtitle.copyWith(fontSize: 12)),
           const SizedBox(height: 14),
 
           // Detail lines
@@ -253,9 +318,11 @@ class _YourRequestsScreenState extends State<YourRequestsScreen> {
                   backgroundColor: AppColors.shiftBg,
                   foregroundColor: AppColors.primary,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
-                child: const Text('Actions', style: TextStyle(fontWeight: FontWeight.w600)),
+                child: const Text('Actions',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
               ),
             )
           else if (req.status == RequestStatus.approved)
@@ -266,18 +333,22 @@ class _YourRequestsScreenState extends State<YourRequestsScreen> {
                 onPressed: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('${req.refNumber}.pdf downloaded successfully!'),
+                      content:
+                          Text('${req.refNumber}.pdf downloaded successfully!'),
                       backgroundColor: AppColors.statusGreen,
                     ),
                   );
                 },
-                icon: const Icon(Icons.file_download_outlined, color: Colors.white, size: 18),
-                label: const Text('Download PDF', style: TextStyle(fontWeight: FontWeight.w600)),
+                icon: const Icon(Icons.file_download_outlined,
+                    color: Colors.white, size: 18),
+                label: const Text('Download PDF',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.statusGreen,
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8)),
                 ),
               ),
             )
@@ -289,7 +360,8 @@ class _YourRequestsScreenState extends State<YourRequestsScreen> {
                     MaterialPageRoute(builder: (_) => const HrRequestScreen()),
                   );
                 },
-                icon: const Icon(Icons.refresh_rounded, size: 18, color: AppColors.primary),
+                icon: const Icon(Icons.refresh_rounded,
+                    size: 18, color: AppColors.primary),
                 label: Text(
                   'Resubmit Request',
                   style: AppTypography.fontBase.copyWith(
@@ -332,29 +404,44 @@ class _YourRequestsScreenState extends State<YourRequestsScreen> {
             const SizedBox(height: 16),
             Text(
               req.title,
-              style: AppTypography.fontBase.copyWith(fontSize: 17, fontWeight: FontWeight.w700),
+              style: AppTypography.fontBase
+                  .copyWith(fontSize: 17, fontWeight: FontWeight.w700),
             ),
-            Text('Reference: ${req.refNumber}', style: AppTypography.dateSubtitle.copyWith(fontSize: 12)),
+            Text('Reference: ${req.refNumber}',
+                style: AppTypography.dateSubtitle.copyWith(fontSize: 12)),
             const SizedBox(height: 16),
             ListTile(
-              leading: const Icon(Icons.timeline_rounded, color: AppColors.primary),
-              title: const Text('View Approval Timeline', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-              subtitle: Text('Reviewer: ${req.reviewer ?? 'HR'}', style: const TextStyle(fontSize: 12)),
+              leading:
+                  const Icon(Icons.timeline_rounded, color: AppColors.primary),
+              title: const Text('View Approval Timeline',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              subtitle: Text('Reviewer: ${req.reviewer ?? 'HR'}',
+                  style: const TextStyle(fontSize: 12)),
               onTap: () {
                 Navigator.of(ctx).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Request is currently with: ${req.reviewer ?? 'Line Manager'}')),
+                  SnackBar(
+                      content: Text(
+                          'Request is currently with: ${req.reviewer ?? 'Line Manager'}')),
                 );
               },
             ),
             const Divider(height: 1),
             ListTile(
-              leading: const Icon(Icons.cancel_outlined, color: Color(0xFFDC2626)),
-              title: const Text('Cancel Request', style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.w600, fontSize: 14)),
-              subtitle: const Text('Withdraw this submission immediately', style: TextStyle(fontSize: 12)),
+              leading:
+                  const Icon(Icons.cancel_outlined, color: Color(0xFFDC2626)),
+              title: const Text('Cancel Request',
+                  style: TextStyle(
+                      color: Color(0xFFDC2626),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14)),
+              subtitle: const Text('Withdraw this submission immediately',
+                  style: TextStyle(fontSize: 12)),
               onTap: () async {
                 Navigator.of(ctx).pop();
-                final success = await RequestsStore.instance.cancelRequest(req.id);
+                final success = await ref
+                    .read(requestsStateProvider.notifier)
+                    .cancelRequest(req.id);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -416,7 +503,8 @@ class _YourRequestsScreenState extends State<YourRequestsScreen> {
     );
   }
 
-  Widget _buildStatusPill(String label, {required Color bg, required Color text}) {
+  Widget _buildStatusPill(String label,
+      {required Color bg, required Color text}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -438,8 +526,14 @@ class _YourRequestsScreenState extends State<YourRequestsScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: AppTypography.fontBase.copyWith(fontSize: 13, color: AppColors.textSecondary)),
-        Text(value, style: AppTypography.fontBase.copyWith(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+        Text(label,
+            style: AppTypography.fontBase
+                .copyWith(fontSize: 13, color: AppColors.textSecondary)),
+        Text(value,
+            style: AppTypography.fontBase.copyWith(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary)),
       ],
     );
   }

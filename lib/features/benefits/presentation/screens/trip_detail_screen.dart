@@ -47,11 +47,26 @@ class TripDetailScreen extends StatefulWidget {
       ];
 
   static List<TripItineraryStep> get defaultItinerary => [
-        TripItineraryStep(time: '06:30 AM', title: AppLocale.tr('trip_step1_t'), desc: AppLocale.tr('trip_step1_d')),
-        TripItineraryStep(time: '08:30 AM', title: AppLocale.tr('trip_step2_t'), desc: AppLocale.tr('trip_step2_d')),
-        TripItineraryStep(time: '01:30 PM', title: AppLocale.tr('trip_step3_t'), desc: AppLocale.tr('trip_step3_d')),
-        TripItineraryStep(time: '05:30 PM', title: AppLocale.tr('trip_step4_t'), desc: AppLocale.tr('trip_step4_d')),
-        TripItineraryStep(time: '07:00 PM', title: AppLocale.tr('trip_step5_t'), desc: AppLocale.tr('trip_step5_d')),
+        TripItineraryStep(
+            time: '06:30 AM',
+            title: AppLocale.tr('trip_step1_t'),
+            desc: AppLocale.tr('trip_step1_d')),
+        TripItineraryStep(
+            time: '08:30 AM',
+            title: AppLocale.tr('trip_step2_t'),
+            desc: AppLocale.tr('trip_step2_d')),
+        TripItineraryStep(
+            time: '01:30 PM',
+            title: AppLocale.tr('trip_step3_t'),
+            desc: AppLocale.tr('trip_step3_d')),
+        TripItineraryStep(
+            time: '05:30 PM',
+            title: AppLocale.tr('trip_step4_t'),
+            desc: AppLocale.tr('trip_step4_d')),
+        TripItineraryStep(
+            time: '07:00 PM',
+            title: AppLocale.tr('trip_step5_t'),
+            desc: AppLocale.tr('trip_step5_d')),
       ];
 
   @override
@@ -80,7 +95,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
       if (_isBooked) {
         bool serverOk = true;
         if (widget.tripId != null) {
-          serverOk = await BenefitsContent.instance.bookTrip(widget.tripId!, false);
+          serverOk =
+              await BenefitsContent.instance.bookTrip(widget.tripId!, false);
         }
         if (!serverOk) {
           if (!mounted) return;
@@ -128,7 +144,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
 
         bool serverOk = true;
         if (widget.tripId != null) {
-          serverOk = await BenefitsContent.instance.bookTrip(widget.tripId!, true);
+          serverOk =
+              await BenefitsContent.instance.bookTrip(widget.tripId!, true);
         }
 
         if (!serverOk) {
@@ -205,7 +222,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                         children: [
                           widget.imageUrl != null
                               ? AppNetworkImage(
-                                  imageUrl: ApiClient.instance.resolveUrl(widget.imageUrl!),
+                                  imageUrl: ApiClient.instance
+                                      .resolveUrl(widget.imageUrl!),
                                   width: double.infinity,
                                   height: 200,
                                   fit: BoxFit.cover,
@@ -226,12 +244,14 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                             top: 14,
                             right: 14,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
                                 color: AppColors.primary,
                                 borderRadius: BorderRadius.circular(10),
                                 boxShadow: const [
-                                  BoxShadow(color: Color(0x20000000), blurRadius: 6),
+                                  BoxShadow(
+                                      color: Color(0x20000000), blurRadius: 6),
                                 ],
                               ),
                               child: Text(
@@ -306,7 +326,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              const Icon(Icons.location_on_outlined, size: 16, color: AppColors.primary),
+                              const Icon(Icons.location_on_outlined,
+                                  size: 16, color: AppColors.primary),
                               const SizedBox(width: 4),
                               Text(
                                 widget.destination,
@@ -317,7 +338,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                                 ),
                               ),
                               const SizedBox(width: 14),
-                              const Icon(Icons.calendar_today_outlined, size: 15, color: AppColors.primary),
+                              const Icon(Icons.calendar_today_outlined,
+                                  size: 15, color: AppColors.primary),
                               const SizedBox(width: 4),
                               Text(
                                 widget.date,
@@ -348,7 +370,9 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                                 style: AppTypography.fontBase.copyWith(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
-                                  color: availableSeats < 5 ? const Color(0xFFDC2626) : AppColors.primary,
+                                  color: availableSeats < 5
+                                      ? const Color(0xFFDC2626)
+                                      : AppColors.primary,
                                 ),
                               ),
                             ],
@@ -361,7 +385,9 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                               minHeight: 8,
                               backgroundColor: const Color(0xFFF3F4F6),
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                availableSeats < 5 ? const Color(0xFFDC2626) : AppColors.primary,
+                                availableSeats < 5
+                                    ? const Color(0xFFDC2626)
+                                    : AppColors.primary,
                               ),
                             ),
                           ),
@@ -397,13 +423,16 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                             ),
                           ),
                           const SizedBox(height: 14),
-                          ...(widget.inclusions ?? TripDetailScreen.defaultInclusions).map(
+                          ...(widget.inclusions ??
+                                  TripDetailScreen.defaultInclusions)
+                              .map(
                             (inc) => Padding(
                               padding: const EdgeInsets.only(bottom: 10),
                               child: Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Icon(Icons.check_circle_rounded, color: AppColors.statusGreen, size: 18),
+                                  const Icon(Icons.check_circle_rounded,
+                                      color: AppColors.statusGreen, size: 18),
                                   const SizedBox(width: 10),
                                   Expanded(
                                     child: Text(
@@ -451,10 +480,18 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          ...(widget.itinerary ?? TripDetailScreen.defaultItinerary).asMap().entries.map((entry) {
+                          ...(widget.itinerary ??
+                                  TripDetailScreen.defaultItinerary)
+                              .asMap()
+                              .entries
+                              .map((entry) {
                             final i = entry.key;
                             final step = entry.value;
-                            final isLast = i == (widget.itinerary ?? TripDetailScreen.defaultItinerary).length - 1;
+                            final isLast = i ==
+                                (widget.itinerary ??
+                                            TripDetailScreen.defaultItinerary)
+                                        .length -
+                                    1;
 
                             return Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -480,13 +517,15 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                                 const SizedBox(width: 14),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
                                           Text(
                                             step.time,
-                                            style: AppTypography.fontBase.copyWith(
+                                            style:
+                                                AppTypography.fontBase.copyWith(
                                               fontSize: 12,
                                               fontWeight: FontWeight.w700,
                                               color: AppColors.primary,
@@ -495,7 +534,8 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                                           const SizedBox(width: 8),
                                           Text(
                                             step.title,
-                                            style: AppTypography.fontBase.copyWith(
+                                            style:
+                                                AppTypography.fontBase.copyWith(
                                               fontSize: 14,
                                               fontWeight: FontWeight.w600,
                                               color: AppColors.textPrimary,
@@ -547,9 +587,12 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                 child: ElevatedButton(
                   onPressed: _loading ? null : _toggleBooking,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _isBooked ? const Color(0xFFFEECEC) : AppColors.primary,
-                    foregroundColor: _isBooked ? AppColors.announcementButton : Colors.white,
-                    disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.35),
+                    backgroundColor:
+                        _isBooked ? const Color(0xFFFEECEC) : AppColors.primary,
+                    foregroundColor:
+                        _isBooked ? AppColors.announcementButton : Colors.white,
+                    disabledBackgroundColor:
+                        AppColors.primary.withValues(alpha: 0.35),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -570,7 +613,9 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                               : '${AppLocale.tr('trip_book_now')} (${widget.price})',
                           style: AppTypography.buttonText.copyWith(
                             fontSize: 15,
-                            color: _isBooked ? AppColors.announcementButton : Colors.white,
+                            color: _isBooked
+                                ? AppColors.announcementButton
+                                : Colors.white,
                           ),
                         ),
                 ),

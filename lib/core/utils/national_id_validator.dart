@@ -120,7 +120,8 @@ class EgyptianNationalIdValidator {
 
   static int _daysInMonth(int year, int month) {
     if (month == 2) {
-      final isLeapYear = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+      final isLeapYear =
+          (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
       return isLeapYear ? 29 : 28;
     }
     const days30 = [4, 6, 9, 11];

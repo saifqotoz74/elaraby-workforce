@@ -131,7 +131,9 @@ class _ConfirmPinScreenState extends State<ConfirmPinScreen> {
                     margin: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
                       color: isFilled
-                          ? (_mismatch ? AppColors.announcementHeader : AppColors.primary)
+                          ? (_mismatch
+                              ? AppColors.announcementHeader
+                              : AppColors.primary)
                           : const Color(0xFFD1D5DB),
                       shape: BoxShape.circle,
                     ),

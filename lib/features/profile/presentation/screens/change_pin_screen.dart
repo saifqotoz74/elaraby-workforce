@@ -240,7 +240,9 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
                     height: 4,
                     margin: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
-                      color: isActive ? AppColors.primary : const Color(0xFFE5E7EB),
+                      color: isActive
+                          ? AppColors.primary
+                          : const Color(0xFFE5E7EB),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   );
@@ -271,7 +273,9 @@ class _ChangePinScreenState extends State<ChangePinScreen> {
                     height: 14,
                     margin: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
-                      color: isFilled ? AppColors.primary : const Color(0xFFD1D5DB),
+                      color: isFilled
+                          ? AppColors.primary
+                          : const Color(0xFFD1D5DB),
                       shape: BoxShape.circle,
                     ),
                   );

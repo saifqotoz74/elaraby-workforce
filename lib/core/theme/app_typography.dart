@@ -10,8 +10,10 @@ class AppTypography {
 
   static bool get isArabicTypography => AppLocale.instance.isArabic;
 
-  static double get _letterSpacingTitle => AppLocale.instance.isArabic ? 0.0 : -0.3;
-  static double get _letterSpacingHeading => AppLocale.instance.isArabic ? 0.0 : -0.2;
+  static double get _letterSpacingTitle =>
+      AppLocale.instance.isArabic ? 0.0 : -0.3;
+  static double get _letterSpacingHeading =>
+      AppLocale.instance.isArabic ? 0.0 : -0.2;
 
   static TextStyle _font({
     double? fontSize,
@@ -51,7 +53,9 @@ class AppTypography {
     if (Platform.environment.containsKey('FLUTTER_TEST')) {
       return GoogleFonts.inter();
     }
-    return AppLocale.instance.isArabic ? GoogleFonts.cairo() : GoogleFonts.inter();
+    return AppLocale.instance.isArabic
+        ? GoogleFonts.cairo()
+        : GoogleFonts.inter();
   }
 
   // App Bar & Headings

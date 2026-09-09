@@ -12,7 +12,8 @@ class AnnouncementDetailScreen extends StatelessWidget {
 
   /// Server-driven announcement when [body] is provided; otherwise renders
   /// the bundled policy article.
-  const AnnouncementDetailScreen({super.key, this.title, this.body, this.imageUrl});
+  const AnnouncementDetailScreen(
+      {super.key, this.title, this.body, this.imageUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +34,9 @@ class AnnouncementDetailScreen extends StatelessWidget {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
-          AppLocale.instance.isArabic ? 'تفاصيل الإعلان' : 'Announcement Details',
+          AppLocale.instance.isArabic
+              ? 'تفاصيل الإعلان'
+              : 'Announcement Details',
           style: AppTypography.sectionHeading.copyWith(fontSize: 18),
         ),
         shape: const RoundedRectangleBorder(
@@ -112,7 +115,9 @@ class AnnouncementDetailScreen extends StatelessWidget {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
-          AppLocale.instance.isArabic ? 'تفاصيل الإعلان' : 'Announcement Details',
+          AppLocale.instance.isArabic
+              ? 'تفاصيل الإعلان'
+              : 'Announcement Details',
           style: AppTypography.sectionHeading.copyWith(fontSize: 18),
         ),
         shape: const RoundedRectangleBorder(
@@ -145,7 +150,8 @@ class AnnouncementDetailScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
                         color: AppColors.announcementBg,
                         borderRadius: BorderRadius.circular(8),
@@ -171,11 +177,13 @@ class AnnouncementDetailScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.textSecondary),
+                        const Icon(Icons.calendar_today_outlined,
+                            size: 14, color: AppColors.textSecondary),
                         const SizedBox(width: 6),
                         Text(
                           AppLocale.tr('ann_detail_published'),
-                          style: AppTypography.dateSubtitle.copyWith(fontSize: 12),
+                          style:
+                              AppTypography.dateSubtitle.copyWith(fontSize: 12),
                         ),
                       ],
                     ),
@@ -220,7 +228,8 @@ class AnnouncementDetailScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    const Divider(height: 1, color: AppColors.scaffoldBackground),
+                    const Divider(
+                        height: 1, color: AppColors.scaffoldBackground),
                     const SizedBox(height: 20),
                     Text(
                       AppLocale.tr('ann_detail_schedules_title'),
@@ -318,7 +327,8 @@ class AnnouncementDetailScreen extends StatelessWidget {
                       ),
                     );
                   },
-                  icon: const Icon(Icons.help_outline_rounded, color: Colors.white, size: 20),
+                  icon: const Icon(Icons.help_outline_rounded,
+                      color: Colors.white, size: 20),
                   label: Text(
                     AppLocale.tr('ann_contact_btn'),
                     style: AppTypography.buttonText.copyWith(fontSize: 14),

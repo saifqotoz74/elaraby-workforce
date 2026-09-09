@@ -77,8 +77,14 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
       cur = DateTime(cur.year, cur.month, cur.day + 1);
     }
     // If leave requested on weekend days only (e.g. weekend shift workers or emergency leave), count requested days
-    if (count == 0 && !end.isBefore(DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day))) {
-      count = end.difference(DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day)).inDays + 1;
+    if (count == 0 &&
+        !end.isBefore(
+            DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day))) {
+      count = end
+              .difference(
+                  DateTime(_fromDate!.year, _fromDate!.month, _fromDate!.day))
+              .inDays +
+          1;
     }
     return count;
   }
@@ -87,16 +93,15 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
       _fromDate != null && _toDate != null && !_toDate!.isBefore(_fromDate!);
 
   bool get _exceedsBalance =>
-      _datesValid && _selectedLeaveType == 'Annual Leave' &&
+      _datesValid &&
+      _selectedLeaveType == 'Annual Leave' &&
       _estimatedDays > _vacationRemaining;
 
   Future<void> _pickDate({required bool isFrom}) async {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: isFrom
-          ? (_fromDate ?? now)
-          : (_toDate ?? _fromDate ?? now),
+      initialDate: isFrom ? (_fromDate ?? now) : (_toDate ?? _fromDate ?? now),
       firstDate: isFrom ? now : (_fromDate ?? now),
       lastDate: now.add(const Duration(days: 365)),
     );
@@ -113,8 +118,7 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
     });
   }
 
-  String _formatDate(DateTime date) =>
-      DateFormat('dd MMM yyyy').format(date);
+  String _formatDate(DateTime date) => DateFormat('dd MMM yyyy').format(date);
 
   bool get _isDirty =>
       !_submitting &&
@@ -166,279 +170,298 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
             icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
             onPressed: () => Navigator.of(context).maybePop(),
           ),
-        title: Text(
-          AppLocale.tr('request_leave'),
-          style: AppTypography.sectionHeading.copyWith(fontSize: 18),
+          title: Text(
+            AppLocale.tr('request_leave'),
+            style: AppTypography.sectionHeading.copyWith(fontSize: 18),
+          ),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+          ),
         ),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-        ),
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    // Top Available Badge
-                    Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      // Top Available Badge
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppColors.shiftBg,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '$_vacationRemaining ${AppLocale.tr('vac_days_available')}',
+                            style: AppTypography.fontBase.copyWith(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Main Form Card
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppColors.shiftBg,
-                          borderRadius: BorderRadius.circular(10),
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x06000000),
+                              blurRadius: 8,
+                              offset: Offset(0, 2),
+                            ),
+                          ],
                         ),
-                        child: Text(
-                          '$_vacationRemaining ${AppLocale.tr('vac_days_available')}',
-                          style: AppTypography.fontBase.copyWith(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Main Form Card
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x06000000),
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Leave Type
-                          Text(
-                            AppLocale.tr('leave_type'),
-                            style: AppTypography.fontBase.copyWith(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFE5E7EB)),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: _selectedLeaveType,
-                                isExpanded: true,
-                                icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.textSecondary),
-                                items: _leaveTypes.map((type) {
-                                  return DropdownMenuItem(
-                                    value: type,
-                                    child: Text(
-                                      AppLocale.tr('leave_type_${type.toLowerCase().replaceAll(' ', '_')}'),
-                                      style: AppTypography.fontBase.copyWith(
-                                        fontSize: 14,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                                onChanged: (val) {
-                                  if (val != null) setState(() => _selectedLeaveType = val);
-                                },
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Dates: From & To
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      AppLocale.tr('leave_from'),
-                                      style: AppTypography.fontBase.copyWith(
-                                        fontSize: 13,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    _dateField(
-                                      date: _fromDate,
-                                      onTap: () => _pickDate(isFrom: true),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      AppLocale.tr('leave_to'),
-                                      style: AppTypography.fontBase.copyWith(
-                                        fontSize: 13,
-                                        color: AppColors.textPrimary,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    _dateField(
-                                      date: _toDate,
-                                      onTap: () => _pickDate(isFrom: false),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Notes
-                          Text(
-                            AppLocale.tr('leave_notes'),
-                            style: AppTypography.fontBase.copyWith(
-                              fontSize: 13,
-                              color: AppColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          TextField(
-                            controller: _notesController,
-                            maxLines: 4,
-                            decoration: InputDecoration(
-                              hintText: AppLocale.tr('leave_notes_hint'),
-                              hintStyle: AppTypography.fontBase.copyWith(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Leave Type
+                            Text(
+                              AppLocale.tr('leave_type'),
+                              style: AppTypography.fontBase.copyWith(
                                 fontSize: 13,
-                                color: AppColors.textSecondary,
-                              ),
-                              contentPadding: const EdgeInsets.all(14),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textPrimary,
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Estimated Duration Banner
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                            decoration: BoxDecoration(
-                              color: _exceedsBalance
-                                  ? AppColors.announcementBg
-                                  : AppColors.shiftBg,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      AppLocale.tr('leave_estimated_duration'),
-                                      style: AppTypography.fontBase.copyWith(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textPrimary,
+                            const SizedBox(height: 8),
+                            Container(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                border:
+                                    Border.all(color: const Color(0xFFE5E7EB)),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: _selectedLeaveType,
+                                  isExpanded: true,
+                                  icon: const Icon(Icons.keyboard_arrow_down,
+                                      color: AppColors.textSecondary),
+                                  items: _leaveTypes.map((type) {
+                                    return DropdownMenuItem(
+                                      value: type,
+                                      child: Text(
+                                        AppLocale.tr(
+                                            'leave_type_${type.toLowerCase().replaceAll(' ', '_')}'),
+                                        style: AppTypography.fontBase.copyWith(
+                                          fontSize: 14,
+                                          color: AppColors.textPrimary,
+                                        ),
                                       ),
-                                    ),
-                                    Text(
-                                      _exceedsBalance
-                                          ? AppLocale.tr('leave_exceeds_balance')
-                                          : '$estimatedDays ${AppLocale.tr('vac_days_unit')}',
-                                      style: AppTypography.fontBase.copyWith(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w700,
-                                        color: _exceedsBalance
-                                            ? AppColors.announcementHeader
-                                            : AppColors.primary,
-                                      ),
-                                    ),
-                                  ],
+                                    );
+                                  }).toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setState(() => _selectedLeaveType = val);
+                                    }
+                                  },
                                 ),
-                                if (_datesValid && !_exceedsBalance) ...[
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    AppLocale.instance.isArabic
-                                        ? '• يتم احتساب أيام العمل الفعلية فقط (مستبعداً العطلات الرسمية: الجمعة والسبت)'
-                                        : '• Actual working days only (excluding official rest days: Fri & Sat)',
-                                    style: AppTypography.fontBase.copyWith(
-                                      fontSize: 11,
-                                      color: AppColors.textSecondary,
-                                    ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Dates: From & To
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        AppLocale.tr('leave_from'),
+                                        style: AppTypography.fontBase.copyWith(
+                                          fontSize: 13,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      _dateField(
+                                        date: _fromDate,
+                                        onTap: () => _pickDate(isFrom: true),
+                                      ),
+                                    ],
                                   ),
-                                ],
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        AppLocale.tr('leave_to'),
+                                        style: AppTypography.fontBase.copyWith(
+                                          fontSize: 13,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      _dateField(
+                                        date: _toDate,
+                                        onTap: () => _pickDate(isFrom: false),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ],
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 16),
+
+                            // Notes
+                            Text(
+                              AppLocale.tr('leave_notes'),
+                              style: AppTypography.fontBase.copyWith(
+                                fontSize: 13,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            TextField(
+                              controller: _notesController,
+                              maxLines: 4,
+                              decoration: InputDecoration(
+                                hintText: AppLocale.tr('leave_notes_hint'),
+                                hintStyle: AppTypography.fontBase.copyWith(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary,
+                                ),
+                                contentPadding: const EdgeInsets.all(14),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                      color: Color(0xFFE5E7EB)),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                      color: Color(0xFFE5E7EB)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+
+                            // Estimated Duration Banner
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 14),
+                              decoration: BoxDecoration(
+                                color: _exceedsBalance
+                                    ? AppColors.announcementBg
+                                    : AppColors.shiftBg,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        AppLocale.tr(
+                                            'leave_estimated_duration'),
+                                        style: AppTypography.fontBase.copyWith(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                      Text(
+                                        _exceedsBalance
+                                            ? AppLocale.tr(
+                                                'leave_exceeds_balance')
+                                            : '$estimatedDays ${AppLocale.tr('vac_days_unit')}',
+                                        style: AppTypography.fontBase.copyWith(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                          color: _exceedsBalance
+                                              ? AppColors.announcementHeader
+                                              : AppColors.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (_datesValid && !_exceedsBalance) ...[
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      AppLocale.instance.isArabic
+                                          ? '• يتم احتساب أيام العمل الفعلية فقط (مستبعداً العطلات الرسمية: الجمعة والسبت)'
+                                          : '• Actual working days only (excluding official rest days: Fri & Sat)',
+                                      style: AppTypography.fontBase.copyWith(
+                                        fontSize: 11,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Submit Button (enabled only with valid dates)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _datesValid && !_exceedsBalance && !_submitting
+                        ? _submit
+                        : null,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      disabledBackgroundColor:
+                          AppColors.primary.withValues(alpha: 0.35),
+                      foregroundColor: Colors.white,
+                      disabledForegroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Submit Button (enabled only with valid dates)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _datesValid && !_exceedsBalance && !_submitting ? _submit : null,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.35),
-                    foregroundColor: Colors.white,
-                    disabledForegroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: _submitting
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: Colors.white,
+                    child: _submitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            AppLocale.tr('leave_submit'),
+                            style:
+                                AppTypography.buttonText.copyWith(fontSize: 15),
                           ),
-                        )
-                      : Text(
-                          AppLocale.tr('leave_submit'),
-                          style: AppTypography.buttonText.copyWith(fontSize: 15),
-                        ),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
   }
 
   Widget _dateField({DateTime? date, required VoidCallback onTap}) {
@@ -483,7 +506,8 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
     RequestsStore.instance.addRequest(
       EmployeeRequest(
         id: DateTime.now().microsecondsSinceEpoch.toString(),
-        title: '${AppLocale.tr('leave_type_${_selectedLeaveType.toLowerCase().replaceAll(' ', '_')}')} — ${AppLocale.tr('request_leave')}',
+        title:
+            '${AppLocale.tr('leave_type_${_selectedLeaveType.toLowerCase().replaceAll(' ', '_')}')} — ${AppLocale.tr('request_leave')}',
         type: 'Leave',
         refNumber: ref,
         status: RequestStatus.inReview,
@@ -493,7 +517,8 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
         details: {
           'leaveType': _selectedLeaveType,
           'days': '$_estimatedDays',
-          AppLocale.tr('leave_detail_duration'): '$_estimatedDays ${AppLocale.tr('vac_days_unit')}',
+          AppLocale.tr('leave_detail_duration'):
+              '$_estimatedDays ${AppLocale.tr('vac_days_unit')}',
           AppLocale.tr('leave_detail_dates'):
               '${_formatDate(_fromDate!)} – ${_formatDate(_toDate!)}',
           AppLocale.tr('leave_detail_type'): AppLocale.tr(

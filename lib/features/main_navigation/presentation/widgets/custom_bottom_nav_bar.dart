@@ -85,7 +85,9 @@ class CustomBottomNavBar extends StatelessWidget {
                     children: [
                       Icon(
                         isSelected ? item.activeIcon : item.inactiveIcon,
-                        color: isSelected ? AppColors.navActive : AppColors.navInactive,
+                        color: isSelected
+                            ? AppColors.navActive
+                            : AppColors.navInactive,
                         size: 24,
                       ),
                       const SizedBox(height: 4),

@@ -24,11 +24,15 @@ import 'package:elaraby_workforce/features/inbox/presentation/screens/inbox_scre
 import 'package:elaraby_workforce/features/home/presentation/widgets/quick_actions_grid.dart';
 import 'package:elaraby_workforce/features/profile/presentation/screens/help_support_screen.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 Widget createTestApp(Widget child, {Locale locale = const Locale('en')}) {
   AppLocale.instance.setLocale(locale);
-  return MaterialApp(
-    home: child,
-    theme: ThemeData(fontFamily: 'Inter'),
+  return ProviderScope(
+    child: MaterialApp(
+      home: child,
+      theme: ThemeData(fontFamily: 'Inter'),
+    ),
   );
 }
 
@@ -50,12 +54,14 @@ void main() {
   });
 
   group('Interactive Buttons & Actions Tests', () {
-    testWidgets('QuickActionsGrid: All 6 quick action buttons tap and navigate', (tester) async {
+    testWidgets('QuickActionsGrid: All 6 quick action buttons tap and navigate',
+        (tester) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
 
-      await tester.pumpWidget(createTestApp(const Scaffold(body: SingleChildScrollView(child: QuickActionsGrid()))));
+      await tester.pumpWidget(createTestApp(const Scaffold(
+          body: SingleChildScrollView(child: QuickActionsGrid()))));
       await tester.pumpAndSettle();
 
       // 1. Quick Action: Salary Slip Button
@@ -95,7 +101,9 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('VacationBalanceScreen: Request Leave button navigates to RequestLeaveScreen', (tester) async {
+    testWidgets(
+        'VacationBalanceScreen: Request Leave button navigates to RequestLeaveScreen',
+        (tester) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -111,7 +119,8 @@ void main() {
       expect(find.byType(RequestLeaveScreen), findsOneWidget);
     });
 
-    testWidgets('RequestLeaveScreen: Form fields entry and Submit button tap', (tester) async {
+    testWidgets('RequestLeaveScreen: Form fields entry and Submit button tap',
+        (tester) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -183,7 +192,8 @@ void main() {
       await tester.pump();
     });
 
-    testWidgets('HrRequestScreen: Enter text and Submit button tap', (tester) async {
+    testWidgets('HrRequestScreen: Enter text and Submit button tap',
+        (tester) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -204,7 +214,8 @@ void main() {
       expect(find.text('HR Request submitted successfully!'), findsOneWidget);
     });
 
-    testWidgets('RaiseConcernScreen: Text entry and Submit button tap', (tester) async {
+    testWidgets('RaiseConcernScreen: Text entry and Submit button tap',
+        (tester) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -272,7 +283,8 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('TripDetailScreen: Book seat and Cancel reservation buttons', (tester) async {
+    testWidgets('TripDetailScreen: Book seat and Cancel reservation buttons',
+        (tester) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -296,7 +308,8 @@ void main() {
       expect(find.text(AppLocale.tr('trip_confirmed')), findsOneWidget);
 
       // Dismiss snackbar so it does not obscure the bottom button
-      ScaffoldMessenger.of(tester.element(find.byType(TripDetailScreen))).clearSnackBars();
+      ScaffoldMessenger.of(tester.element(find.byType(TripDetailScreen)))
+          .clearSnackBars();
       await tester.pumpAndSettle();
 
       final cancelBtn = find.text(AppLocale.tr('trip_cancel_booking'));
@@ -306,10 +319,12 @@ void main() {
       await tester.pump();
       expect(find.text(AppLocale.tr('trip_cancelled')), findsOneWidget);
       await tester.pumpAndSettle();
-      expect(find.textContaining(AppLocale.tr('trip_book_now')), findsOneWidget);
+      expect(
+          find.textContaining(AppLocale.tr('trip_book_now')), findsOneWidget);
     });
 
-    testWidgets('InboxScreen: Filter chips and Mark all as read button', (tester) async {
+    testWidgets('InboxScreen: Filter chips and Mark all as read button',
+        (tester) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -318,7 +333,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text(AppLocale.tr('inbox_filter_all')), findsOneWidget);
-      expect(find.text(AppLocale.tr('inbox_filter_announcements')), findsOneWidget);
+      expect(find.text(AppLocale.tr('inbox_filter_announcements')),
+          findsOneWidget);
 
       await tester.tap(find.text(AppLocale.tr('inbox_filter_announcements')));
       await tester.pumpAndSettle();
@@ -334,7 +350,9 @@ void main() {
       }
     });
 
-    testWidgets('ProfileScreen: Language modal, Privacy modal, and Logout modal buttons', (tester) async {
+    testWidgets(
+        'ProfileScreen: Language modal, Privacy modal, and Logout modal buttons',
+        (tester) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -409,7 +427,8 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('ChangePinScreen: Keypad digits entry through all 3 steps', (tester) async {
+    testWidgets('ChangePinScreen: Keypad digits entry through all 3 steps',
+        (tester) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -451,7 +470,9 @@ void main() {
       expect(isVerified, true);
     });
 
-    testWidgets('PinLockScreen: Keypad buttons, backspace, and Forgot PIN button', (tester) async {
+    testWidgets(
+        'PinLockScreen: Keypad buttons, backspace, and Forgot PIN button',
+        (tester) async {
       tester.view.physicalSize = const Size(800, 1400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);

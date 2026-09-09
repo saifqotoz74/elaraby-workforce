@@ -24,7 +24,8 @@ class AuthProgressBar extends StatelessWidget {
                 right: index == 4 ? 0 : 4,
               ),
               decoration: BoxDecoration(
-                color: isCompleted ? AppColors.primary : const Color(0xFFE5EBF2),
+                color:
+                    isCompleted ? AppColors.primary : const Color(0xFFE5EBF2),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),

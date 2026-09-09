@@ -122,7 +122,8 @@ class _HrRequestScreenState extends State<HrRequestScreen> {
                           child: DropdownButton<String>(
                             value: _selectedRequestType,
                             isExpanded: true,
-                            icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.textSecondary),
+                            icon: const Icon(Icons.keyboard_arrow_down,
+                                color: AppColors.textSecondary),
                             items: _types.map((type) {
                               return DropdownMenuItem(
                                 value: type,
@@ -136,7 +137,9 @@ class _HrRequestScreenState extends State<HrRequestScreen> {
                               );
                             }).toList(),
                             onChanged: (val) {
-                              if (val != null) setState(() => _selectedRequestType = val);
+                              if (val != null) {
+                                setState(() => _selectedRequestType = val);
+                              }
                             },
                           ),
                         ),
@@ -164,11 +167,13 @@ class _HrRequestScreenState extends State<HrRequestScreen> {
                           contentPadding: const EdgeInsets.all(14),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFE5E7EB)),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                            borderSide:
+                                const BorderSide(color: Color(0xFFE5E7EB)),
                           ),
                         ),
                       ),
@@ -212,7 +217,8 @@ class _HrRequestScreenState extends State<HrRequestScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                _attachedFileName ?? 'Attach Document (optional)',
+                                _attachedFileName ??
+                                    'Attach Document (optional)',
                                 style: AppTypography.fontBase.copyWith(
                                   fontSize: 13,
                                   fontWeight: _attachedFileName != null
@@ -248,10 +254,13 @@ class _HrRequestScreenState extends State<HrRequestScreen> {
 
                           RequestsStore.instance.addRequest(
                             EmployeeRequest(
-                              id: DateTime.now().millisecondsSinceEpoch.toString(),
+                              id: DateTime.now()
+                                  .millisecondsSinceEpoch
+                                  .toString(),
                               title: 'HR Request',
                               type: _selectedRequestType,
-                              refNumber: 'HR-2026-${LocalStore.instance.nextRefNumber()}',
+                              refNumber:
+                                  'HR-2026-${LocalStore.instance.nextRefNumber()}',
                               status: RequestStatus.inReview,
                               date: AppLocale.tr('time_just_now'),
                               summary: AppLocale.instance.isArabic
@@ -288,7 +297,8 @@ class _HrRequestScreenState extends State<HrRequestScreen> {
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.35),
+                    disabledBackgroundColor:
+                        AppColors.primary.withValues(alpha: 0.35),
                     foregroundColor: Colors.white,
                     disabledForegroundColor: Colors.white,
                     elevation: 0,
@@ -307,7 +317,8 @@ class _HrRequestScreenState extends State<HrRequestScreen> {
                         )
                       : Text(
                           'Submit Request',
-                          style: AppTypography.buttonText.copyWith(fontSize: 15),
+                          style:
+                              AppTypography.buttonText.copyWith(fontSize: 15),
                         ),
                 ),
               ),

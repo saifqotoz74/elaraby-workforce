@@ -225,7 +225,8 @@ class _OtpScreenState extends State<OtpScreen> {
               const SizedBox(height: 8),
               Text(
                 '${AppLocale.tr('auth_otp_sent_to')} $_phoneHint',
-                style: AppTypography.dateSubtitle.copyWith(fontSize: 14, height: 1.4),
+                style: AppTypography.dateSubtitle
+                    .copyWith(fontSize: 14, height: 1.4),
               ),
               const SizedBox(height: 48),
 
@@ -244,7 +245,9 @@ class _OtpScreenState extends State<OtpScreen> {
                         color: const Color(0xFFF9FAFB),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: isActive ? AppColors.primary : const Color(0xFFE5E7EB),
+                          color: isActive
+                              ? AppColors.primary
+                              : const Color(0xFFE5E7EB),
                           width: isActive ? 2 : 1,
                         ),
                       ),
@@ -301,10 +304,12 @@ class _OtpScreenState extends State<OtpScreen> {
                     inputFormatters: [
                       TextInputFormatter.withFunction((oldValue, newValue) {
                         final normalized =
-                            EgyptianNationalIdValidator.normalizeDigits(newValue.text);
+                            EgyptianNationalIdValidator.normalizeDigits(
+                                newValue.text);
                         return TextEditingValue(
                           text: normalized,
-                          selection: TextSelection.collapsed(offset: normalized.length),
+                          selection: TextSelection.collapsed(
+                              offset: normalized.length),
                         );
                       }),
                       FilteringTextInputFormatter.digitsOnly,

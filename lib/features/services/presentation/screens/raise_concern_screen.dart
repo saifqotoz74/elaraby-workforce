@@ -32,7 +32,8 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
     super.initState();
     final draft = LocalStore.instance.getDraft('raise_concern');
     if (draft != null) {
-      if (draft['category'] is String && _categories.contains(draft['category'])) {
+      if (draft['category'] is String &&
+          _categories.contains(draft['category'])) {
         _selectedCategory = draft['category'] as String;
       }
       if (draft['details'] is String) {
@@ -162,13 +163,15 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 14),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFE5E7EB)),
+                              border:
+                                  Border.all(color: const Color(0xFFE5E7EB)),
                             ),
                             child: DropdownButtonHideUnderline(
                               child: DropdownButton<String>(
                                 value: _selectedCategory,
                                 isExpanded: true,
-                                icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.textSecondary),
+                                icon: const Icon(Icons.keyboard_arrow_down,
+                                    color: AppColors.textSecondary),
                                 items: _categories.map((cat) {
                                   return DropdownMenuItem(
                                     value: cat,
@@ -182,7 +185,9 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
                                   );
                                 }).toList(),
                                 onChanged: (val) {
-                                  if (val != null) setState(() => _selectedCategory = val);
+                                  if (val != null) {
+                                    setState(() => _selectedCategory = val);
+                                  }
                                 },
                               ),
                             ),
@@ -202,7 +207,8 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
                             controller: _detailsController,
                             maxLines: 4,
                             decoration: InputDecoration(
-                              hintText: "Add any details you'd like to share...",
+                              hintText:
+                                  "Add any details you'd like to share...",
                               hintStyle: AppTypography.fontBase.copyWith(
                                 fontSize: 13,
                                 color: AppColors.textSecondary,
@@ -210,11 +216,13 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
                               contentPadding: const EdgeInsets.all(14),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                                borderSide:
+                                    const BorderSide(color: Color(0xFFE5E7EB)),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                                borderSide:
+                                    const BorderSide(color: Color(0xFFE5E7EB)),
                               ),
                             ),
                           ),
@@ -297,12 +305,14 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
                           height: 22,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
                       : Text(
                           'Submit Anonymously',
-                          style: AppTypography.buttonText.copyWith(fontSize: 15),
+                          style:
+                              AppTypography.buttonText.copyWith(fontSize: 15),
                         ),
                 ),
               ),
@@ -343,7 +353,9 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
       final ref = res?['refNumber'] as String?;
       final isAr = AppLocale.instance.isArabic;
       final msg = ref != null
-          ? (isAr ? 'تم إرسال بلاغك بنجاح وسرية تامة (رقم: $ref)' : 'Concern submitted securely (Ref: $ref)')
+          ? (isAr
+              ? 'تم إرسال بلاغك بنجاح وسرية تامة (رقم: $ref)'
+              : 'Concern submitted securely (Ref: $ref)')
           : AppLocale.tr('concern_success');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

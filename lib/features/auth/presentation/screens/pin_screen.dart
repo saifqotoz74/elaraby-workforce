@@ -90,7 +90,8 @@ class _PinScreenState extends State<PinScreen> {
               const SizedBox(height: 8),
               Text(
                 AppLocale.tr('auth_create_pin_subtitle'),
-                style: AppTypography.dateSubtitle.copyWith(fontSize: 14, height: 1.4),
+                style: AppTypography.dateSubtitle
+                    .copyWith(fontSize: 14, height: 1.4),
               ),
               const SizedBox(height: 48),
 
@@ -104,7 +105,9 @@ class _PinScreenState extends State<PinScreen> {
                     height: 14,
                     margin: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
-                      color: isFilled ? AppColors.primary : const Color(0xFFD1D5DB),
+                      color: isFilled
+                          ? AppColors.primary
+                          : const Color(0xFFD1D5DB),
                       shape: BoxShape.circle,
                     ),
                   );

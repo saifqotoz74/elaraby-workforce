@@ -78,7 +78,8 @@ class _AppNetworkImageState extends State<AppNetworkImage> {
             .where((f) => f.path.contains('img_cache_'))
             .toList();
         if (files.length > 150) {
-          files.sort((a, b) => a.lastModifiedSync().compareTo(b.lastModifiedSync()));
+          files.sort(
+              (a, b) => a.lastModifiedSync().compareTo(b.lastModifiedSync()));
           final toDelete = files.take(files.length - 100);
           for (final f in toDelete) {
             try {
@@ -86,7 +87,8 @@ class _AppNetworkImageState extends State<AppNetworkImage> {
             } catch (_) {}
           }
         }
-      } catch (_) {} finally {
+      } catch (_) {
+      } finally {
         _pruning = false;
       }
     });
@@ -94,7 +96,8 @@ class _AppNetworkImageState extends State<AppNetworkImage> {
 
   Future<void> _loadImage() async {
     final url = widget.imageUrl.trim();
-    if (url.isEmpty || (!url.startsWith('http://') && !url.startsWith('https://'))) {
+    if (url.isEmpty ||
+        (!url.startsWith('http://') && !url.startsWith('https://'))) {
       if (mounted) {
         setState(() {
           _loading = false;

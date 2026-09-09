@@ -188,7 +188,8 @@ void main() {
     // Reset singleton state mutated by earlier tests.
     await LocalStore.instance.saveProfile(const EmployeeProfile());
     AppLocale.instance.setLocale(const Locale('en'));
-    await tester.pumpWidget(const ElarabyWorkforceApp(initialScreen: MainNavScreen()));
+    await tester
+        .pumpWidget(const ElarabyWorkforceApp(initialScreen: MainNavScreen()));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 

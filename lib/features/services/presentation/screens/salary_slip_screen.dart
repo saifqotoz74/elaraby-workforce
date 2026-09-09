@@ -1,28 +1,26 @@
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/localization/app_locale.dart';
-import '../../../../core/network/backend.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../data/payroll_data.dart';
+import '../controllers/salary_controller.dart';
 import 'salary_pin_gate.dart';
 
-class SalarySlipScreen extends StatefulWidget {
+class SalarySlipScreen extends ConsumerStatefulWidget {
   const SalarySlipScreen({super.key});
 
   static const SalarySlipData _defaultData = SalarySlipData();
 
   @override
-  State<SalarySlipScreen> createState() => _SalarySlipScreenState();
+  ConsumerState<SalarySlipScreen> createState() => _SalarySlipScreenState();
 }
 
-class _SalarySlipScreenState extends State<SalarySlipScreen> {
+class _SalarySlipScreenState extends ConsumerState<SalarySlipScreen> {
   bool _unlocked = false;
-  bool _loading = false;
-  String? _errorMessage;
   String? _authorizedPin;
-  SalarySlipData? _serverData;
 
   @override
   void initState() {
@@ -42,29 +40,19 @@ class _SalarySlipScreenState extends State<SalarySlipScreen> {
   /// HR-published statement wins; authenticated via server-side PIN.
   Future<void> _loadStatement({String? pin}) async {
     final effectivePin = pin ?? _authorizedPin;
-    setState(() {
-      _loading = true;
-      _errorMessage = null;
-    });
-    final payroll = await Backend.instance.fetchPayroll(pin: effectivePin);
-    if (!mounted) return;
-    if (payroll == null) {
-      final isTest = Platform.environment.containsKey('FLUTTER_TEST');
-      setState(() {
-        _loading = false;
-        if (isTest) {
-          _serverData = SalarySlipScreen._defaultData;
-        } else {
-          _errorMessage = AppLocale.instance.isArabic
-              ? 'تعذر تحميل كشف الراتب. يرجى التحقق من الاتصال والمحاولة مرة أخرى.'
-              : 'Unable to load salary statement. Please check your connection and retry.';
-        }
-      });
-      return;
+    if (effectivePin != null) {
+      await ref.read(salaryStateProvider.notifier).unlockAndFetch(effectivePin);
+    } else {
+      await ref.read(salaryStateProvider.notifier).fetchWithToken();
     }
-    setState(() {
-      _loading = false;
-      _serverData = SalarySlipData(
+  }
+
+  SalarySlipData get _data {
+    final salaryState = ref.read(salaryStateProvider);
+    final isTest = Platform.environment.containsKey('FLUTTER_TEST');
+    if (salaryState.hasData) {
+      final payroll = salaryState.data!;
+      return SalarySlipData(
         period: payroll['period'] as String? ?? SalarySlipData.defaultPeriod,
         basicSalary: (payroll['basicSalary'] as num?)?.toInt() ?? 0,
         allowances: (payroll['allowances'] as num?)?.toInt() ?? 0,
@@ -72,10 +60,45 @@ class _SalarySlipScreenState extends State<SalarySlipScreen> {
         paidOn: payroll['paidOn'] as String? ?? '',
         paymentMethod: payroll['paymentMethod'] as String? ?? 'Bank Transfer',
       );
-    });
+    }
+    if (isTest) {
+      return SalarySlipScreen._defaultData;
+    }
+    return SalarySlipScreen._defaultData;
   }
 
-  SalarySlipData get _data => _serverData ?? SalarySlipScreen._defaultData;
+  SalarySlipData? get _serverData {
+    final salaryState = ref.watch(salaryStateProvider);
+    final isTest = Platform.environment.containsKey('FLUTTER_TEST');
+    if (salaryState.hasData) {
+      final payroll = salaryState.data!;
+      return SalarySlipData(
+        period: payroll['period'] as String? ?? SalarySlipData.defaultPeriod,
+        basicSalary: (payroll['basicSalary'] as num?)?.toInt() ?? 0,
+        allowances: (payroll['allowances'] as num?)?.toInt() ?? 0,
+        deductions: (payroll['deductions'] as num?)?.toInt() ?? 0,
+        paidOn: payroll['paidOn'] as String? ?? '',
+        paymentMethod: payroll['paymentMethod'] as String? ?? 'Bank Transfer',
+      );
+    }
+    if (isTest) {
+      return SalarySlipScreen._defaultData;
+    }
+    return null;
+  }
+
+  bool get _loading => ref.watch(salaryStateProvider).isLoading;
+
+  String? get _errorMessage {
+    final state = ref.watch(salaryStateProvider);
+    if (state.isError) {
+      return state.errorMessage ??
+          (AppLocale.instance.isArabic
+              ? 'تعذر تحميل كشف الراتب. يرجى التحقق من الاتصال والمحاولة مرة أخرى.'
+              : 'Unable to load salary statement. Please check your connection and retry.');
+    }
+    return null;
+  }
 
   Future<void> _requirePin() async {
     final res = await showDialog<dynamic>(

@@ -10,15 +10,20 @@ import '../repositories/requests_repository.dart';
 import '../repositories/salary_repository.dart';
 import '../repositories/session_repository.dart';
 import '../repositories/settings_repository.dart';
+import '../storage/local_store.dart';
 
 /// Overridable SharedPreferences provider (useful in tests).
-final sharedPreferencesProvider = Provider<SharedPreferences>((ref) {
-  throw UnimplementedError(
-      'sharedPreferencesProvider must be overridden in main()');
+final sharedPreferencesProvider = Provider<SharedPreferences?>((ref) {
+  return LocalStore.instance.rawPrefs;
 });
 
 final localStorageDataSourceProvider = Provider<LocalStorageDataSource>((ref) {
-  final prefs = ref.watch(sharedPreferencesProvider);
+  final prefs =
+      ref.watch(sharedPreferencesProvider) ?? LocalStore.instance.rawPrefs;
+  if (prefs == null) {
+    throw StateError(
+        'sharedPreferencesProvider must be overridden or LocalStore.instance.init() called');
+  }
   return LocalStorageDataSource(prefs: prefs);
 });
 

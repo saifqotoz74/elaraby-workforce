@@ -25,7 +25,9 @@ void main() {
   });
 
   group('Session Teardown & Store Cleanup', () {
-    test('Backend.instance.clearAllUserData() resets all stores and session tokens', () async {
+    test(
+        'Backend.instance.clearAllUserData() resets all stores and session tokens',
+        () async {
       await ApiClient.instance.setToken('test-dummy-jwt');
       expect(ApiClient.instance.token, 'test-dummy-jwt');
 
@@ -98,7 +100,9 @@ void main() {
       expect(content.loaded, isFalse);
     });
 
-    test('Strict Egyptian National ID validation rejects garbage 14-digit numbers', () {
+    test(
+        'Strict Egyptian National ID validation rejects garbage 14-digit numbers',
+        () {
       // 14 zeros or repeating digits
       expect(EgyptianNationalIdValidator.isValid('00000000000000'), isFalse);
       expect(EgyptianNationalIdValidator.isValid('11111111111111'), isFalse);
@@ -116,7 +120,8 @@ void main() {
       expect(EgyptianNationalIdValidator.isValid('30101010100011'), isTrue);
     });
 
-    test('addRequest offline mid-transit failure retains isPendingSync true', () async {
+    test('addRequest offline mid-transit failure retains isPendingSync true',
+        () async {
       final store = RequestsStore.instance;
       Backend.instance.online.value = false;
 
@@ -132,9 +137,11 @@ void main() {
 
       store.addRequest(req);
 
-      final added = store.allRequests.firstWhere((r) => r.id == 'offline-req-mid');
+      final added =
+          store.allRequests.firstWhere((r) => r.id == 'offline-req-mid');
       expect(added.isPendingSync, isTrue);
-      expect(store.pendingSyncRequests.any((r) => r.id == 'offline-req-mid'), isTrue);
+      expect(store.pendingSyncRequests.any((r) => r.id == 'offline-req-mid'),
+          isTrue);
     });
 
     test('Weak repeating PIN regex catches identical digits', () {
@@ -147,7 +154,9 @@ void main() {
       expect(repeatingPinRegex.hasMatch('2048'), isFalse);
     });
 
-    test('AppTypography switches between Cairo for Arabic and Inter for English', () {
+    test(
+        'AppTypography switches between Cairo for Arabic and Inter for English',
+        () {
       AppLocale.instance.setLocale(const Locale('ar'));
       expect(AppTypography.isArabicTypography, isTrue);
 
@@ -185,7 +194,9 @@ void main() {
       expect(LocalStore.instance.getDraft('leave_request'), isNull);
     });
 
-    test('Vacation balance: deductVacationDays and addVacationDays update balance accurately', () async {
+    test(
+        'Vacation balance: deductVacationDays and addVacationDays update balance accurately',
+        () async {
       await LocalStore.instance.setVacationBalance(15);
       expect(LocalStore.instance.vacationDaysRemaining, 15);
 
@@ -196,7 +207,9 @@ void main() {
       expect(LocalStore.instance.vacationDaysRemaining, 15);
     });
 
-    test('cancelRequest on offline annual leave request immediately refunds vacation days', () async {
+    test(
+        'cancelRequest on offline annual leave request immediately refunds vacation days',
+        () async {
       await LocalStore.instance.setVacationBalance(10);
       Backend.instance.online.value = false;
 
@@ -218,7 +231,8 @@ void main() {
       await LocalStore.instance.deductVacationDays(3);
       expect(LocalStore.instance.vacationDaysRemaining, 7);
 
-      final cancelled = await RequestsStore.instance.cancelRequest('leave-cancel-test-1');
+      final cancelled =
+          await RequestsStore.instance.cancelRequest('leave-cancel-test-1');
       expect(cancelled, isTrue);
       // Vacation days must be refunded
       expect(LocalStore.instance.vacationDaysRemaining, 10);

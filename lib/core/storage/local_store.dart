@@ -37,7 +37,8 @@ class EmployeeProfile {
   String get initials {
     final clean = name.trim();
     if (clean.isEmpty) return 'EC';
-    final parts = clean.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+    final parts =
+        clean.split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
     if (parts.length >= 2) {
       return '${parts.first[0]}${parts[1][0]}'.toUpperCase();
     }
@@ -138,6 +139,7 @@ class LocalStore extends ChangeNotifier {
   String? _cachedPinHash;
 
   EmployeeProfile get profile => _profile;
+  SharedPreferences? get rawPrefs => _prefs;
   bool get hasSavedProfile => _prefs?.containsKey(_kProfile) ?? false;
 
   bool get _isTest {
@@ -153,8 +155,8 @@ class LocalStore extends ChangeNotifier {
     final stored = _prefs!.getString(_kProfile);
     if (stored != null) {
       try {
-        _profile =
-            EmployeeProfile.fromJson(jsonDecode(stored) as Map<String, dynamic>);
+        _profile = EmployeeProfile.fromJson(
+            jsonDecode(stored) as Map<String, dynamic>);
       } catch (_) {
         // Corrupted profile falls back to defaults on next save.
       }
@@ -204,8 +206,7 @@ class LocalStore extends ChangeNotifier {
 
   // ---- Locale ----
   String? get localeCode => _prefs?.getString(_kLocale);
-  Future<void> setLocaleCode(String code) async =>
-      _p.setString(_kLocale, code);
+  Future<void> setLocaleCode(String code) async => _p.setString(_kLocale, code);
 
   // ---- Theme Mode (System, Light, Dark / Factory Night Shift) ----
   static const _kThemeMode = 'app_theme_mode';
@@ -222,7 +223,8 @@ class LocalStore extends ChangeNotifier {
       _secureDrafts[formKey] = data;
       if (!_isTest) {
         try {
-          await _secureStorage.write(key: 'sec_draft_$formKey', value: serialized);
+          await _secureStorage.write(
+              key: 'sec_draft_$formKey', value: serialized);
           await _p.remove('draft_$formKey');
           return;
         } catch (_) {}
@@ -414,8 +416,7 @@ class LocalStore extends ChangeNotifier {
 
   Future<void> deductVacationDays(int days) async {
     final remaining = vacationDaysRemaining - days;
-    await _p.setInt(
-        _kVacationDays, remaining < 0 ? 0 : remaining);
+    await _p.setInt(_kVacationDays, remaining < 0 ? 0 : remaining);
     notifyListeners();
   }
 
@@ -426,8 +427,7 @@ class LocalStore extends ChangeNotifier {
   }
 
   // ---- Persistent Salary Gate Lockout & Attempts ----
-  int get salaryGateFailedAttempts =>
-      _prefs?.getInt('salary_gate_fails') ?? 0;
+  int get salaryGateFailedAttempts => _prefs?.getInt('salary_gate_fails') ?? 0;
 
   Future<void> setSalaryGateFailedAttempts(int count) async =>
       _p.setInt('salary_gate_fails', count);

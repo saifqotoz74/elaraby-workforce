@@ -48,7 +48,8 @@ class BenefitDetailScreen extends StatelessWidget {
                         width: double.infinity,
                         child: imageUrl != null
                             ? AppNetworkImage(
-                                imageUrl: ApiClient.instance.resolveUrl(imageUrl!),
+                                imageUrl:
+                                    ApiClient.instance.resolveUrl(imageUrl!),
                                 fit: BoxFit.cover,
                                 errorWidget:
                                     Image.asset(imagePath, fit: BoxFit.cover),
@@ -77,7 +78,8 @@ class BenefitDetailScreen extends StatelessWidget {
                         child: Row(
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.arrow_back, color: Colors.white),
+                              icon: const Icon(Icons.arrow_back,
+                                  color: Colors.white),
                               onPressed: () => Navigator.of(context).maybePop(),
                             ),
                             Expanded(
@@ -100,7 +102,8 @@ class BenefitDetailScreen extends StatelessWidget {
                         right: 16,
                         bottom: -45,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 20, horizontal: 16),
                           decoration: BoxDecoration(
                             color: AppColors.surface,
                             borderRadius: BorderRadius.circular(20),
@@ -192,7 +195,9 @@ class BenefitDetailScreen extends StatelessWidget {
                         _buildContentCard(
                           title: AppLocale.tr('ben_about_title'),
                           content: Text(
-                            description.isEmpty ? AppLocale.tr('ben_default_desc') : description,
+                            description.isEmpty
+                                ? AppLocale.tr('ben_default_desc')
+                                : description,
                             style: AppTypography.fontBase.copyWith(
                               fontSize: 14,
                               color: AppColors.textPrimary,
@@ -272,7 +277,8 @@ class BenefitDetailScreen extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            const Icon(Icons.badge_outlined, color: AppColors.primary, size: 24),
+            const Icon(Icons.badge_outlined,
+                color: AppColors.primary, size: 24),
             const SizedBox(width: 8),
             Text(AppLocale.tr('ben_employee_id')),
           ],
