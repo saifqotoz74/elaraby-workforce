@@ -92,7 +92,33 @@ function seed(db) {
     },
   );
 
-  console.log('[seed] database seeded (2 employees, demo content)');
+  db.payroll = db.payroll || [];
+  if (db.payroll.length === 0) {
+    db.payroll.push(
+      {
+        employeeId: 'emp_1',
+        period: 'July 2026',
+        basicSalary: 8500,
+        allowances: 1200,
+        deductions: 250,
+        paidOn: 'Jul 28, 2026',
+        paymentMethod: 'Bank Transfer (CIB)',
+        updatedAt: Date.now(),
+      },
+      {
+        employeeId: 'emp_2',
+        period: 'July 2026',
+        basicSalary: 7200,
+        allowances: 950,
+        deductions: 200,
+        paidOn: 'Jul 28, 2026',
+        paymentMethod: 'Bank Transfer (CIB)',
+        updatedAt: Date.now(),
+      }
+    );
+  }
+
+  console.log('[seed] database seeded (employees, demo content, official payroll)');
 }
 
 module.exports = { seed };

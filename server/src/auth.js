@@ -5,9 +5,11 @@ const crypto = require('crypto');
 const isProd = process.env.NODE_ENV === 'production';
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me-in-production';
 if (isProd && JWT_SECRET === 'dev-secret-change-me-in-production') {
-  console.warn('⚠️ [SECURITY WARNING] Default JWT_SECRET used in production! Set JWT_SECRET in .env for full security.');
+  console.error('FATAL: Default JWT_SECRET used in production! Halting.');
+  process.exit(1);
 }
 const OTP_TTL_MS = 5 * 60 * 1000;
+const MAX_OTP_ATTEMPTS = 3;
 const TOKEN_TTL_S = 30 * 24 * 3600;
 
 // ---- hashing ----
@@ -26,7 +28,7 @@ function verifyHash(secret, stored) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-// ---- OTP (In-Memory Ephemeral Store with Auto-Expiring TTL) ----
+// ---- OTP (In-Memory Ephemeral Store with Auto-Expiring TTL & Attempt Caps) ----
 const _otpStore = new Map();
 
 function createOtp(dbInstance, nationalId) {
@@ -44,6 +46,7 @@ function createOtp(dbInstance, nationalId) {
     nationalId,
     codeHash: hash(code),
     expiresAt: Date.now() + OTP_TTL_MS,
+    attempts: 0,
     timer,
   });
 
@@ -56,18 +59,25 @@ function createOtp(dbInstance, nationalId) {
 
 function verifyOtp(dbInstance, nationalId, code) {
   const rec = _otpStore.get(nationalId);
-  if (!rec) return false;
+  if (!rec) return { ok: false, reason: 'not_found' };
   if (Date.now() > rec.expiresAt) {
     if (rec.timer) clearTimeout(rec.timer);
     _otpStore.delete(nationalId);
-    return false;
+    return { ok: false, reason: 'expired' };
   }
+  rec.attempts = (rec.attempts || 0) + 1;
   const ok = verifyHash(code, rec.codeHash);
   if (ok) {
     if (rec.timer) clearTimeout(rec.timer);
     _otpStore.delete(nationalId);
+    return { ok: true };
   }
-  return ok;
+  if (rec.attempts >= MAX_OTP_ATTEMPTS) {
+    if (rec.timer) clearTimeout(rec.timer);
+    _otpStore.delete(nationalId);
+    return { ok: false, reason: 'max_attempts_exceeded', attempts: rec.attempts };
+  }
+  return { ok: false, reason: 'invalid_code', remainingAttempts: MAX_OTP_ATTEMPTS - rec.attempts };
 }
 
 // ---- tokens (HS256, JWT-compatible structure) ----
@@ -146,6 +156,7 @@ function requireAuth(req, res, next) {
   }
   req.employeeId = payload.sub;
   req.employee = employee;
+  req.authPayload = payload;
   next();
 }
 

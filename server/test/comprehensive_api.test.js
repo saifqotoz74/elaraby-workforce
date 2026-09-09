@@ -316,6 +316,32 @@ async function runAllTests() {
       assert.ok(res.json.payroll.basicSalary >= 0);
     });
 
+    await test('POST /api/payroll/unlock rejects wrong PIN', async () => {
+      const res = await request('POST', '/api/payroll/unlock', {
+        Authorization: `Bearer ${employeeToken}`,
+      }, { pin: '9999' });
+      assert.strictEqual(res.status, 401);
+      assert.strictEqual(res.json.error, 'invalid_pin');
+    });
+
+    await test('POST /api/payroll/unlock issues salaryToken with correct PIN', async () => {
+      const res = await request('POST', '/api/payroll/unlock', {
+        Authorization: `Bearer ${employeeToken}`,
+      }, { pin: '1234' });
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.json.ok, true);
+      assert.ok(res.json.salaryToken);
+
+      // Verify GET /api/payroll works with x-salary-token header
+      const payRes = await request('GET', '/api/payroll', {
+        Authorization: `Bearer ${employeeToken}`,
+        'x-salary-token': res.json.salaryToken,
+      });
+      assert.strictEqual(payRes.status, 200);
+      assert.strictEqual(payRes.json.ok, true);
+      assert.ok(payRes.json.payroll);
+    });
+
     await test('GET /api/roster returns 7-day schedule', async () => {
       const res = await request('GET', '/api/roster', { Authorization: `Bearer ${employeeToken}` });
       assert.strictEqual(res.status, 200);

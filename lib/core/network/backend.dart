@@ -61,8 +61,7 @@ class AppVersionInfo {
     required this.updateUrl,
   });
 
-  factory AppVersionInfo.fromJson(Map<String, dynamic> json) =>
-      AppVersionInfo(
+  factory AppVersionInfo.fromJson(Map<String, dynamic> json) => AppVersionInfo(
         currentVersion: json['currentVersion'] as String? ?? '1.0.0',
         minVersion: json['minVersion'] as String? ?? '1.0.0',
         latestVersion: json['latestVersion'] as String? ?? '1.0.0',
@@ -283,16 +282,25 @@ class Backend {
   void _applyEmployee(Map<String, dynamic> employee) {
     LocalStore.instance.saveProfile(EmployeeProfile(
       name: employee['name'] as String? ?? LocalStore.instance.profile.name,
-      employeeCode: employee['employeeCode'] as String? ?? LocalStore.instance.profile.employeeCode,
-      factory: employee['factory'] as String? ?? LocalStore.instance.profile.factory,
-      department: employee['department'] as String? ?? LocalStore.instance.profile.department,
-      position: employee['position'] as String? ?? LocalStore.instance.profile.position,
-      supervisor: employee['supervisor'] as String? ?? LocalStore.instance.profile.supervisor,
+      employeeCode: employee['employeeCode'] as String? ??
+          LocalStore.instance.profile.employeeCode,
+      factory:
+          employee['factory'] as String? ?? LocalStore.instance.profile.factory,
+      department: employee['department'] as String? ??
+          LocalStore.instance.profile.department,
+      position: employee['position'] as String? ??
+          LocalStore.instance.profile.position,
+      supervisor: employee['supervisor'] as String? ??
+          LocalStore.instance.profile.supervisor,
       phone: employee['phone'] as String? ?? LocalStore.instance.profile.phone,
-      address: employee['address'] as String? ?? LocalStore.instance.profile.address,
-      emergencyContact: employee['emergencyContact'] as String? ?? LocalStore.instance.profile.emergencyContact,
-      emergencyName: employee['emergencyName'] as String? ?? LocalStore.instance.profile.emergencyName,
-      emergencyRelationship: employee['emergencyRelationship'] as String? ?? LocalStore.instance.profile.emergencyRelationship,
+      address:
+          employee['address'] as String? ?? LocalStore.instance.profile.address,
+      emergencyContact: employee['emergencyContact'] as String? ??
+          LocalStore.instance.profile.emergencyContact,
+      emergencyName: employee['emergencyName'] as String? ??
+          LocalStore.instance.profile.emergencyName,
+      emergencyRelationship: employee['emergencyRelationship'] as String? ??
+          LocalStore.instance.profile.emergencyRelationship,
     ));
     final balance = employee['vacationBalance'];
     if (balance is num) {
@@ -309,9 +317,8 @@ class Backend {
     final res = await _api.get('/requests');
     final list = res?['requests'] as List<dynamic>?;
     if (list == null) return false;
-    final requests = list
-        .map((e) => _mapRequest(e as Map<String, dynamic>))
-        .toList();
+    final requests =
+        list.map((e) => _mapRequest(e as Map<String, dynamic>)).toList();
     RequestsStore.instance.replaceAll(requests);
     online.value = true;
     return true;
@@ -330,10 +337,13 @@ class Backend {
       if (address != null) 'address': address,
       if (emergencyContact != null) 'emergencyContact': emergencyContact,
       if (emergencyName != null) 'emergencyName': emergencyName,
-      if (emergencyRelationship != null) 'emergencyRelationship': emergencyRelationship,
+      if (emergencyRelationship != null)
+        'emergencyRelationship': emergencyRelationship,
     };
     final res = await _api.post('/me', payload);
-    if (res != null && res['ok'] == true && res['employee'] is Map<String, dynamic>) {
+    if (res != null &&
+        res['ok'] == true &&
+        res['employee'] is Map<String, dynamic>) {
       _applyEmployee(res['employee'] as Map<String, dynamic>);
       return true;
     }
@@ -384,8 +394,8 @@ class Backend {
   }
 
   EmployeeRequest _mapRequest(Map<String, dynamic> json) {
-    final created = DateTime.fromMillisecondsSinceEpoch(
-        json['createdAt'] as int? ?? 0);
+    final created =
+        DateTime.fromMillisecondsSinceEpoch(json['createdAt'] as int? ?? 0);
     RequestStatus status;
     switch (json['status']) {
       case 'approved':
@@ -420,11 +430,31 @@ class Backend {
     return '${dt.day}/${dt.month}/${dt.year}';
   }
 
-  // ---------- Payroll ----------
-  /// The employee's current salary statement from the server, or null when
-  /// offline (the app then shows its bundled statement).
-  Future<Map<String, dynamic>?> fetchPayroll() async {
-    final res = await _api.get('/payroll');
+  // ---------- Payroll & Salary Security ----------
+  /// Unlocks salary information server-side using the employee's 4-digit PIN.
+  /// Returns a short-lived salary authorization token, or null on failure.
+  Future<String?> unlockSalary(String pin) async {
+    final res = await _api.post('/payroll/unlock', {'pin': pin});
+    if (res != null && res['ok'] == true && res['salaryToken'] is String) {
+      return res['salaryToken'] as String;
+    }
+    return null;
+  }
+
+  /// The employee's current salary statement from the server.
+  /// Server-side PIN verification is required when PIN is enabled.
+  Future<Map<String, dynamic>?> fetchPayroll({
+    String? pin,
+    String? salaryToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    if (salaryToken != null && salaryToken.isNotEmpty) {
+      extraHeaders['x-salary-token'] = salaryToken;
+    }
+    if (pin != null && pin.isNotEmpty) {
+      extraHeaders['x-salary-pin'] = pin;
+    }
+    final res = await _api.get('/payroll', extraHeaders: extraHeaders);
     if (res?['payroll'] == null) return null;
     online.value = true;
     return res!['payroll'] as Map<String, dynamic>;
@@ -438,7 +468,9 @@ class Backend {
     final days = res?['days'] as List<dynamic>?;
     if (days == null) return null;
     online.value = true;
-    return days.map((e) => Map<String, dynamic>.from(e as Map<String, dynamic>)).toList();
+    return days
+        .map((e) => Map<String, dynamic>.from(e as Map<String, dynamic>))
+        .toList();
   }
 
   // ---------- Inbox ----------
@@ -458,7 +490,8 @@ class Backend {
 
   // ---------- App Version / Force Update ----------
   Future<AppVersionInfo?> checkAppVersion() async {
-    final res = await _api.get('/app/version', timeout: const Duration(seconds: 4));
+    final res =
+        await _api.get('/app/version', timeout: const Duration(seconds: 4));
     if (res == null) return null;
     return AppVersionInfo.fromJson(res);
   }

@@ -41,7 +41,8 @@ class _SalaryPinGateDialogState extends State<SalaryPinGateDialog> {
 
   Future<void> _checkBiometrics() async {
     if (Platform.environment.containsKey('FLUTTER_TEST')) return;
-    final enabled = LocalStore.instance.getSetting('fingerprint', defaultValue: true);
+    final enabled =
+        LocalStore.instance.getSetting('fingerprint', defaultValue: true);
     if (!enabled) return;
     try {
       final canCheck = await _auth.canCheckBiometrics;
@@ -57,7 +58,8 @@ class _SalaryPinGateDialogState extends State<SalaryPinGateDialog> {
     try {
       final ok = await _auth.authenticate(
         localizedReason: AppLocale.tr('biometric_prompt'),
-        options: const AuthenticationOptions(biometricOnly: true, stickyAuth: true),
+        options:
+            const AuthenticationOptions(biometricOnly: true, stickyAuth: true),
       );
       if (!mounted) return;
       if (ok) {
@@ -106,7 +108,7 @@ class _SalaryPinGateDialogState extends State<SalaryPinGateDialog> {
     if (ok) {
       await LocalStore.instance.resetSalaryGateLockout();
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      Navigator.of(context).pop(_pin);
     } else {
       _failedAttempts++;
       await LocalStore.instance.setSalaryGateFailedAttempts(_failedAttempts);
@@ -213,7 +215,8 @@ class _SalaryPinGateDialogState extends State<SalaryPinGateDialog> {
             ),
             if (_biometricAvailable) ...[
               IconButton(
-                icon: const Icon(Icons.fingerprint_rounded, size: 36, color: AppColors.primary),
+                icon: const Icon(Icons.fingerprint_rounded,
+                    size: 36, color: AppColors.primary),
                 onPressed: _authenticateBiometric,
                 tooltip: AppLocale.tr('biometric_prompt'),
               ),

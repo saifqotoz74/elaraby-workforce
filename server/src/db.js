@@ -5,7 +5,20 @@ const fs = require('fs');
 const path = require('path');
 
 const isVercel = !!(process.env.VERCEL || process.env.NOW_REGION);
-const DATA_DIR = isVercel ? '/tmp' : path.join(__dirname, '..', 'data');
+const isProd = process.env.NODE_ENV === 'production';
+const customDataDir = process.env.DATA_PATH || process.env.DATABASE_PATH || process.env.DATA_DIR;
+
+let DATA_DIR;
+if (customDataDir) {
+  DATA_DIR = path.resolve(customDataDir);
+} else if (isVercel) {
+  DATA_DIR = '/tmp';
+  if (isProd && !process.env.ALLOW_EPHEMERAL_STORAGE) {
+    console.warn('⚠️ [CRITICAL PRODUCTION NOTICE] Server running with ephemeral /tmp storage. Connect persistent volume or Firestore for zero data loss.');
+  }
+} else {
+  DATA_DIR = path.join(__dirname, '..', 'data');
+}
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const BACKUP_FILE = path.join(DATA_DIR, 'db.backup.json');
 const SEED_FILE = path.join(__dirname, '..', 'data', 'db.json');

@@ -86,7 +86,8 @@ class ApiClient {
   }
 
   /// Default live production backend deployed on Vercel
-  static const String _defaultLiveUrl = 'https://server-six-xi-42.vercel.app/api';
+  static const String _defaultLiveUrl =
+      'https://server-six-xi-42.vercel.app/api';
 
   String get baseUrl {
     if (overrideBaseUrl != null) return overrideBaseUrl!;
@@ -139,6 +140,7 @@ class ApiClient {
   /// Returns decoded JSON or null on any failure (offline, 4xx, 5xx).
   Future<Map<String, dynamic>?> get(
     String path, {
+    Map<String, String>? extraHeaders,
     Duration timeout = const Duration(seconds: 6),
   }) async {
     if (offlineMockMode) {
@@ -148,7 +150,7 @@ class ApiClient {
     try {
       final res = await client.get(
         Uri.parse('$baseUrl$path'),
-        headers: _headers,
+        headers: {..._headers, ...(extraHeaders ?? {})},
       ).timeout(timeout);
       onNetworkStateChanged?.call(true);
       if (res.statusCode == 401) {
@@ -174,11 +176,13 @@ class ApiClient {
       return null;
     }
     try {
-      final res = await client.post(
-        Uri.parse('$baseUrl$path'),
-        headers: _headers,
-        body: jsonEncode(body),
-      ).timeout(timeout);
+      final res = await client
+          .post(
+            Uri.parse('$baseUrl$path'),
+            headers: _headers,
+            body: jsonEncode(body),
+          )
+          .timeout(timeout);
       onNetworkStateChanged?.call(true);
       if (res.statusCode == 401) {
         setToken(null);

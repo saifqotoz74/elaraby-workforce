@@ -9,10 +9,9 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - PORT=3000
-      - JWT_SECRET=${JWT_SECRET:-change_in_production_to_a_secure_random_string}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       - ADMIN_USER=${ADMIN_USER:-admin}
-      - ADMIN_PASS=${ADMIN_PASS:-change_in_production_strong_password}
+      - ADMIN_PASS=${ADMIN_PASS:?ADMIN_PASS must be set}
       - CORS_ORIGIN=${CORS_ORIGIN:-*}
       - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
       - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}

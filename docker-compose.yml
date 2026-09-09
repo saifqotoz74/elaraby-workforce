@@ -11,10 +11,9 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - PORT=3000
-      - JWT_SECRET=${JWT_SECRET:-elaraby-production-super-secret-key-2026}
-      - ADMIN_PASS=${ADMIN_PASS:-ElarabySecureAdminPass2026!}
-      - CORS_ORIGIN=*
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - ADMIN_PASS=${ADMIN_PASS:?ADMIN_PASS must be set}
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
     volumes:
       - api-data:/app/data
       - api-uploads:/app/uploads

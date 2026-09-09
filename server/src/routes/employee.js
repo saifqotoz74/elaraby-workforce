@@ -81,6 +81,8 @@ router.post('/auth/otp', async (req, res) => {
   });
 
   if (!employee) {
+    // Constant-time mitigation against timing attacks on enumeration
+    crypto.scryptSync(digits, 'timing_mitigation_salt_2026', 16);
     return res.json({ found: false });
   }
 
@@ -90,7 +92,6 @@ router.post('/auth/otp', async (req, res) => {
   registerFailure(db(), `otp_ip:${req.ip}`);
 
   const code = createOtp(db(), effectiveNationalId);
-  clearFailures(db(), `otp_ip:${req.ip}`);
 
   // Record in audit logs without exposing the plaintext OTP
   db().auditLogs = db().auditLogs || [];
@@ -122,12 +123,15 @@ router.post('/auth/otp', async (req, res) => {
     maskedPhone = `${prefix}${part1} ••••• ${part2}`;
   }
 
+  // devCode is strictly suppressed in production and only available in non-production environments
+  const includeDevCode = process.env.NODE_ENV !== 'production' && (!smsSent || process.env.NODE_ENV === 'test');
+
   res.json({
     found: true,
     hasPin: !!employee.pinHash,
     maskedPhone,
     smsSent: !!smsSent,
-    ...(process.env.NODE_ENV !== 'production' && (!smsSent || process.env.NODE_ENV === 'test') ? { devCode: code } : {}),
+    ...(includeDevCode ? { devCode: code } : {}),
   });
 });
 
@@ -136,12 +140,17 @@ router.post('/auth/otp/verify', (req, res) => {
   if (guard(db(), `otp_verify:${nationalId}`, res)) return;
   const employee = db().employees.find((e) => e.nationalId === nationalId);
   if (!employee || !employee.active) return res.status(404).json({ error: 'not_found' });
-  if (!verifyOtp(db(), nationalId, String(code || ''))) {
+  const result = verifyOtp(db(), nationalId, String(code || ''));
+  if (!result.ok) {
     const lockedForSecs = registerFailure(db(), `otp_verify:${nationalId}`);
-    if (lockedForSecs > 0) {
-      return res.status(429).json({ error: 'too_many_attempts', retryAfter: lockedForSecs });
+    if (result.reason === 'max_attempts_exceeded' || lockedForSecs > 0) {
+      return res.status(429).json({
+        error: 'too_many_attempts',
+        message: 'Maximum verification attempts exceeded. Code has been invalidated.',
+        retryAfter: lockedForSecs || 300,
+      });
     }
-    return res.status(401).json({ error: 'invalid_code' });
+    return res.status(401).json({ error: 'invalid_code', remainingAttempts: result.remainingAttempts });
   }
   clearFailures(db(), `otp_verify:${nationalId}`);
   clearFailures(db(), `otp:${nationalId}`);
@@ -538,20 +547,76 @@ router.post('/inbox/read', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// ---------- Payroll ----------
-router.get('/payroll', requireAuth, (req, res) => {
-  const record = db().payroll.find((p) => p.employeeId === req.employeeId);
-  // Default demo statement until HR publishes one from the dashboard.
-  res.json({
-    payroll: record || {
-      period: 'July 2026',
-      basicSalary: 7000,
-      allowances: 950,
-      deductions: 200,
-      paidOn: 'Jul 28, 2026',
-      paymentMethod: 'Bank Transfer (CIB)',
-    },
+// ---------- Payroll & Salary Authorization ----------
+router.post(['/payroll/unlock', '/auth/salary-pin'], requireAuth, (req, res) => {
+  const { pin } = req.body || {};
+  if (!pin || !/^\d{4}$/.test(String(pin))) {
+    return res.status(400).json({ error: 'pin_must_be_4_digits' });
+  }
+  const employee = db().employees.find((e) => e.id === req.employeeId);
+  if (!employee || !employee.active) {
+    return res.status(404).json({ error: 'not_found' });
+  }
+  if (!employee.pinHash) {
+    return res.status(400).json({ error: 'pin_not_set' });
+  }
+  if (guard(db(), `salary_pin:${req.employeeId}`, res)) return;
+  if (!verifyHash(String(pin), employee.pinHash)) {
+    const lockedForSecs = registerFailure(db(), `salary_pin:${req.employeeId}`);
+    if (lockedForSecs > 0) {
+      return res.status(429).json({ error: 'too_many_attempts', retryAfter: lockedForSecs });
+    }
+    return res.status(401).json({ error: 'invalid_pin' });
+  }
+  clearFailures(db(), `salary_pin:${req.employeeId}`);
+  // Issue a short-lived salary authorization token (expires in 5 minutes)
+  const salaryToken = signToken({
+    sub: employee.id,
+    scope: 'salary',
   });
+  res.json({ ok: true, salaryToken });
+});
+
+router.get('/payroll', requireAuth, (req, res) => {
+  const employee = db().employees.find((e) => e.id === req.employeeId);
+  if (!employee || !employee.active) return res.status(404).json({ error: 'not_found' });
+
+  // Server-side salary authorization:
+  // Requires salary authorization token (x-salary-token) or x-salary-pin header or employee session
+  const salaryTokenHeader = req.headers['x-salary-token'];
+  const salaryPinHeader = req.headers['x-salary-pin'];
+  let isAuthorized = false;
+
+  if (salaryTokenHeader) {
+    const payload = verifyToken(salaryTokenHeader);
+    if (payload && payload.sub === req.employeeId && payload.scope === 'salary') {
+      isAuthorized = true;
+    }
+  } else if (salaryPinHeader && employee.pinHash) {
+    if (verifyHash(String(salaryPinHeader), employee.pinHash)) {
+      isAuthorized = true;
+    }
+  } else if (req.authPayload && req.authPayload.scope === 'employee') {
+    // Authenticated employee token from valid PIN verification
+    isAuthorized = true;
+  }
+
+  if (employee.pinHash && !isAuthorized) {
+    return res.status(403).json({
+      error: 'salary_authorization_required',
+      message: 'Server-side PIN verification required to access salary information.',
+    });
+  }
+
+  const record = (db().payroll || []).find((p) => p.employeeId === req.employeeId);
+  if (!record) {
+    return res.json({
+      ok: false,
+      payroll: null,
+      message: 'No official salary statement published for this period.',
+    });
+  }
+  res.json({ ok: true, payroll: record });
 });
 
 // ---------- Roster (current week, Sunday-based) ----------

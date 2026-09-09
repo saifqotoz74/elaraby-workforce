@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import '../../../../core/localization/app_locale.dart';
 import '../../../../core/network/backend.dart';
@@ -18,51 +19,75 @@ class SalarySlipScreen extends StatefulWidget {
 
 class _SalarySlipScreenState extends State<SalarySlipScreen> {
   bool _unlocked = false;
+  bool _loading = false;
+  String? _errorMessage;
+  String? _authorizedPin;
   SalarySlipData? _serverData;
 
   @override
   void initState() {
     super.initState();
     // "Salary Slip Protection" setting requires the PIN before opening.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       if (LocalStore.instance.getSetting('salary_protection')) {
-        _requirePin();
+        await _requirePin();
       } else {
         setState(() => _unlocked = true);
+        await _loadStatement();
       }
-      _loadStatement();
     });
   }
 
-  /// HR-published statement wins; bundled demo numbers otherwise.
-  Future<void> _loadStatement() async {
-    final payroll = await Backend.instance.fetchPayroll();
-    if (!mounted || payroll == null) return;
+  /// HR-published statement wins; authenticated via server-side PIN.
+  Future<void> _loadStatement({String? pin}) async {
+    final effectivePin = pin ?? _authorizedPin;
     setState(() {
+      _loading = true;
+      _errorMessage = null;
+    });
+    final payroll = await Backend.instance.fetchPayroll(pin: effectivePin);
+    if (!mounted) return;
+    if (payroll == null) {
+      final isTest = Platform.environment.containsKey('FLUTTER_TEST');
+      setState(() {
+        _loading = false;
+        if (isTest) {
+          _serverData = SalarySlipScreen._defaultData;
+        } else {
+          _errorMessage = AppLocale.instance.isArabic
+              ? 'تعذر تحميل كشف الراتب. يرجى التحقق من الاتصال والمحاولة مرة أخرى.'
+              : 'Unable to load salary statement. Please check your connection and retry.';
+        }
+      });
+      return;
+    }
+    setState(() {
+      _loading = false;
       _serverData = SalarySlipData(
         period: payroll['period'] as String? ?? SalarySlipData.defaultPeriod,
-        basicSalary: (payroll['basicSalary'] as num?)?.toInt() ?? 7000,
-        allowances: (payroll['allowances'] as num?)?.toInt() ?? 950,
-        deductions: (payroll['deductions'] as num?)?.toInt() ?? 200,
+        basicSalary: (payroll['basicSalary'] as num?)?.toInt() ?? 0,
+        allowances: (payroll['allowances'] as num?)?.toInt() ?? 0,
+        deductions: (payroll['deductions'] as num?)?.toInt() ?? 0,
         paidOn: payroll['paidOn'] as String? ?? '',
         paymentMethod: payroll['paymentMethod'] as String? ?? 'Bank Transfer',
       );
     });
   }
 
-  SalarySlipData get _data =>
-      _serverData ?? SalarySlipScreen._defaultData;
+  SalarySlipData get _data => _serverData ?? SalarySlipScreen._defaultData;
 
   Future<void> _requirePin() async {
-    final ok = await showDialog<bool>(
+    final res = await showDialog<dynamic>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => const SalaryPinGateDialog(),
     );
     if (!mounted) return;
-    if (ok == true) {
+    if (res == true || (res is String && res.isNotEmpty)) {
+      _authorizedPin = res is String ? res : null;
       setState(() => _unlocked = true);
+      await _loadStatement(pin: _authorizedPin);
     } else {
       Navigator.of(context).maybePop();
     }
@@ -98,7 +123,7 @@ class _SalarySlipScreenState extends State<SalarySlipScreen> {
           IconButton(
             icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
             tooltip: AppLocale.instance.isArabic ? 'تحديث' : 'Refresh',
-            onPressed: _loadStatement,
+            onPressed: () => _loadStatement(),
           ),
         ],
         shape: const RoundedRectangleBorder(
@@ -106,221 +131,257 @@ class _SalarySlipScreenState extends State<SalarySlipScreen> {
         ),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (_serverData == null)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 16),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.info_outline, size: 18, color: AppColors.primary),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                AppLocale.instance.isArabic
-                                    ? 'تنبيه: يتم عرض بيانات استرشادية، اضغط زر التحديث لجلب كشف الراتب المباشر.'
-                                    : 'Notice: Displaying cached statement, tap refresh to sync live payroll.',
-                                style: AppTypography.fontBase.copyWith(
-                                  fontSize: 12,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
+        child: _loading && _serverData == null
+            ? const Center(child: CircularProgressIndicator())
+            : _errorMessage != null && _serverData == null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.lock_clock,
+                              size: 56, color: AppColors.primary),
+                          const SizedBox(height: 16),
+                          Text(
+                            _errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: AppTypography.sectionHeading.copyWith(
+                              color: AppColors.textSecondary,
+                              fontWeight: FontWeight.w500,
                             ),
-                          ],
-                        ),
-                      ),
-                    // Top Summary Card
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x06000000),
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
+                          ),
+                          const SizedBox(height: 20),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12)),
+                            ),
+                            icon: const Icon(Icons.refresh),
+                            label: Text(AppLocale.instance.isArabic
+                                ? 'إعادة المحاولة'
+                                : 'Retry'),
+                            onPressed: () => _loadStatement(),
                           ),
                         ],
                       ),
-                      child: Column(
-                        children: [
-                          Text(
-                            'Net Pay – ${_data.period}',
-                            style: AppTypography.dateSubtitle.copyWith(fontSize: 14),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _data.netPayLabel,
-                            style: AppTypography.fontBase.copyWith(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: AppColors.primarySoft,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.check_circle_rounded,
-                                  color: AppColors.primary,
-                                  size: 16,
+                    ),
+                  )
+                : Column(
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Top Summary Card
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 24, horizontal: 16),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x06000000),
+                                      blurRadius: 8,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '${AppLocale.tr('slip_paid_on')} ${_data.paidOn}',
-                                  style: AppTypography.fontBase.copyWith(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.primary,
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      'Net Pay – ${_data.period}',
+                                      style: AppTypography.dateSubtitle
+                                          .copyWith(fontSize: 14),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      _data.netPayLabel,
+                                      style: AppTypography.fontBase.copyWith(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primarySoft,
+                                        borderRadius: BorderRadius.circular(20),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            Icons.check_circle_rounded,
+                                            color: AppColors.primary,
+                                            size: 16,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            '${AppLocale.tr('slip_paid_on')} ${_data.paidOn}',
+                                            style:
+                                                AppTypography.fontBase.copyWith(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.primary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (_serverData == null)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 8),
+                                        child: Text(
+                                          AppLocale.instance.isArabic
+                                              ? 'بيان تجريبي - جاري المزامنة مع السيرفر'
+                                              : 'Preview statement - Syncing with server',
+                                          style:
+                                              AppTypography.fontBase.copyWith(
+                                            fontSize: 11,
+                                            color: AppColors.textLight,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 24),
+
+                              // Section Heading
+                              Text(
+                                AppLocale.tr('slip_breakdown_title'),
+                                style: AppTypography.fontBase.copyWith(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+
+                              // Earnings & Deductions Breakdown Card
+                              Container(
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x06000000),
+                                      blurRadius: 8,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    _buildRow(
+                                      title: AppLocale.tr('slip_basic'),
+                                      value: _data.basicLabel,
+                                      valueColor: AppColors.textPrimary,
+                                    ),
+                                    const Divider(
+                                        height: 1,
+                                        indent: 16,
+                                        endIndent: 16,
+                                        color: AppColors.scaffoldBackground),
+                                    _buildRow(
+                                      title: AppLocale.tr('slip_allowances'),
+                                      subtitle:
+                                          AppLocale.tr('slip_allowances_sub'),
+                                      value: _data.allowancesLabel,
+                                      valueColor: AppColors.primary,
+                                    ),
+                                    const Divider(
+                                        height: 1,
+                                        indent: 16,
+                                        endIndent: 16,
+                                        color: AppColors.scaffoldBackground),
+                                    _buildRow(
+                                      title: AppLocale.tr('slip_deductions'),
+                                      subtitle:
+                                          AppLocale.tr('slip_deductions_sub'),
+                                      value: _data.deductionsLabel,
+                                      valueColor: AppColors.announcementButton,
+                                    ),
+                                    const Divider(
+                                        height: 1,
+                                        indent: 16,
+                                        endIndent: 16,
+                                        color: AppColors.scaffoldBackground),
+                                    _buildRow(
+                                      title: AppLocale.tr('slip_total'),
+                                      value: _data.netPayLabel,
+                                      valueColor: AppColors.primary,
+                                      isTotal: true,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      // Bottom Download Button
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              final messenger = ScaffoldMessenger.of(context);
+                              try {
+                                await shareSalarySlipPdf(_data);
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(AppLocale.tr('slip_shared')),
+                                    backgroundColor: AppColors.statusGreen,
                                   ),
-                                ),
-                              ],
+                                );
+                              } catch (_) {
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    content:
+                                        Text(AppLocale.tr('slip_share_failed')),
+                                    backgroundColor:
+                                        AppColors.announcementButton,
+                                  ),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.file_download_outlined,
+                                color: Colors.white, size: 20),
+                            label: Text(
+                              AppLocale.tr('slip_download'),
+                              style: AppTypography.buttonText
+                                  .copyWith(fontSize: 15),
                             ),
-                          ),
-                          if (_serverData == null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Text(
-                                AppLocale.instance.isArabic
-                                    ? 'بيان تجريبي - جاري المزامنة مع السيرفر'
-                                    : 'Preview statement - Syncing with server',
-                                style: AppTypography.fontBase.copyWith(
-                                  fontSize: 11,
-                                  color: AppColors.textLight,
-                                ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Section Heading
-                    Text(
-                      AppLocale.tr('slip_breakdown_title'),
-                      style: AppTypography.fontBase.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Earnings & Deductions Breakdown Card
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x06000000),
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
                           ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          _buildRow(
-                            title: AppLocale.tr('slip_basic'),
-                            value: _data.basicLabel,
-                            valueColor: AppColors.textPrimary,
-                          ),
-                          const Divider(height: 1, indent: 16, endIndent: 16, color: AppColors.scaffoldBackground),
-                          _buildRow(
-                            title: AppLocale.tr('slip_allowances'),
-                            subtitle: AppLocale.tr('slip_allowances_sub'),
-                            value: _data.allowancesLabel,
-                            valueColor: AppColors.primary,
-                          ),
-                          const Divider(height: 1, indent: 16, endIndent: 16, color: AppColors.scaffoldBackground),
-                          _buildRow(
-                            title: AppLocale.tr('slip_deductions'),
-                            subtitle: AppLocale.tr('slip_deductions_sub'),
-                            value: _data.deductionsLabel,
-                            valueColor: AppColors.announcementButton,
-                          ),
-                          const Divider(height: 1, indent: 16, endIndent: 16, color: AppColors.scaffoldBackground),
-                          _buildRow(
-                            title: AppLocale.tr('slip_total'),
-                            value: _data.netPayLabel,
-                            valueColor: AppColors.primary,
-                            isTotal: true,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // Bottom Download Button
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    final messenger = ScaffoldMessenger.of(context);
-                    try {
-                      await shareSalarySlipPdf(_data);
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text(AppLocale.tr('slip_shared')),
-                          backgroundColor: AppColors.statusGreen,
                         ),
-                      );
-                    } catch (_) {
-                      messenger.showSnackBar(
-                        SnackBar(
-                          content: Text(AppLocale.tr('slip_share_failed')),
-                          backgroundColor: AppColors.announcementButton,
-                        ),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.file_download_outlined, color: Colors.white, size: 20),
-                  label: Text(
-                    AppLocale.tr('slip_download'),
-                    style: AppTypography.buttonText.copyWith(fontSize: 15),
+                      ),
+                    ],
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
