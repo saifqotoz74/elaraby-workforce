@@ -14,3 +14,6 @@
 
 # Printing and PDF Native Bindings
 -keep class net.nfet.flutter.printing.** { *; }
+
+# Google Play Core / Deferred components (when not using dynamic delivery)
+-dontwarn com.google.android.play.core.**

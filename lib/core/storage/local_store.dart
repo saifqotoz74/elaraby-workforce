@@ -276,8 +276,10 @@ class LocalStore extends ChangeNotifier {
     await _p.remove(_kSurveySubmitted);
     await _p.remove(_kInboxRead);
     await _p.remove(_kRefCounter);
+    await _p.remove(_kVacationDays);
     await _p.remove('salary_gate_fails');
     await _p.remove('salary_gate_lockout_until');
+    _draftsCache.clear();
     await _p.reload();
     notifyListeners();
   }
