@@ -1,5 +1,6 @@
 // Comprehensive Full-Project API & Functional Testing Suite
 // Tests all 33 endpoints, auth models, edge cases, error handling, input validation, and security.
+process.env.NODE_ENV = 'test';
 const assert = require('assert');
 const http = require('http');
 const fs = require('fs');

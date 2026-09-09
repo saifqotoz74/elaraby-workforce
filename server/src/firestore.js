@@ -25,6 +25,7 @@ const COLLECTIONS = [
 ];
 
 function getFirestoreInstance() {
+  if (process.env.NODE_ENV === 'test' || process.argv.some((a) => a.includes('test'))) return null;
   if (_checked) return _firestore;
   _checked = true;
 

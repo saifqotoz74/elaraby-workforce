@@ -118,7 +118,8 @@ function data() {
   // Build index tables for fast lookups
   indexes.rebuild(_data);
 
-  if (firestore && !_firestoreInitTriggered) {
+  const isTest = process.env.NODE_ENV === 'test' || process.argv.some((a) => a.includes('test'));
+  if (firestore && !_firestoreInitTriggered && !isTest) {
     _firestoreInitTriggered = true;
     firestore.checkAvailability().then((available) => {
       if (available) {
