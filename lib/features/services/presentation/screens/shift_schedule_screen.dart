@@ -140,60 +140,79 @@ class _ShiftScheduleScreenState extends State<ShiftScheduleScreen> {
         child: RefreshIndicator(
           color: AppColors.primary,
           onRefresh: _loadRoster,
-          child: ListView(
+          child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
             ),
-            padding: const EdgeInsets.all(16),
-            children: [
-              if (_serverDays == null)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.2)),
-                  ),
-                  child: Row(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                sliver: SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.info_outline,
-                          size: 18, color: AppColors.primary),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          AppLocale.instance.isArabic
-                              ? 'وضع عدم الاتصال: يتم عرض جدول استرشادي لحين الاتصال بالخادم.'
-                              : 'Offline mode: Showing cached schedule until connected to server.',
-                          style: AppTypography.fontBase.copyWith(
-                            fontSize: 12,
-                            color: AppColors.textPrimary,
+                      if (_serverDays == null)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color:
+                                    AppColors.primary.withValues(alpha: 0.2)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.info_outline,
+                                  size: 18, color: AppColors.primary),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  AppLocale.instance.isArabic
+                                      ? 'وضع عدم الاتصال: يتم عرض جدول استرشادي لحين الاتصال بالخادم.'
+                                      : 'Offline mode: Showing cached schedule until connected to server.',
+                                  style: AppTypography.fontBase.copyWith(
+                                    fontSize: 12,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                      Text(
+                        '${AppLocale.tr('shift_week_of')} $weekStart – $weekEnd ${DateTime.now().year}',
+                        style:
+                            AppTypography.welcomeTitle.copyWith(fontSize: 18),
                       ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          _buildLegendItem(
+                              color: AppColors.primary,
+                              label: AppLocale.tr('shift_confirmed')),
+                          const SizedBox(width: 16),
+                          _buildLegendItem(
+                              color: AppColors.textSecondary,
+                              label: AppLocale.tr('shift_rest_day')),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
-              Text(
-                '${AppLocale.tr('shift_week_of')} $weekStart – $weekEnd ${DateTime.now().year}',
-                style: AppTypography.welcomeTitle.copyWith(fontSize: 18),
               ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  _buildLegendItem(
-                      color: AppColors.primary,
-                      label: AppLocale.tr('shift_confirmed')),
-                  const SizedBox(width: 16),
-                  _buildLegendItem(
-                      color: AppColors.textSecondary,
-                      label: AppLocale.tr('shift_rest_day')),
-                ],
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => _buildShiftCard(days[index]),
+                    childCount: days.length,
+                  ),
+                ),
               ),
-              const SizedBox(height: 16),
-              ...days.map((d) => _buildShiftCard(d)),
             ],
           ),
         ),

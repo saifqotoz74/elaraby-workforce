@@ -191,15 +191,15 @@ class LocalStore extends ChangeNotifier {
       await _prefs!.remove(_kPinHash);
     }
 
-    // Load encrypted drafts into memory cache
+    // Migrate any legacy secure drafts to normal local storage (SecureStorage shouldn't be used for drafts)
     try {
       final secRaw = await _secureStorage.read(key: 'sec_draft_raise_concern');
       if (secRaw != null) {
-        _secureDrafts['raise_concern'] =
-            jsonDecode(secRaw) as Map<String, dynamic>;
+        await _p.setString('draft_raise_concern', secRaw);
+        await _secureStorage.delete(key: 'sec_draft_raise_concern');
       }
     } on Exception catch (e) {
-      debugPrint('LocalStore: Secure storage read draft error: $e');
+      debugPrint('LocalStore: Secure storage draft migration notice: $e');
     }
   }
 
@@ -221,35 +221,25 @@ class LocalStore extends ChangeNotifier {
   Future<void> setThemeMode(String mode) async =>
       _p.setString(_kThemeMode, mode);
 
-  final Map<String, Map<String, dynamic>> _secureDrafts = {};
+  final Map<String, Map<String, dynamic>> _draftsCache = {};
 
   // ---- Form Drafts (Prevents lost work during factory network dropouts) ----
   Future<void> saveDraft(String formKey, Map<String, dynamic> data) async {
+    _draftsCache[formKey] = data;
     final serialized = jsonEncode(data);
-    if (formKey == 'raise_concern') {
-      _secureDrafts[formKey] = data;
-      if (!_isTest) {
-        try {
-          await _secureStorage.write(
-              key: 'sec_draft_$formKey', value: serialized);
-          await _p.remove('draft_$formKey');
-          return;
-        } on Exception catch (e) {
-          debugPrint('LocalStore: Secure draft write error: $e');
-        }
-      }
-    }
     await _p.setString('draft_$formKey', serialized);
   }
 
   Map<String, dynamic>? getDraft(String formKey) {
-    if (formKey == 'raise_concern' && _secureDrafts.containsKey(formKey)) {
-      return _secureDrafts[formKey];
+    if (_draftsCache.containsKey(formKey)) {
+      return _draftsCache[formKey];
     }
     final raw = _prefs?.getString('draft_$formKey');
     if (raw == null) return null;
     try {
-      return jsonDecode(raw) as Map<String, dynamic>;
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      _draftsCache[formKey] = decoded;
+      return decoded;
     } on FormatException catch (e) {
       debugPrint('LocalStore: Corrupted draft JSON for $formKey: $e');
       return null;
@@ -260,14 +250,7 @@ class LocalStore extends ChangeNotifier {
   }
 
   Future<void> clearDraft(String formKey) async {
-    _secureDrafts.remove(formKey);
-    if (formKey == 'raise_concern' && !_isTest) {
-      try {
-        await _secureStorage.delete(key: 'sec_draft_$formKey');
-      } on Exception catch (e) {
-        debugPrint('LocalStore: Failed deleting secure draft: $e');
-      }
-    }
+    _draftsCache.remove(formKey);
     await _p.remove('draft_$formKey');
   }
 

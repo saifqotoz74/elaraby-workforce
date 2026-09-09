@@ -42,14 +42,14 @@ class ProfileScreen extends StatelessWidget {
 
           // Body Content
           Expanded(
-            child: ListenableBuilder(
-              listenable: LocalStore.instance,
-              builder: (context, _) => ListView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                children: [
-                  // Top Employee Info Card
-                  Container(
+            child: ListView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              children: [
+                // Top Employee Info Card
+                ListenableBuilder(
+                  listenable: LocalStore.instance,
+                  builder: (context, _) => Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -158,107 +158,107 @@ class ProfileScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                ),
+                const SizedBox(height: 16),
 
-                  // Option 1: Language
-                  ListenableBuilder(
-                    listenable: AppLocale.instance,
-                    builder: (context, _) => _buildMenuCard(
-                      icon: Icons.language_rounded,
-                      title: AppLocale.tr('menu_language'),
-                      subtitle:
-                          AppLocale.instance.isArabic ? 'العربية' : 'English',
-                      onTap: () => _showLanguageModal(context),
-                    ),
+                // Option 1: Language
+                ListenableBuilder(
+                  listenable: AppLocale.instance,
+                  builder: (context, _) => _buildMenuCard(
+                    icon: Icons.language_rounded,
+                    title: AppLocale.tr('menu_language'),
+                    subtitle:
+                        AppLocale.instance.isArabic ? 'العربية' : 'English',
+                    onTap: () => _showLanguageModal(context),
                   ),
-                  const SizedBox(height: 12),
+                ),
+                const SizedBox(height: 12),
 
-                  // Option 2: Settings
-                  _buildMenuCard(
-                    icon: Icons.settings_outlined,
-                    title: AppLocale.tr('menu_settings'),
-                    onTap: () {
-                      AppNavigation.toSettings(context);
-                    },
+                // Option 2: Settings
+                _buildMenuCard(
+                  icon: Icons.settings_outlined,
+                  title: AppLocale.tr('menu_settings'),
+                  onTap: () {
+                    AppNavigation.toSettings(context);
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                // Option 3: Change PIN
+                _buildMenuCard(
+                  icon: Icons.lock_outline_rounded,
+                  title: AppLocale.tr('menu_change_pin'),
+                  onTap: () {
+                    AppNavigation.toChangePin(context);
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                // Option 4: Privacy Policy & Terms
+                _buildMenuCard(
+                  icon: Icons.privacy_tip_outlined,
+                  title: AppLocale.instance.isArabic
+                      ? 'سياسة الخصوصية والشروط'
+                      : 'Privacy Policy & Terms',
+                  subtitle: AppLocale.instance.isArabic
+                      ? 'حماية البيانات وحقوق الموظف'
+                      : 'Data protection & worker rights',
+                  onTap: () => _showPrivacyPolicyModal(context),
+                ),
+                const SizedBox(height: 12),
+
+                // Option 5: Request Account Deletion
+                _buildMenuCard(
+                  icon: Icons.person_remove_outlined,
+                  title: AppLocale.instance.isArabic
+                      ? 'طلب حذف الحساب'
+                      : 'Request Account Deletion',
+                  subtitle: AppLocale.instance.isArabic
+                      ? 'إلغاء تنشيط الحساب ومسح البيانات'
+                      : 'Deactivate account & erase data',
+                  onTap: () => _confirmAccountDeletion(context),
+                ),
+                const SizedBox(height: 28),
+
+                // Logout Button
+                Container(
+                  width: double.infinity,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEECEC),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  const SizedBox(height: 12),
-
-                  // Option 3: Change PIN
-                  _buildMenuCard(
-                    icon: Icons.lock_outline_rounded,
-                    title: AppLocale.tr('menu_change_pin'),
-                    onTap: () {
-                      AppNavigation.toChangePin(context);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Option 4: Privacy Policy & Terms
-                  _buildMenuCard(
-                    icon: Icons.privacy_tip_outlined,
-                    title: AppLocale.instance.isArabic
-                        ? 'سياسة الخصوصية والشروط'
-                        : 'Privacy Policy & Terms',
-                    subtitle: AppLocale.instance.isArabic
-                        ? 'حماية البيانات وحقوق الموظف'
-                        : 'Data protection & worker rights',
-                    onTap: () => _showPrivacyPolicyModal(context),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Option 5: Request Account Deletion
-                  _buildMenuCard(
-                    icon: Icons.person_remove_outlined,
-                    title: AppLocale.instance.isArabic
-                        ? 'طلب حذف الحساب'
-                        : 'Request Account Deletion',
-                    subtitle: AppLocale.instance.isArabic
-                        ? 'إلغاء تنشيط الحساب ومسح البيانات'
-                        : 'Deactivate account & erase data',
-                    onTap: () => _confirmAccountDeletion(context),
-                  ),
-                  const SizedBox(height: 28),
-
-                  // Logout Button
-                  Container(
-                    width: double.infinity,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEECEC),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => _confirmLogout(context),
                       borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => _confirmLogout(context),
-                        borderRadius: BorderRadius.circular(14),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.logout_rounded,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.logout_rounded,
+                            color: AppColors.announcementButton,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            AppLocale.instance.isArabic
+                                ? 'تسجيل الخروج'
+                                : 'Logout',
+                            style: AppTypography.fontBase.copyWith(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
                               color: AppColors.announcementButton,
-                              size: 20,
                             ),
-                            const SizedBox(width: 8),
-                            Text(
-                              AppLocale.instance.isArabic
-                                  ? 'تسجيل الخروج'
-                                  : 'Logout',
-                              style: AppTypography.fontBase.copyWith(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.announcementButton,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
-                ],
-              ),
+                ),
+                const SizedBox(height: 24),
+              ],
             ),
           ),
         ],

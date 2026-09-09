@@ -301,26 +301,30 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
                       else
                         SizedBox(
                           height: 210,
-                          child: ListView(
+                          child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             physics: const BouncingScrollPhysics(),
-                            children: [
-                              _buildTripCard(
-                                title: 'Ain Sokhna Retreat',
-                                subtitle: 'Company - subsidized • 500 EGP',
-                                imagePath: 'assets/images/benefit_sokhna.png',
-                                capacityText: '23/30 seats filled',
-                                progress: 23 / 30,
-                                progressColor: const Color(0xFFD97706),
-                                onTap: () {
-                                  AppNavigation.toTripDetail(
-                                    context,
-                                    tripId: 'trip_1',
-                                  );
-                                },
-                              ),
-                              const SizedBox(width: 14),
-                              _buildTripCard(
+                            itemCount: 2,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(width: 14),
+                            itemBuilder: (context, index) {
+                              if (index == 0) {
+                                return _buildTripCard(
+                                  title: 'Ain Sokhna Retreat',
+                                  subtitle: 'Company - subsidized • 500 EGP',
+                                  imagePath: 'assets/images/benefit_sokhna.png',
+                                  capacityText: '23/30 seats filled',
+                                  progress: 23 / 30,
+                                  progressColor: const Color(0xFFD97706),
+                                  onTap: () {
+                                    AppNavigation.toTripDetail(
+                                      context,
+                                      tripId: 'trip_1',
+                                    );
+                                  },
+                                );
+                              }
+                              return _buildTripCard(
                                 title: 'Siwa Oasis Escape',
                                 subtitle: 'Company - subsidized • 800 EGP',
                                 imagePath: 'assets/images/benefit_siwa.png',
@@ -341,8 +345,8 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
                                     bookedSeats: 20,
                                   );
                                 },
-                              ),
-                            ],
+                              );
+                            },
                           ),
                         ),
                       const SizedBox(height: 24),

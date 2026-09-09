@@ -5,6 +5,7 @@ import '../../../../core/localization/app_locale.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/debouncer.dart';
 import '../../data/requests_store.dart';
 
 class RequestLeaveScreen extends StatefulWidget {
@@ -19,6 +20,8 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
   DateTime? _fromDate;
   DateTime? _toDate;
   final TextEditingController _notesController = TextEditingController();
+  final Debouncer _draftDebouncer =
+      Debouncer(delay: const Duration(milliseconds: 600));
   bool _submitting = false;
 
   final List<String> _leaveTypes = [
@@ -32,12 +35,13 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
   void initState() {
     super.initState();
     _loadDraft();
-    _notesController.addListener(_persistDraft);
+    _notesController.addListener(_onNotesChanged);
   }
 
   @override
   void dispose() {
-    _notesController.removeListener(_persistDraft);
+    _draftDebouncer.flush();
+    _notesController.removeListener(_onNotesChanged);
     _notesController.dispose();
     super.dispose();
   }
@@ -55,7 +59,11 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
     }
   }
 
-  void _persistDraft() {
+  void _onNotesChanged() {
+    _draftDebouncer.run(_saveDraftImmediate);
+  }
+
+  void _saveDraftImmediate() {
     LocalStore.instance.saveDraft('leave_request', {
       'leaveType': _selectedLeaveType,
       'notes': _notesController.text,
@@ -157,6 +165,7 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
         if (didPop) return;
         final shouldDiscard = await _confirmDiscard();
         if (shouldDiscard && context.mounted) {
+          _draftDebouncer.cancel();
           LocalStore.instance.clearDraft('leave_request');
           Navigator.of(context).pop(result);
         }
@@ -533,6 +542,7 @@ class _RequestLeaveScreenState extends State<RequestLeaveScreen> {
       LocalStore.instance.deductVacationDays(_estimatedDays);
     }
 
+    _draftDebouncer.cancel();
     LocalStore.instance.clearDraft('leave_request');
 
     ScaffoldMessenger.of(context).showSnackBar(

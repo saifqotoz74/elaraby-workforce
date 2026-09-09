@@ -6,6 +6,7 @@ import '../../../../core/network/backend.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/debouncer.dart';
 import '../../../../core/utils/ui_feedback.dart';
 
 class RaiseConcernScreen extends StatefulWidget {
@@ -18,6 +19,8 @@ class RaiseConcernScreen extends StatefulWidget {
 class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
   String _selectedCategory = 'Workplace Environment';
   final TextEditingController _detailsController = TextEditingController();
+  final Debouncer _draftDebouncer =
+      Debouncer(delay: const Duration(milliseconds: 600));
   bool _submitting = false;
 
   final List<String> _categories = [
@@ -45,6 +48,10 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
   }
 
   void _onTextChanged() {
+    _draftDebouncer.run(_saveDraftImmediate);
+  }
+
+  void _saveDraftImmediate() {
     LocalStore.instance.saveDraft('raise_concern', {
       'category': _selectedCategory,
       'details': _detailsController.text,
@@ -53,6 +60,7 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
 
   @override
   void dispose() {
+    _draftDebouncer.flush();
     _detailsController.removeListener(_onTextChanged);
     _detailsController.dispose();
     super.dispose();
@@ -349,6 +357,7 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
         details: details,
       );
       if (res != null && (res['ok'] == true || res['refNumber'] != null)) {
+        _draftDebouncer.cancel();
         await LocalStore.instance.clearDraft('raise_concern');
         if (!mounted) return;
         setState(() => _submitting = false);

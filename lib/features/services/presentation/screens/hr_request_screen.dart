@@ -3,6 +3,7 @@ import '../../../../core/localization/app_locale.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/debouncer.dart';
 import '../../data/requests_store.dart';
 
 class HrRequestScreen extends StatefulWidget {
@@ -15,6 +16,8 @@ class HrRequestScreen extends StatefulWidget {
 class _HrRequestScreenState extends State<HrRequestScreen> {
   String _selectedRequestType = 'Salary Certificate';
   final TextEditingController _detailsController = TextEditingController();
+  final Debouncer _draftDebouncer =
+      Debouncer(delay: const Duration(milliseconds: 600));
   String? _attachedFileName;
   bool _submitting = false;
 
@@ -29,12 +32,13 @@ class _HrRequestScreenState extends State<HrRequestScreen> {
   void initState() {
     super.initState();
     _loadDraft();
-    _detailsController.addListener(_persistDraft);
+    _detailsController.addListener(_onDetailsChanged);
   }
 
   @override
   void dispose() {
-    _detailsController.removeListener(_persistDraft);
+    _draftDebouncer.flush();
+    _detailsController.removeListener(_onDetailsChanged);
     _detailsController.dispose();
     super.dispose();
   }
@@ -52,7 +56,11 @@ class _HrRequestScreenState extends State<HrRequestScreen> {
     }
   }
 
-  void _persistDraft() {
+  void _onDetailsChanged() {
+    _draftDebouncer.run(_saveDraftImmediate);
+  }
+
+  void _saveDraftImmediate() {
     LocalStore.instance.saveDraft('hr_request', {
       'requestType': _selectedRequestType,
       'details': _detailsController.text,
@@ -281,6 +289,7 @@ class _HrRequestScreenState extends State<HrRequestScreen> {
                             ),
                           );
 
+                          _draftDebouncer.cancel();
                           LocalStore.instance.clearDraft('hr_request');
 
                           ScaffoldMessenger.of(context).showSnackBar(
