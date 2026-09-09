@@ -2,11 +2,28 @@
   "version": 2,
   "builds": [
     {
+      "src": "admin/**",
+      "use": "@vercel/static"
+    },
+    {
       "src": "server.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
+    {
+      "src": "/admin",
+      "status": 301,
+      "headers": { "Location": "/admin/" }
+    },
+    {
+      "src": "/admin/",
+      "dest": "/admin/index.html"
+    },
+    {
+      "src": "/admin/(.*)",
+      "dest": "/admin/$1"
+    },
     {
       "src": "/(.*)",
       "dest": "server.js"
