@@ -246,7 +246,11 @@ class Backend {
       if (res?['employee'] is Map<String, dynamic>) {
         _applyEmployee(res!['employee'] as Map<String, dynamic>);
       }
-      PushService.instance.registerCurrentToken();
+      final notifStatus =
+          await PushService.instance.requestPermissionContextually();
+      if (notifStatus == NotificationPermissionStatus.granted) {
+        await PushService.instance.registerCurrentToken();
+      }
       HomeContent.instance.load();
       BenefitsContent.instance.load();
       return true;
@@ -270,8 +274,12 @@ class Backend {
     if (res['ok'] != true) return AuthResult.invalid;
     await _api.setToken(res['token'] as String);
     _applyEmployee(res['employee'] as Map<String, dynamic>);
-    // Register FCM device token on backend
-    PushService.instance.registerCurrentToken();
+    // Contextually request notification permissions after authentication
+    final notifStatus =
+        await PushService.instance.requestPermissionContextually();
+    if (notifStatus == NotificationPermissionStatus.granted) {
+      await PushService.instance.registerCurrentToken();
+    }
     // Session just became available — pull server-driven content.
     HomeContent.instance.load();
     BenefitsContent.instance.load();

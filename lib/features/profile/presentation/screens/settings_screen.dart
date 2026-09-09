@@ -74,7 +74,8 @@ class SettingsScreen extends ConsumerWidget {
                 icon: Icons.notifications_rounded,
                 title: AppLocale.tr('settings_notifications'),
                 value: settings.notificationsEnabled,
-                onChanged: (val) => notifier.setNotifications(val),
+                onChanged: (val) =>
+                    notifier.setNotifications(val, context: context),
               ),
             ),
             const SizedBox(height: 24),

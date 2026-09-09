@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/localization/app_locale.dart';
+import '../../../../core/network/push_service.dart';
 import '../../../../core/providers/repository_providers.dart';
 import '../../../../core/repositories/settings_repository.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/ui_feedback.dart';
 
 class SettingsState {
   final bool biometricEnabled;
@@ -54,9 +57,62 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     state = state.copyWith(salaryProtectionEnabled: val);
   }
 
-  Future<void> setNotifications(bool val) async {
-    await _repo.setSetting('notifications', val);
-    state = state.copyWith(notificationsEnabled: val);
+  Future<NotificationPermissionStatus> setNotifications(
+    bool val, {
+    BuildContext? context,
+  }) async {
+    if (!val) {
+      await _repo.setSetting('notifications', false);
+      state = state.copyWith(notificationsEnabled: false);
+      await PushService.instance.unregisterToken();
+      return NotificationPermissionStatus.denied;
+    }
+
+    final status = await PushService.instance.requestPermissionContextually();
+    switch (status) {
+      case NotificationPermissionStatus.granted:
+        await _repo.setSetting('notifications', true);
+        state = state.copyWith(notificationsEnabled: true);
+        if (context != null && context.mounted) {
+          final isAr = AppLocale.instance.isArabic;
+          UiFeedback.showSuccess(
+            context,
+            isAr
+                ? 'تم تفعيل الإشعارات بنجاح'
+                : 'Notifications enabled successfully',
+          );
+        }
+        break;
+
+      case NotificationPermissionStatus.denied:
+        await _repo.setSetting('notifications', false);
+        state = state.copyWith(notificationsEnabled: false);
+        if (context != null && context.mounted) {
+          final isAr = AppLocale.instance.isArabic;
+          UiFeedback.showWarning(
+            context,
+            isAr
+                ? 'تم رفض إذن الإشعارات'
+                : 'Notification permission was denied',
+          );
+        }
+        break;
+
+      case NotificationPermissionStatus.permanentlyDenied:
+        await _repo.setSetting('notifications', false);
+        state = state.copyWith(notificationsEnabled: false);
+        if (context != null && context.mounted) {
+          final isAr = AppLocale.instance.isArabic;
+          UiFeedback.showWarning(
+            context,
+            isAr
+                ? 'الإشعارات معطلة في إعدادات النظام. يرجى تفعيلها من إعدادات الهاتف.'
+                : 'Notifications are blocked in system settings. Please enable them in your device settings.',
+          );
+        }
+        break;
+    }
+    return status;
   }
 
   Future<void> updateTheme(ThemeMode mode) async {

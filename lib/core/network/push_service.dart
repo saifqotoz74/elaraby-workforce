@@ -1,11 +1,20 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../firebase_options.dart';
 import 'api_client.dart';
+
+/// Notification permission status states handled explicitly per Phase 12.
+enum NotificationPermissionStatus {
+  granted,
+  denied,
+  permanentlyDenied,
+}
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -39,9 +48,32 @@ class PushService {
     enableVibration: true,
   );
 
+  NotificationPermissionStatus? _mockStatus;
+  final ValueNotifier<NotificationPermissionStatus> permissionStatusNotifier =
+      ValueNotifier(NotificationPermissionStatus.denied);
+
+  NotificationPermissionStatus get permissionStatus =>
+      _mockStatus ?? permissionStatusNotifier.value;
+
+  /// Injected for test hermeticity.
+  @visibleForTesting
+  void setMockPermissionStatus(NotificationPermissionStatus? status) {
+    _mockStatus = status;
+    if (status != null) {
+      permissionStatusNotifier.value = status;
+    }
+  }
+
+  /// Initializes messaging handlers and channels WITHOUT prompting the user for permissions.
+  /// Permission prompt is strictly deferred to contextual post-authentication flows.
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
+
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      return;
+    }
+
     try {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
@@ -93,19 +125,6 @@ class PushService {
             AndroidFlutterLocalNotificationsPlugin>()
         ?.createNotificationChannel(_highImportanceChannel);
 
-    // Permission prompt (notifications are denied by default on Android 13+).
-    final settings = await FirebaseMessaging.instance.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
-    if (settings.authorizationStatus == AuthorizationStatus.denied) {
-      return;
-    }
-
-    // Capture token and send to backend
-    await registerCurrentToken();
-
     // Listen for FCM token refreshes
     FirebaseMessaging.instance.onTokenRefresh.listen((token) {
       _registerToken(token);
@@ -153,6 +172,96 @@ class PushService {
     });
   }
 
+  /// Request notification permission contextually after authentication.
+  /// Handles granted, denied, and permanently denied states.
+  Future<NotificationPermissionStatus> requestPermissionContextually() async {
+    if (_mockStatus != null) return _mockStatus!;
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      final status = _mockStatus ?? NotificationPermissionStatus.granted;
+      permissionStatusNotifier.value = status;
+      return status;
+    }
+
+    try {
+      final currentSettings =
+          await FirebaseMessaging.instance.getNotificationSettings();
+
+      // If already authorized, register token and return granted
+      if (currentSettings.authorizationStatus ==
+              AuthorizationStatus.authorized ||
+          currentSettings.authorizationStatus ==
+              AuthorizationStatus.provisional) {
+        permissionStatusNotifier.value = NotificationPermissionStatus.granted;
+        await registerCurrentToken();
+        return NotificationPermissionStatus.granted;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final previouslyRequested =
+          prefs.getBool('notif_permission_previously_requested') ?? false;
+
+      // If already denied previously and OS blocks re-prompting without system settings
+      if (previouslyRequested &&
+          currentSettings.authorizationStatus == AuthorizationStatus.denied) {
+        permissionStatusNotifier.value =
+            NotificationPermissionStatus.permanentlyDenied;
+        return NotificationPermissionStatus.permanentlyDenied;
+      }
+
+      // Mark as requested and trigger system permission dialog
+      await prefs.setBool('notif_permission_previously_requested', true);
+      final settings = await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      final NotificationPermissionStatus finalStatus;
+      if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional) {
+        finalStatus = NotificationPermissionStatus.granted;
+        await registerCurrentToken();
+      } else {
+        finalStatus = previouslyRequested
+            ? NotificationPermissionStatus.permanentlyDenied
+            : NotificationPermissionStatus.denied;
+      }
+
+      permissionStatusNotifier.value = finalStatus;
+      return finalStatus;
+    } catch (e) {
+      debugPrint('PushService requestPermissionContextually error: $e');
+      return NotificationPermissionStatus.denied;
+    }
+  }
+
+  /// Checks the current system notification permission state without prompting.
+  Future<NotificationPermissionStatus> checkPermissionStatus() async {
+    if (_mockStatus != null) return _mockStatus!;
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      return _mockStatus ?? NotificationPermissionStatus.granted;
+    }
+
+    try {
+      final settings =
+          await FirebaseMessaging.instance.getNotificationSettings();
+      if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional) {
+        return NotificationPermissionStatus.granted;
+      }
+      final prefs = await SharedPreferences.getInstance();
+      final previouslyRequested =
+          prefs.getBool('notif_permission_previously_requested') ?? false;
+      if (previouslyRequested &&
+          settings.authorizationStatus == AuthorizationStatus.denied) {
+        return NotificationPermissionStatus.permanentlyDenied;
+      }
+      return NotificationPermissionStatus.denied;
+    } catch (e) {
+      return NotificationPermissionStatus.denied;
+    }
+  }
+
   Future<void> _registerToken(String? token) async {
     if (token == null) return;
     if (ApiClient.instance.token == null) return;
@@ -160,6 +269,7 @@ class PushService {
   }
 
   Future<void> registerCurrentToken() async {
+    if (Platform.environment.containsKey('FLUTTER_TEST')) return;
     try {
       final token = await FirebaseMessaging.instance.getToken();
       await _registerToken(token);
@@ -169,6 +279,7 @@ class PushService {
   }
 
   Future<void> unregisterToken() async {
+    if (Platform.environment.containsKey('FLUTTER_TEST')) return;
     try {
       await FirebaseMessaging.instance.deleteToken();
     } on Exception catch (e) {
