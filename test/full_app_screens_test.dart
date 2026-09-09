@@ -27,12 +27,34 @@ import 'package:elaraby_workforce/features/services/presentation/screens/vacatio
 import 'package:elaraby_workforce/features/services/presentation/screens/your_requests_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:elaraby_workforce/core/providers/repository_providers.dart';
+import 'package:elaraby_workforce/core/state/ui_state.dart';
+import 'package:elaraby_workforce/features/services/presentation/controllers/salary_controller.dart';
 import 'package:elaraby_workforce/l10n/generated/app_localizations.dart';
 import 'package:elaraby_workforce/main.dart';
 
-Widget createTestApp(Widget child, {Locale locale = const Locale('en')}) {
+Widget createTestApp(
+  Widget child, {
+  Locale locale = const Locale('en'),
+  List<Override> overrides = const [],
+}) {
   AppLocale.instance.setLocale(locale);
   return ProviderScope(
+    overrides: [
+      salaryStateProvider.overrideWith((ref) {
+        final notifier = SalaryNotifier(ref.watch(salaryRepositoryProvider));
+        notifier.state = const UiState.success({
+          'period': 'July 2026',
+          'basicSalary': 7000,
+          'allowances': 950,
+          'deductions': 200,
+          'paidOn': 'Jul 28, 2026',
+          'paymentMethod': 'Bank Transfer (CIB)',
+        });
+        return notifier;
+      }),
+      ...overrides,
+    ],
     child: MaterialApp(
       locale: locale,
       supportedLocales: AppLocalizations.supportedLocales,

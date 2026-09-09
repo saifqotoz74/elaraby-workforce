@@ -1,4 +1,3 @@
-import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/localization/app_locale.dart';
@@ -11,8 +10,6 @@ import 'salary_pin_gate.dart';
 
 class SalarySlipScreen extends ConsumerStatefulWidget {
   const SalarySlipScreen({super.key});
-
-  static const SalarySlipData _defaultData = SalarySlipData();
 
   @override
   ConsumerState<SalarySlipScreen> createState() => _SalarySlipScreenState();
@@ -38,54 +35,27 @@ class _SalarySlipScreenState extends ConsumerState<SalarySlipScreen> {
   }
 
   /// HR-published statement wins; authenticated via server-side PIN.
-  Future<void> _loadStatement({String? pin}) async {
+  Future<void> _loadStatement({String? pin, bool force = false}) async {
     final effectivePin = pin ?? _authorizedPin;
     if (effectivePin != null) {
       await ref.read(salaryStateProvider.notifier).unlockAndFetch(effectivePin);
     } else {
-      await ref.read(salaryStateProvider.notifier).fetchWithToken();
+      if (force || ref.read(salaryStateProvider).isEmpty) {
+        await ref.read(salaryStateProvider.notifier).fetchWithToken();
+      }
     }
-  }
-
-  SalarySlipData get _data {
-    final salaryState = ref.read(salaryStateProvider);
-    final isTest = Platform.environment.containsKey('FLUTTER_TEST');
-    if (salaryState.hasData) {
-      final payroll = salaryState.data!;
-      return SalarySlipData(
-        period: payroll['period'] as String? ?? SalarySlipData.defaultPeriod,
-        basicSalary: (payroll['basicSalary'] as num?)?.toInt() ?? 0,
-        allowances: (payroll['allowances'] as num?)?.toInt() ?? 0,
-        deductions: (payroll['deductions'] as num?)?.toInt() ?? 0,
-        paidOn: payroll['paidOn'] as String? ?? '',
-        paymentMethod: payroll['paymentMethod'] as String? ?? 'Bank Transfer',
-      );
-    }
-    if (isTest) {
-      return SalarySlipScreen._defaultData;
-    }
-    return SalarySlipScreen._defaultData;
   }
 
   SalarySlipData? get _serverData {
     final salaryState = ref.watch(salaryStateProvider);
-    final isTest = Platform.environment.containsKey('FLUTTER_TEST');
     if (salaryState.hasData) {
       final payroll = salaryState.data!;
-      return SalarySlipData(
-        period: payroll['period'] as String? ?? SalarySlipData.defaultPeriod,
-        basicSalary: (payroll['basicSalary'] as num?)?.toInt() ?? 0,
-        allowances: (payroll['allowances'] as num?)?.toInt() ?? 0,
-        deductions: (payroll['deductions'] as num?)?.toInt() ?? 0,
-        paidOn: payroll['paidOn'] as String? ?? '',
-        paymentMethod: payroll['paymentMethod'] as String? ?? 'Bank Transfer',
-      );
-    }
-    if (isTest) {
-      return SalarySlipScreen._defaultData;
+      return SalarySlipData.fromJson(payroll);
     }
     return null;
   }
+
+  SalarySlipData get _data => _serverData!;
 
   bool get _loading => ref.watch(salaryStateProvider).isLoading;
 
@@ -146,7 +116,7 @@ class _SalarySlipScreenState extends ConsumerState<SalarySlipScreen> {
           IconButton(
             icon: const Icon(Icons.refresh, color: AppColors.textPrimary),
             tooltip: AppLocale.instance.isArabic ? 'تحديث' : 'Refresh',
-            onPressed: () => _loadStatement(),
+            onPressed: () => _loadStatement(force: true),
           ),
         ],
         shape: const RoundedRectangleBorder(
@@ -156,39 +126,50 @@ class _SalarySlipScreenState extends ConsumerState<SalarySlipScreen> {
       body: SafeArea(
         child: _loading && _serverData == null
             ? const Center(child: CircularProgressIndicator())
-            : _errorMessage != null && _serverData == null
+            : _serverData == null
                 ? Center(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.lock_clock,
-                              size: 56, color: AppColors.primary),
+                          Icon(
+                            Icons.payments_outlined,
+                            size: 64,
+                            color:
+                                AppColors.textSecondary.withValues(alpha: 0.6),
+                          ),
                           const SizedBox(height: 16),
                           Text(
-                            _errorMessage!,
+                            _errorMessage ??
+                                (AppLocale.instance.isArabic
+                                    ? 'تعذر تحميل بيانات الراتب من الخادم.'
+                                    : 'Unable to load salary data from server.'),
                             textAlign: TextAlign.center,
                             style: AppTypography.sectionHeading.copyWith(
                               color: AppColors.textSecondary,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 24),
                           ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 12),
+                                  horizontal: 28, vertical: 14),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12)),
                             ),
-                            icon: const Icon(Icons.refresh),
-                            label: Text(AppLocale.instance.isArabic
-                                ? 'إعادة المحاولة'
-                                : 'Retry'),
-                            onPressed: () => _loadStatement(),
+                            icon: const Icon(Icons.refresh, size: 20),
+                            label: Text(
+                              AppLocale.instance.isArabic
+                                  ? 'إعادة المحاولة'
+                                  : 'Retry',
+                              style: AppTypography.buttonText
+                                  .copyWith(fontSize: 15),
+                            ),
+                            onPressed: () => _loadStatement(force: true),
                           ),
                         ],
                       ),
@@ -264,20 +245,6 @@ class _SalarySlipScreenState extends ConsumerState<SalarySlipScreen> {
                                         ],
                                       ),
                                     ),
-                                    if (_serverData == null)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 8),
-                                        child: Text(
-                                          AppLocale.instance.isArabic
-                                              ? 'بيان تجريبي - جاري المزامنة مع السيرفر'
-                                              : 'Preview statement - Syncing with server',
-                                          style:
-                                              AppTypography.fontBase.copyWith(
-                                            fontSize: 11,
-                                            color: AppColors.textLight,
-                                          ),
-                                        ),
-                                      ),
                                   ],
                                 ),
                               ),

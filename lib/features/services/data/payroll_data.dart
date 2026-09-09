@@ -19,13 +19,24 @@ class SalarySlipData {
   final String paymentMethod;
 
   const SalarySlipData({
-    this.period = defaultPeriod,
-    this.basicSalary = 7000,
-    this.allowances = 950,
-    this.deductions = 200,
-    this.paidOn = 'Jul 28, 2026',
-    this.paymentMethod = 'Bank Transfer (CIB)',
+    required this.period,
+    required this.basicSalary,
+    required this.allowances,
+    required this.deductions,
+    required this.paidOn,
+    required this.paymentMethod,
   });
+
+  factory SalarySlipData.fromJson(Map<String, dynamic> json) {
+    return SalarySlipData(
+      period: json['period'] as String? ?? defaultPeriod,
+      basicSalary: (json['basicSalary'] as num?)?.toInt() ?? 0,
+      allowances: (json['allowances'] as num?)?.toInt() ?? 0,
+      deductions: (json['deductions'] as num?)?.toInt() ?? 0,
+      paidOn: json['paidOn'] as String? ?? '',
+      paymentMethod: json['paymentMethod'] as String? ?? 'Bank Transfer',
+    );
+  }
 
   int get netPay => basicSalary + allowances - deductions;
 

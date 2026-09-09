@@ -27,10 +27,17 @@ class SalaryNotifier extends StateNotifier<UiState<Map<String, dynamic>>> {
       }
       _salaryToken = token;
       final payload = await _repo.fetchPayroll(salaryToken: token, pin: pin);
-      if (payload != null &&
-          payload['ok'] == true &&
-          payload['payroll'] != null) {
-        state = UiState.success(payload['payroll'] as Map<String, dynamic>);
+      Map<String, dynamic>? payrollData;
+      if (payload != null) {
+        if (payload['payroll'] is Map<String, dynamic>) {
+          payrollData = payload['payroll'] as Map<String, dynamic>;
+        } else if (payload.containsKey('basicSalary')) {
+          payrollData = payload;
+        }
+      }
+
+      if (payrollData != null) {
+        state = UiState.success(payrollData);
       } else {
         final lastErr = ApiClient.instance.lastError;
         state = UiState.error(
@@ -47,17 +54,20 @@ class SalaryNotifier extends StateNotifier<UiState<Map<String, dynamic>>> {
   }
 
   Future<void> fetchWithToken() async {
-    if (_salaryToken == null) {
-      state = const UiState.empty();
-      return;
-    }
     state = const UiState.loading();
     try {
       final payload = await _repo.fetchPayroll(salaryToken: _salaryToken);
-      if (payload != null &&
-          payload['ok'] == true &&
-          payload['payroll'] != null) {
-        state = UiState.success(payload['payroll'] as Map<String, dynamic>);
+      Map<String, dynamic>? payrollData;
+      if (payload != null) {
+        if (payload['payroll'] is Map<String, dynamic>) {
+          payrollData = payload['payroll'] as Map<String, dynamic>;
+        } else if (payload.containsKey('basicSalary')) {
+          payrollData = payload;
+        }
+      }
+
+      if (payrollData != null) {
+        state = UiState.success(payrollData);
       } else {
         final lastErr = ApiClient.instance.lastError;
         state = UiState.error(
