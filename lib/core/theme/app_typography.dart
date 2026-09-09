@@ -1,4 +1,3 @@
-import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../localization/app_locale.dart';
@@ -22,15 +21,6 @@ class AppTypography {
     double? letterSpacing,
     double? height,
   }) {
-    if (Platform.environment.containsKey('FLUTTER_TEST')) {
-      return GoogleFonts.inter(
-        fontSize: fontSize,
-        fontWeight: fontWeight,
-        color: color,
-        letterSpacing: letterSpacing,
-        height: height,
-      );
-    }
     if (AppLocale.instance.isArabic) {
       return GoogleFonts.cairo(
         fontSize: fontSize,
@@ -50,9 +40,6 @@ class AppTypography {
   }
 
   static TextStyle get fontBase {
-    if (Platform.environment.containsKey('FLUTTER_TEST')) {
-      return GoogleFonts.inter();
-    }
     return AppLocale.instance.isArabic
         ? GoogleFonts.cairo()
         : GoogleFonts.inter();
