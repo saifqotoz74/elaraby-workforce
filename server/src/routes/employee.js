@@ -435,11 +435,13 @@ router.post('/requests', requireAuth, (req, res) => {
   }
 
   if (!type || !title) return res.status(400).json({ error: 'type_and_title_required' });
-  const requested = Number(days ?? details?.days) || 0;
-  const isAnnualLeave = type === 'Leave' && (
+  const requested = Number(days ?? details?.days ?? req.body?.requestedDays) || 0;
+  const isLeave = String(type || '').toLowerCase() === 'leave';
+  const isAnnualLeave = isLeave && (
     details?.leaveType === 'Annual Leave' ||
     details?.leaveType === 'annual' ||
-    String(title).toLowerCase().includes('annual leave')
+    String(title).toLowerCase().includes('annual leave') ||
+    String(title).toLowerCase().includes('leave')
   );
 
   let responsePayload;
