@@ -7,7 +7,7 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "verify:fcm": "node scripts/verify-fcm.js",
-    "test": "node test/ratelimit.test.js && node test/backend_readiness.test.js && node test/database_and_backend.test.js && node test/admin_security_rbac.test.js && node test/phase2_services_realtime_upload.test.js && node test/comprehensive_api.test.js"
+    "test": "node test/ratelimit.test.js && node test/backend_readiness.test.js && node test/database_and_backend.test.js && node test/admin_security_rbac.test.js && node test/phase2_services_realtime_upload.test.js && node test/phase3_frontend_modules.test.js && node test/comprehensive_api.test.js"
   },
   "engines": {
     "node": ">=18"
