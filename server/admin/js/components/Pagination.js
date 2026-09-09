@@ -45,3 +45,25 @@ export function renderPagination({ page = 1, totalPages = 1, total = 0, onPageCh
   container.appendChild(controls);
   return container;
 }
+
+export class Pagination {
+  constructor(container, options = {}) {
+    this.container = container;
+    this.options = options;
+  }
+
+  render() {
+    if (!this.container) return null;
+    this.container.innerHTML = '';
+    const el = renderPagination({
+      page: this.options.currentPage || 1,
+      totalPages: this.options.totalPages || 1,
+      total: this.options.totalItems || 0,
+      onPageChange: this.options.onPageChange,
+    });
+    if (el) {
+      this.container.appendChild(el);
+    }
+    return el;
+  }
+}
