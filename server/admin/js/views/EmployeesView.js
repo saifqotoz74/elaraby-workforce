@@ -259,6 +259,13 @@ export class EmployeesView {
     });
 
     footer.querySelector('#modal-cancel').onclick = () => modal.close();
+    footer.querySelector('#modal-submit').onclick = () => {
+      if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+      } else {
+        form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+      }
+    };
 
     form.onsubmit = async (e) => {
       e.preventDefault();
@@ -351,6 +358,13 @@ export class EmployeesView {
     });
 
     footer.querySelector('#edit-cancel').onclick = () => modal.close();
+    footer.querySelector('#edit-submit').onclick = () => {
+      if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+      } else {
+        form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+      }
+    };
 
     form.onsubmit = async (e) => {
       e.preventDefault();
