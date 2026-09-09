@@ -27,12 +27,16 @@ import 'package:elaraby_workforce/features/services/presentation/screens/vacatio
 import 'package:elaraby_workforce/features/services/presentation/screens/your_requests_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:elaraby_workforce/l10n/generated/app_localizations.dart';
 import 'package:elaraby_workforce/main.dart';
 
 Widget createTestApp(Widget child, {Locale locale = const Locale('en')}) {
   AppLocale.instance.setLocale(locale);
   return ProviderScope(
     child: MaterialApp(
+      locale: locale,
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
       home: child,
       theme: ThemeData(fontFamily: 'Inter'),
     ),

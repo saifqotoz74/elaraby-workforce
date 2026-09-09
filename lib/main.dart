@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/localization/app_locale.dart';
+import 'l10n/generated/app_localizations.dart';
 import 'core/navigation/app_router.dart';
 import 'core/network/api_client.dart';
 import 'core/network/backend.dart';
@@ -84,15 +84,8 @@ class ElarabyWorkforceApp extends ConsumerWidget {
             darkTheme: AppTheme.darkTheme,
             themeMode: AppTheme.themeModeNotifier.value,
             locale: AppLocale.instance.currentLocale,
-            supportedLocales: const [
-              Locale('en'),
-              Locale('ar'),
-            ],
-            localizationsDelegates: const [
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
             builder: (context, child) {
               final mediaQuery = MediaQuery.of(context);
               return MediaQuery(
@@ -117,15 +110,8 @@ class ElarabyWorkforceApp extends ConsumerWidget {
           darkTheme: AppTheme.darkTheme,
           themeMode: AppTheme.themeModeNotifier.value,
           locale: AppLocale.instance.currentLocale,
-          supportedLocales: const [
-            Locale('en'),
-            Locale('ar'),
-          ],
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
           builder: (context, child) {
             final mediaQuery = MediaQuery.of(context);
             return MediaQuery(
