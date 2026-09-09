@@ -111,7 +111,10 @@ app.use('/api/admin', adminRoutes);
 const uploadsDir = isVercel ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
 app.use('/uploads', express.static(uploadsDir));
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
-app.get(['/admin', '/admin/'], (req, res) => {
+app.get('/admin', (req, res) => {
+  res.redirect(301, '/admin/');
+});
+app.get('/admin/', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin', 'index.html'));
 });
 app.get('/', (req, res) => {

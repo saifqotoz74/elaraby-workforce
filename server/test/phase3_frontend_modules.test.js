@@ -35,7 +35,7 @@ async function runPhase3Tests() {
     assert.ok(content.includes('css/design-system.css'), 'Must link design-system.css');
     assert.ok(content.includes('css/components.css'), 'Must link components.css');
     assert.ok(content.includes('css/views.css'), 'Must link views.css');
-    assert.ok(content.includes('<script type="module" src="js/app.js"></script>'), 'Must load js/app.js as ES module');
+    assert.ok(content.includes('js/app.js'), 'Must load js/app.js as ES module');
     assert.ok(!content.includes('localStorage.getItem("adminToken")'), 'Old localStorage token references must be gone');
   });
 

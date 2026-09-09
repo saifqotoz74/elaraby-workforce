@@ -160,8 +160,19 @@ class App {
   }
 }
 
-// Bootstrap on DOM Ready
-document.addEventListener('DOMContentLoaded', () => {
-  const app = new App();
-  app.init();
-});
+// Bootstrap on DOM Ready or immediately if DOM is already parsed
+function bootstrap() {
+  try {
+    const app = new App();
+    app.init();
+  } catch (err) {
+    console.error('Fatal initialization error:', err);
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootstrap);
+} else {
+  bootstrap();
+}
+
