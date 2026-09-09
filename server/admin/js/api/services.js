@@ -64,7 +64,7 @@ export const uploadApi = {
   uploadFile: async (file) => {
     const formData = new FormData();
     formData.append('file', file);
-    return apiFetch('/api/admin/upload-file', {
+    return apiFetch('/api/admin/upload', {
       method: 'POST',
       body: formData,
     });

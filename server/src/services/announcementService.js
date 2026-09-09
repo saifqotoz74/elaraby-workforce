@@ -28,9 +28,15 @@ function listContent(collection, { page, limit } = {}) {
 
 function createContent(admin, collection, rawBody, { ip, userAgent } = {}) {
   const name = collection.slice(0, 3);
+  const title = rawBody.title || rawBody.name || 'Untitled';
+  const desc = rawBody.description || rawBody.body || '';
   const item = {
     id: `${name}_${Date.now()}`,
     ...rawBody,
+    title,
+    name: rawBody.name || title,
+    description: desc,
+    body: rawBody.body || desc,
     createdAt: Date.now(),
   };
 

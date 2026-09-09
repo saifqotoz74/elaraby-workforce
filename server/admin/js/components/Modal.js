@@ -8,12 +8,20 @@ export class Modal {
     this.wide = wide;
     this.onClose = onClose;
     this.backdrop = null;
+    this.element = null;
     this.keydownHandler = null;
   }
 
+  open() {
+    return this.render();
+  }
+
   render() {
+    if (this.backdrop) return this.backdrop;
+
     this.backdrop = document.createElement('div');
     this.backdrop.className = 'modal-backdrop';
+    this.element = this.backdrop;
 
     const windowEl = document.createElement('div');
     windowEl.className = `modal-window ${this.wide ? 'wide' : ''}`;
@@ -80,6 +88,7 @@ export class Modal {
       document.removeEventListener('keydown', this.keydownHandler);
       this.backdrop.remove();
       this.backdrop = null;
+      this.element = null;
       if (typeof this.onClose === 'function') {
         this.onClose();
       }

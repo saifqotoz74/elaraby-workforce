@@ -128,7 +128,7 @@ router.get('/audit-logs', requirePermission(PERMISSIONS.AUDIT_READ), (req, res) 
 });
 
 // ---------- Uploads: Streaming Multipart & Base64 Dual Support ----------
-router.post('/upload', requirePermission(PERMISSIONS.UPLOAD_IMAGE), async (req, res, next) => {
+router.post(['/upload', '/upload-file'], requirePermission(PERMISSIONS.UPLOAD_IMAGE), async (req, res, next) => {
   const meta = { ip: req.ip, userAgent: req.headers['user-agent'] };
   try {
     const contentType = req.headers['content-type'] || '';
