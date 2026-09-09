@@ -71,6 +71,7 @@ function getAuditLogs({ page, limit, action, actor, entity, from, to } = {}) {
 
   return {
     auditLogs: items,
+    logs: items,
     total: filtered.length,
     page: pageNum,
     limit: limitNum,

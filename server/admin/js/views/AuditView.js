@@ -131,7 +131,7 @@ export class AuditView {
       if (this.filterActor) params.actor = this.filterActor;
 
       const res = await auditApi.list(params);
-      this.logs = res.logs || [];
+      this.logs = res.logs || res.auditLogs || [];
       this.total = res.total || 0;
 
       if (badge) badge.innerText = `${this.total} Total Entries`;
