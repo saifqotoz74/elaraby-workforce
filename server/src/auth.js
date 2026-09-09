@@ -3,11 +3,9 @@
 const crypto = require('crypto');
 
 const isProd = process.env.NODE_ENV === 'production';
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me-in-production';
-if (isProd && JWT_SECRET === 'dev-secret-change-me-in-production') {
-  console.error('FATAL: Default JWT_SECRET used in production! Halting.');
-  process.exit(1);
-}
+const _generatedSecret = crypto.randomBytes(32).toString('hex');
+const JWT_SECRET = process.env.JWT_SECRET || (isProd ? _generatedSecret : 'dev-secret-change-me-in-production');
+
 const OTP_TTL_MS = 5 * 60 * 1000;
 const MAX_OTP_ATTEMPTS = 3;
 const TOKEN_TTL_S = 30 * 24 * 3600;
