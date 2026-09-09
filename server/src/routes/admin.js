@@ -1,10 +1,12 @@
 // Admin API: HR dashboard operations with Enterprise Audit Logging & RBAC support.
 // Guarded by requireAdmin.
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const { data: db, save, nextId, transaction, indexes } = require('../db');
 const { verifyHash, hash, signToken, requireAdmin } = require('../auth');
+const { ROLES, PERMISSIONS, requirePermission, checkScope, hasPermission } = require('../rbac');
 const { guard, registerFailure, clearFailures } = require('../rateLimit');
 const { notify } = require('../notify');
 
@@ -39,7 +41,7 @@ function recordAuditLog(d, { actor, action, targetId, details, ip }) {
 }
 
 router.post('/login', (req, res) => {
-  const { username, password } = req.body || {};
+  const { username, password, role, scopeFactory, scopeDepartment } = req.body || {};
   if (guard(db(), `admin:${req.ip}`, res)) return;
   if (username !== ADMIN_USER || !verifyHash(String(password || ''), hashOnce(ADMIN_PASS))) {
     const lockedForSecs = registerFailure(db(), `admin:${req.ip}`);
@@ -56,14 +58,58 @@ router.post('/login', (req, res) => {
     return res.status(401).json({ error: 'invalid_credentials' });
   }
   clearFailures(db(), `admin:${req.ip}`);
+
+  const userRole = role || ROLES.SUPER_ADMIN;
+  const payload = {
+    sub: username,
+    scope: 'admin',
+    role: userRole,
+    scopeFactory: scopeFactory || null,
+    scopeDepartment: scopeDepartment || null,
+  };
+  const token = signToken(payload);
+  const csrfToken = crypto.randomBytes(32).toString('hex');
+
+  const isSecure = process.env.NODE_ENV === 'production';
+  const cookieFlags = `Path=/; SameSite=Strict; Max-Age=${30 * 24 * 3600}${isSecure ? '; Secure' : ''}`;
+  res.setHeader('Set-Cookie', [
+    `admin_session=${encodeURIComponent(token)}; HttpOnly; ${cookieFlags}`,
+    `csrf_token=${encodeURIComponent(csrfToken)}; ${cookieFlags}`,
+  ]);
+
   recordAuditLog(db(), {
     actor: username,
     action: 'admin_login_success',
-    details: 'Admin authenticated successfully',
+    details: `Admin authenticated successfully (role: ${userRole})`,
     ip: req.ip,
   });
   save();
-  res.json({ token: signToken({ sub: username, scope: 'admin', role: 'superadmin' }) });
+
+  res.json({
+    ok: true,
+    token,
+    role: userRole,
+    csrfToken,
+    scopeFactory: payload.scopeFactory,
+    scopeDepartment: payload.scopeDepartment,
+  });
+});
+
+router.post('/logout', (req, res) => {
+  const isSecure = process.env.NODE_ENV === 'production';
+  const clearFlags = `Path=/; SameSite=Strict; Max-Age=0${isSecure ? '; Secure' : ''}`;
+  res.setHeader('Set-Cookie', [
+    `admin_session=; HttpOnly; ${clearFlags}`,
+    `csrf_token=; ${clearFlags}`,
+  ]);
+  recordAuditLog(db(), {
+    actor: 'admin',
+    action: 'admin_logout',
+    details: 'Admin logged out and session destroyed',
+    ip: req.ip,
+  });
+  save();
+  res.json({ ok: true, message: 'logged_out' });
 });
 
 // Hash the configured password once per process for timing-safe compare.
@@ -76,7 +122,7 @@ function hashOnce(pass) {
 router.use(requireAdmin);
 
 // ---------- Audit Logs ----------
-router.get('/audit-logs', (req, res) => {
+router.get('/audit-logs', requirePermission(PERMISSIONS.AUDIT_READ), (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 100, 500);
   const logs = (db().auditLogs || []).slice(0, limit);
   res.json({ auditLogs: logs, total: (db().auditLogs || []).length });
@@ -99,7 +145,7 @@ function isValidImage(buf, ext) {
   return false;
 }
 
-router.post('/upload', (req, res) => {
+router.post('/upload', requirePermission(PERMISSIONS.UPLOAD_IMAGE), (req, res) => {
   let { name, dataBase64 } = req.body || {};
   if (!name || !dataBase64) return res.status(400).json({ error: 'name_and_data_required' });
   const dataUrlMatch = /^data:image\/(png|jpe?g|webp);base64,(.+)$/.exec(dataBase64);
@@ -125,13 +171,13 @@ router.post('/upload', (req, res) => {
 });
 
 // ---------- Anonymous Concerns (HR Safety & Compliance) ----------
-router.get('/concerns', (req, res) => {
+router.get('/concerns', requirePermission(PERMISSIONS.CONCERNS_READ), (req, res) => {
   const d = db();
   res.json({ concerns: d.concerns || [] });
 });
 
 // ---------- Stats ----------
-router.get('/stats', (req, res) => {
+router.get('/stats', requirePermission(PERMISSIONS.STATS_READ), (req, res) => {
   const d = db();
   const dayMs = 24 * 3600 * 1000;
   const today = new Date();
@@ -192,8 +238,10 @@ router.get('/stats', (req, res) => {
 });
 
 // ---------- Employees ----------
-router.get('/employees', (req, res) => {
-  const all = db().employees.map(employeeOut);
+router.get('/employees', requirePermission(PERMISSIONS.EMPLOYEE_READ), (req, res) => {
+  const all = db()
+    .employees.filter((e) => checkScope(req.admin, e))
+    .map(employeeOut);
   if (req.query.page || req.query.limit) {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.max(1, Math.min(100, parseInt(req.query.limit, 10) || 20));
@@ -210,11 +258,16 @@ router.get('/employees', (req, res) => {
   res.json({ employees: all });
 });
 
-router.post('/employees', (req, res) => {
+router.post('/employees', requirePermission(PERMISSIONS.EMPLOYEE_CREATE), (req, res) => {
   const { name, nationalId, employeeCode, factory, department, position, supervisor, phone, vacationBalance } =
     req.body || {};
   if (!name || !/^\d{14}$/.test(String(nationalId || ''))) {
     return res.status(400).json({ error: 'name_and_14_digit_national_id_required' });
+  }
+  const targetFactory = factory || '10th of Ramadan';
+  const targetDepartment = department || 'Production A';
+  if (!checkScope(req.admin, { factory: targetFactory, department: targetDepartment })) {
+    return res.status(403).json({ error: 'forbidden_outside_factory_scope' });
   }
   let employee;
   try {
@@ -229,8 +282,8 @@ router.post('/employees', (req, res) => {
         name,
         nationalId,
         employeeCode: employeeCode || `EG-${Math.floor(10000 + Math.random() * 90000)}`,
-        factory: factory || '10th of Ramadan',
-        department: department || 'Production A',
+        factory: targetFactory,
+        department: targetDepartment,
         position: position || 'Operator',
         supervisor: supervisor || '—',
         phone: phone || '',
@@ -258,9 +311,12 @@ router.post('/employees', (req, res) => {
   res.json({ employee: employeeOut(employee) });
 });
 
-router.put('/employees/:id', (req, res) => {
+router.put('/employees/:id', requirePermission(PERMISSIONS.EMPLOYEE_UPDATE), (req, res) => {
   const employee = db().employees.find((e) => e.id === req.params.id);
   if (!employee) return res.status(404).json({ error: 'not_found' });
+  if (!checkScope(req.admin, employee)) {
+    return res.status(403).json({ error: 'forbidden_outside_factory_scope' });
+  }
   const allowed = ['name', 'employeeCode', 'factory', 'department', 'position', 'supervisor', 'phone'];
   for (const key of allowed) {
     if (req.body?.[key] !== undefined) employee[key] = req.body[key];
@@ -284,9 +340,12 @@ router.put('/employees/:id', (req, res) => {
   res.json({ employee: employeeOut(employee) });
 });
 
-router.post('/employees/:id/toggle', (req, res) => {
+router.post('/employees/:id/toggle', requirePermission(PERMISSIONS.EMPLOYEE_TOGGLE), (req, res) => {
   const employee = db().employees.find((e) => e.id === req.params.id);
   if (!employee) return res.status(404).json({ error: 'not_found' });
+  if (!checkScope(req.admin, employee)) {
+    return res.status(403).json({ error: 'forbidden_outside_factory_scope' });
+  }
   employee.active = !employee.active;
   employee.tokenVersion = (employee.tokenVersion || 0) + 1;
   recordAuditLog(db(), {
@@ -301,11 +360,14 @@ router.post('/employees/:id/toggle', (req, res) => {
 });
 
 // ---------- Requests ----------
-router.get('/requests', (req, res) => {
-  const withEmployee = db().requests.map((r) => {
-    const e = db().employees.find((emp) => emp.id === r.employeeId);
-    return { ...r, employeeName: e?.name || '?', employeeCode: e?.employeeCode || '?' };
-  });
+router.get('/requests', requirePermission(PERMISSIONS.LEAVE_READ), (req, res) => {
+  const withEmployee = db()
+    .requests.map((r) => {
+      const e = db().employees.find((emp) => emp.id === r.employeeId);
+      return { ...r, employee: e, employeeName: e?.name || '?', employeeCode: e?.employeeCode || '?' };
+    })
+    .filter((r) => !r.employee || checkScope(req.admin, r.employee))
+    .map(({ employee, ...rest }) => rest);
   withEmployee.sort((a, b) => b.createdAt - a.createdAt);
   res.json({ requests: withEmployee });
 });
@@ -315,6 +377,14 @@ router.post('/requests/:id/decide', (req, res) => {
   if (!['approved', 'rejected'].includes(status)) {
     return res.status(400).json({ error: 'status_must_be_approved_or_rejected' });
   }
+  const requiredPerm = status === 'approved' ? PERMISSIONS.LEAVE_APPROVE : PERMISSIONS.LEAVE_REJECT;
+  if (!hasPermission(req.admin?.role, requiredPerm)) {
+    return res.status(403).json({
+      error: 'forbidden_permission_required',
+      requiredPermission: requiredPerm,
+      currentRole: req.admin?.role,
+    });
+  }
   let request;
   try {
     request = transaction((state) => {
@@ -322,6 +392,12 @@ router.post('/requests/:id/decide', (req, res) => {
       if (!reqItem) {
         const err = new Error('not_found');
         err.statusCode = 404;
+        throw err;
+      }
+      const employee = state.employees.find((e) => e.id === reqItem.employeeId);
+      if (employee && !checkScope(req.admin, employee)) {
+        const err = new Error('forbidden_outside_factory_scope');
+        err.statusCode = 403;
         throw err;
       }
       if (reqItem.status !== 'inReview') {
@@ -344,10 +420,10 @@ router.post('/requests/:id/decide', (req, res) => {
           String(reqItem.title).toLowerCase().includes('annual leave')
         );
         if (isAnnualLeave) {
-          const employee = state.employees.find((e) => e.id === reqItem.employeeId);
+          const emp = state.employees.find((e) => e.id === reqItem.employeeId);
           const days = Number(reqItem.details?.days ?? reqItem.days) || 0;
-          if (employee && days > 0) {
-            employee.vacationBalance = (employee.vacationBalance || 0) + days;
+          if (emp && days > 0) {
+            emp.vacationBalance = (emp.vacationBalance || 0) + days;
           }
         }
       }
@@ -384,14 +460,21 @@ router.post('/requests/:id/decide', (req, res) => {
 });
 
 // ---------- Payroll ----------
-router.get('/payroll/:employeeId', (req, res) => {
+router.get('/payroll/:employeeId', requirePermission(PERMISSIONS.PAYROLL_READ), (req, res) => {
+  const employee = db().employees.find((e) => e.id === req.params.employeeId);
+  if (employee && !checkScope(req.admin, employee)) {
+    return res.status(403).json({ error: 'forbidden_outside_factory_scope' });
+  }
   const record = db().payroll.find((p) => p.employeeId === req.params.employeeId);
   res.json({ payroll: record || null });
 });
 
-router.put('/payroll/:employeeId', (req, res) => {
+router.put('/payroll/:employeeId', requirePermission(PERMISSIONS.PAYROLL_UPDATE), (req, res) => {
   const employee = db().employees.find((e) => e.id === req.params.employeeId);
   if (!employee) return res.status(404).json({ error: 'employee_not_found' });
+  if (!checkScope(req.admin, employee)) {
+    return res.status(403).json({ error: 'forbidden_outside_factory_scope' });
+  }
   const { period, basicSalary, allowances, deductions, paidOn, paymentMethod } = req.body || {};
   if (!period) return res.status(400).json({ error: 'period_required' });
   let record = db().payroll.find((p) => p.employeeId === req.params.employeeId);
@@ -420,7 +503,11 @@ router.put('/payroll/:employeeId', (req, res) => {
 });
 
 // ---------- Roster ----------
-router.get('/roster/:employeeId', (req, res) => {
+router.get('/roster/:employeeId', requirePermission(PERMISSIONS.SHIFT_READ), (req, res) => {
+  const employee = db().employees.find((e) => e.id === req.params.employeeId);
+  if (employee && !checkScope(req.admin, employee)) {
+    return res.status(403).json({ error: 'forbidden_outside_factory_scope' });
+  }
   const now = new Date();
   const sunday = new Date(now);
   sunday.setDate(now.getDate() - now.getDay());
@@ -432,9 +519,12 @@ router.get('/roster/:employeeId', (req, res) => {
   res.json({ weekStart, days: record?.days || null });
 });
 
-router.put('/roster/:employeeId', (req, res) => {
+router.put('/roster/:employeeId', requirePermission(PERMISSIONS.SHIFT_UPDATE), (req, res) => {
   const employee = db().employees.find((e) => e.id === req.params.employeeId);
   if (!employee) return res.status(404).json({ error: 'employee_not_found' });
+  if (!checkScope(req.admin, employee)) {
+    return res.status(403).json({ error: 'forbidden_outside_factory_scope' });
+  }
   const days = req.body?.days;
   const validShifts = ['morning', 'evening', 'night', 'office', 'off'];
   if (!Array.isArray(days) || days.length !== 7 ||
@@ -467,11 +557,16 @@ router.put('/roster/:employeeId', (req, res) => {
 
 // ---------- Content: announcements / news / benefits / trips ----------
 function crudFor(name, collection) {
-  router.get(`/${name}`, (req, res) => {
+  const isAnnounce = collection === 'announcements';
+  const readPerm = PERMISSIONS.ANNOUNCEMENT_READ;
+  const createPerm = isAnnounce ? PERMISSIONS.ANNOUNCEMENT_CREATE : PERMISSIONS.CONTENT_MANAGE;
+  const deletePerm = isAnnounce ? PERMISSIONS.ANNOUNCEMENT_DELETE : PERMISSIONS.CONTENT_MANAGE;
+
+  router.get(`/${name}`, requirePermission(readPerm), (req, res) => {
     res.json({ items: [...db()[collection]].sort((a, b) => b.createdAt - a.createdAt) });
   });
 
-  router.post(`/${name}`, (req, res) => {
+  router.post(`/${name}`, requirePermission(createPerm), (req, res) => {
     const item = {
       id: `${name.slice(0, 3)}_${Date.now()}`,
       ...req.body,
@@ -499,7 +594,7 @@ function crudFor(name, collection) {
     res.json({ item });
   });
 
-  router.delete(`/${name}/:id`, (req, res) => {
+  router.delete(`/${name}/:id`, requirePermission(deletePerm), (req, res) => {
     const item = db()[collection].find((x) => x.id === req.params.id);
     db()[collection] = db()[collection].filter((x) => x.id !== req.params.id);
     recordAuditLog(db(), {

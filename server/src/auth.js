@@ -160,13 +160,36 @@ function requireAuth(req, res, next) {
   next();
 }
 
+function extractCookie(cookieHeader, name) {
+  if (!cookieHeader || typeof cookieHeader !== 'string') return null;
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 function requireAdmin(req, res, next) {
   const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  let token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  let isCookieAuth = false;
+
+  if (!token && req.headers.cookie) {
+    token = extractCookie(req.headers.cookie, 'admin_session');
+    if (token) isCookieAuth = true;
+  }
+
   const payload = verifyToken(token);
   if (!payload || payload.scope !== 'admin') {
     return res.status(401).json({ error: 'unauthorized' });
   }
+
+  // If authenticated via cookie on mutating requests (POST, PUT, DELETE, PATCH), enforce CSRF
+  if (isCookieAuth && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    const csrfFromHeader = req.headers['x-csrf-token'];
+    const csrfFromCookie = extractCookie(req.headers.cookie, 'csrf_token');
+    if (!csrfFromHeader || !csrfFromCookie || csrfFromHeader !== csrfFromCookie) {
+      return res.status(403).json({ error: 'invalid_or_missing_csrf_token' });
+    }
+  }
+
   const currentDb = db();
   if (currentDb.adminDeactivated === true) {
     return res.status(401).json({ error: 'account_deactivated' });
