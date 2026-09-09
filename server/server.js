@@ -121,7 +121,7 @@ app.get('/', (req, res) => {
 // Structured JSON error handler
 app.use(errorHandler);
 
-if (!isVercel) {
+if (!isVercel && require.main === module) {
   app.listen(PORT, () => {
     console.log(`✔ Elaraby Connect API:      http://localhost:${PORT}/api/health`);
     console.log(`✔ Admin dashboard:          http://localhost:${PORT}/admin/`);

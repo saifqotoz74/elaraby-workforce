@@ -15,6 +15,7 @@ const { guard, registerFailure, clearFailures } = require('../rateLimit');
 const twilio = require('../twilio');
 const fcm = require('../fcm');
 const { notify } = require('../notify');
+const { broadcast, subscribe } = require('../services/realtimeService');
 
 const router = express.Router();
 const isDev = process.env.NODE_ENV !== 'production';
@@ -495,6 +496,8 @@ router.post('/requests', requireAuth, (req, res) => {
     });
   }
 
+  broadcast('leave.request.created', { request: responsePayload.request, employeeId: req.employeeId });
+
   res.json(responsePayload);
 });
 
@@ -534,6 +537,7 @@ router.post('/requests/:id/cancel', requireAuth, (req, res) => {
     }
     throw err;
   }
+  broadcast('leave.request.cancelled', { requestId: req.params.id, employeeId: req.employeeId });
   res.json(result);
 });
 
@@ -813,6 +817,18 @@ router.post('/concerns', (req, res) => {
 
   save();
   res.json({ ok: true, refNumber: ref, message: 'Concern received anonymously' });
+});
+
+// ---------- Realtime SSE Event Stream ----------
+router.get('/realtime/stream', (req, res) => {
+  const header = req.headers.authorization || '';
+  const queryToken = req.query.token;
+  const token = header.startsWith('Bearer ') ? header.slice(7) : queryToken;
+  const payload = verifyToken(token);
+  if (!payload || payload.scope !== 'employee') {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  subscribe(req, res, payload);
 });
 
 module.exports = router;
