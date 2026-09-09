@@ -95,10 +95,10 @@ export class DataTable {
   update(data, loading = false) {
     this.data = data;
     this.loading = loading;
-    if (this.element && this.element.parentElement) {
+    const oldEl = this.element;
+    if (oldEl && oldEl.parentElement) {
       const newEl = this.render();
-      this.element.replaceWith(newEl);
-      this.element = newEl;
+      oldEl.replaceWith(newEl);
     }
   }
 }
