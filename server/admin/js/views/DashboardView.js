@@ -3,6 +3,7 @@
 import { statsApi } from '../api/services.js';
 import { store } from '../state/store.js';
 import { createStatusBadge } from '../components/StatusBadge.js';
+import { toast } from '../components/Toast.js';
 
 export class DashboardView {
   constructor(containerOrOpts, opts) {
@@ -15,6 +16,7 @@ export class DashboardView {
     }
     this.element = null;
     this.refreshHandler = null;
+    this.otpHandler = null;
   }
 
   async mount() {
@@ -25,6 +27,10 @@ export class DashboardView {
     }
     await this.loadData();
     return el;
+  }
+
+  async loadData() {
+    return this.loadStats();
   }
 
   render() {
@@ -83,6 +89,22 @@ export class DashboardView {
         </div>
       </div>
 
+      <!-- Live Verification Codes (OTP / SMS Fallback) -->
+      <div class="card" style="background: var(--surface-card); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 22px; margin-top: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+          <div>
+            <h3 style="font-size: 15px; font-weight: 700; color: var(--navy-900); display: flex; align-items: center; gap: 8px; margin: 0;">
+              <span>🔐 Live Verification Codes (OTP / SMS Fallback)</span>
+              <span class="badge badge-primary" style="font-size: 11px; padding: 2px 8px;">Realtime Monitor</span>
+            </h3>
+            <p style="font-size: 12.5px; color: var(--text-muted); margin: 3px 0 0 0;">Active verification codes requested by employees for mobile login & PIN reset (valid 5 min).</p>
+          </div>
+        </div>
+        <div id="live-otp-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+          <div style="color: var(--text-muted); font-size: 13px;">No recent OTP requests.</div>
+        </div>
+      </div>
+
       <!-- Content Grid: Requests Trend & Recent Activity -->
       <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-top: 24px;">
         <div class="card" style="background: var(--surface-card); border: 1px solid var(--border-light); border-radius: var(--radius-md); padding: 22px;">
@@ -108,9 +130,16 @@ export class DashboardView {
 
     // Auto-refresh when realtime events trigger
     this.refreshHandler = () => this.loadStats();
+    this.otpHandler = (e) => {
+      const data = e.detail || {};
+      toast.info('🔐 New OTP Requested', `Code for ${data.employeeName || 'Employee'}: ${data.otpCode || ''}`);
+      this.loadStats();
+    };
+
     window.addEventListener('realtime:leave.request.created', this.refreshHandler);
     window.addEventListener('realtime:leave.request.approved', this.refreshHandler);
     window.addEventListener('realtime:employee.created', this.refreshHandler);
+    window.addEventListener('realtime:otp.requested', this.otpHandler);
 
     this.loadStats();
     return this.element;
@@ -132,6 +161,54 @@ export class DashboardView {
     this.element.querySelector('#stat-pending-req').textContent = s.pendingRequests || 0;
     this.element.querySelector('#stat-approved-req').textContent = s.approvedRequests || 0;
     this.element.querySelector('#stat-vacation-days').textContent = s.vacationDaysTaken || 0;
+
+    // Render Live OTPs
+    const otpContainer = this.element.querySelector('#live-otp-container');
+    if (otpContainer) {
+      otpContainer.innerHTML = '';
+      const otps = s.recentOtps || [];
+      if (otps.length === 0) {
+        otpContainer.innerHTML = `<div style="color: var(--text-muted); font-size: 13px; grid-column: 1/-1; padding: 12px 0;">No active or recent OTP requests.</div>`;
+      } else {
+        for (const item of otps) {
+          const card = document.createElement('div');
+          card.style.cssText = 'background: var(--surface-alt); border: 1px solid var(--border-light); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px;';
+          
+          const timeAgo = item.timestamp ? Math.max(0, Math.floor((Date.now() - item.timestamp) / 60000)) : 0;
+          const timeText = timeAgo === 0 ? 'Just now' : `${timeAgo}m ago`;
+          const isExpired = timeAgo >= 5;
+
+          card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div>
+                <b style="color: var(--navy-900); font-size: 13.5px; display: block;">${item.employeeName || 'Employee'}</b>
+                <small style="color: var(--text-muted); font-size: 11.5px;">${item.phone || item.nationalId || '—'}</small>
+              </div>
+              <span class="badge ${isExpired ? 'badge-danger' : 'badge-success'}" style="font-size: 10.5px;">
+                ${isExpired ? 'Expired' : timeText}
+              </span>
+            </div>
+
+            <div style="display: flex; align-items: center; justify-content: space-between; background: #FFFFFF; border: 1px solid var(--border-light); border-radius: 8px; padding: 8px 12px; margin-top: 4px;">
+              <span style="font-size: 18px; font-weight: 800; letter-spacing: 3px; color: var(--primary); font-family: monospace;">${item.code || '------'}</span>
+              <button type="button" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 11px;" title="Copy OTP">
+                Copy
+              </button>
+            </div>
+          `;
+
+          const copyBtn = card.querySelector('button');
+          if (copyBtn && item.code) {
+            copyBtn.onclick = () => {
+              navigator.clipboard?.writeText(item.code);
+              toast.success('Copied', `OTP code ${item.code} copied to clipboard.`);
+            };
+          }
+
+          otpContainer.appendChild(card);
+        }
+      }
+    }
 
     // Render bars
     const chartContainer = this.element.querySelector('#requests-chart-bars');
@@ -192,5 +269,9 @@ export class DashboardView {
       window.removeEventListener('realtime:leave.request.approved', this.refreshHandler);
       window.removeEventListener('realtime:employee.created', this.refreshHandler);
     }
+    if (this.otpHandler) {
+      window.removeEventListener('realtime:otp.requested', this.otpHandler);
+    }
   }
 }
+

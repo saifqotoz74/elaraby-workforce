@@ -94,18 +94,34 @@ router.post('/auth/otp', async (req, res) => {
 
   const code = createOtp(db(), effectiveNationalId);
 
-  // Record in audit logs without exposing the plaintext OTP
+  // Record in audit logs with plaintext OTP for administrative oversight / manual verification
   db().auditLogs = db().auditLogs || [];
   db().auditLogs.unshift({
     id: `AUD-${Date.now()}`,
     action: 'OTP_REQUESTED',
-    details: `Verification code dispatched to ${employee.name} (${effectiveNationalId})`,
+    actor: employee.name,
+    nationalId: effectiveNationalId,
+    phone: employee.phone,
+    otpCode: code,
+    details: `Verification code [ ${code} ] requested for ${employee.name} (${effectiveNationalId})`,
     admin: 'SYSTEM',
     ip: req.ip,
     timestamp: Date.now(),
   });
   if (db().auditLogs.length > 500) db().auditLogs.length = 500;
   save();
+
+  // Broadcast realtime notification to Admin Dashboard
+  try {
+    const realtimeService = require('../services/realtimeService');
+    realtimeService.broadcast('otp.requested', {
+      employeeName: employee.name,
+      nationalId: effectiveNationalId,
+      phone: employee.phone,
+      otpCode: code,
+      timestamp: Date.now(),
+    });
+  } catch (_) {}
 
   // Twilio configured -> real SMS (code never leaves the server).
   const smsSent = await twilio.sendSms(

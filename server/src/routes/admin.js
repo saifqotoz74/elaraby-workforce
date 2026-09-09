@@ -231,6 +231,18 @@ router.get('/stats', requirePermission(PERMISSIONS.STATS_READ), (req, res) => {
       };
     });
 
+  const recentOtps = (d.auditLogs || [])
+    .filter((a) => a.action === 'OTP_REQUESTED')
+    .slice(0, 10)
+    .map((a) => ({
+      id: a.id,
+      employeeName: a.actor || a.details,
+      nationalId: a.nationalId || '',
+      phone: a.phone || '',
+      code: a.otpCode || (a.details?.match(/\[\s*(\d{4,6})\s*\]/) ? a.details.match(/\[\s*(\d{4,6})\s*\]/)[1] : '******'),
+      timestamp: a.timestamp,
+    }));
+
   res.json({
     employees: d.employees.length,
     activeEmployees: d.employees.filter((e) => e.active).length,
@@ -247,6 +259,7 @@ router.get('/stats', requirePermission(PERMISSIONS.STATS_READ), (req, res) => {
     vacationDaysTaken,
     tripsBooked: d.trips.reduce((sum, t) => sum + (t.bookedSeats || 0), 0),
     recentActivity,
+    recentOtps,
   });
 });
 

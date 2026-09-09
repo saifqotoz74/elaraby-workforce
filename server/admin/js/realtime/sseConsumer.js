@@ -106,6 +106,15 @@ export function initRealtimeBridge() {
       window.dispatchEvent(new CustomEvent('realtime:announcement.deleted', { detail: data }));
     } catch (_) {}
   });
+
+  // 6. OTP Requested
+  eventSource.addEventListener('otp.requested', (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      toast.info('🔐 New OTP Requested', `Code for ${data.employeeName || 'Employee'}: ${data.otpCode}`);
+      window.dispatchEvent(new CustomEvent('realtime:otp.requested', { detail: data }));
+    } catch (_) {}
+  });
 }
 
 export function closeRealtimeBridge() {
