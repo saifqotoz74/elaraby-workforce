@@ -4,6 +4,7 @@
 *.pyc
 *.swp
 .DS_Store
+Thumbs.db
 .atom/
 .build/
 .buildlog/
@@ -18,10 +19,8 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# Visual Studio Code
+.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -32,6 +31,8 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+build/
+**/build/
 
 # Symbolication related
 app.*.symbols
@@ -39,21 +40,49 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# Android Studio & Gradle build artifacts
 /android/app/debug
 /android/app/profile
 /android/app/release
+android/app/build/
+android/.gradle/
+.gradle/
+
+# Binaries & Distribution Packages (CRITICAL per Phase 13)
+*.apk
+*.aab
+*.ap_
+*.ipa
 
 # Server
 server/node_modules/
 server/data/
 server/uploads/
+node_modules/
 
-# Secrets
+# Secrets, Environment & Credentials (CRITICAL per Phase 13)
+.env
+.env.*
+!.env.example
+!.env.*.example
 server/.env
+server/.env.*
+!server/.env.example
+!server/.env.*.example
+*service-account*.json
+!*service-account*.json.example
 server/firebase-service-account.json
 android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+macos/Runner/GoogleService-Info.plist
 android/key.properties
 *.jks
 *.keystore
-*.apk
+*.p8
+*.p12
+*.key
+*.pem
+*.crt
+*.cer
+*.secret
+credentials.json
