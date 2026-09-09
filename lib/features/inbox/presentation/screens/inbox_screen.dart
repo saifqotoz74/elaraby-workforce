@@ -6,10 +6,7 @@ import '../../../../core/network/api_client.dart';
 import '../../../../core/network/backend.dart';
 import '../../../../core/utils/app_network_image.dart';
 import 'inbox_ids.dart';
-import '../../../benefits/presentation/screens/benefit_detail_screen.dart';
-import '../../../home/presentation/screens/announcement_detail_screen.dart';
-import '../../../services/presentation/screens/salary_slip_screen.dart';
-import '../../../services/presentation/screens/your_requests_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
 
 class InboxScreen extends StatefulWidget {
   const InboxScreen({super.key});
@@ -202,11 +199,7 @@ class _InboxScreenState extends State<InboxScreen> {
                               !InboxIds.instance.isRead(InboxIds.shiftPolicy),
                           onTap: () {
                             InboxIds.instance.markRead(InboxIds.shiftPolicy);
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                  builder: (_) =>
-                                      const AnnouncementDetailScreen()),
-                            );
+                            AppNavigation.toAnnouncementDetail(context);
                           },
                         ),
                         const SizedBox(height: 10),
@@ -228,10 +221,7 @@ class _InboxScreenState extends State<InboxScreen> {
                               !InboxIds.instance.isRead(InboxIds.leaveApproved),
                           onTap: () {
                             InboxIds.instance.markRead(InboxIds.leaveApproved);
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                  builder: (_) => const YourRequestsScreen()),
-                            );
+                            AppNavigation.toYourRequests(context);
                           },
                         ),
                         const SizedBox(height: 10),
@@ -263,17 +253,13 @@ class _InboxScreenState extends State<InboxScreen> {
                               !InboxIds.instance.isRead(InboxIds.newDiscount),
                           onTap: () {
                             InboxIds.instance.markRead(InboxIds.newDiscount);
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const BenefitDetailScreen(
-                                  title: 'Seif Pharmacies',
-                                  discount: '15% OFF',
-                                  category: 'Health Care',
-                                  imagePath:
-                                      'assets/images/benefit_pharmacy.png',
-                                  validity: 'Valid through 30 Jun 2027',
-                                ),
-                              ),
+                            AppNavigation.toBenefitDetail(
+                              context,
+                              title: 'Seif Pharmacies',
+                              discount: '15% OFF',
+                              category: 'Health Care',
+                              imagePath: 'assets/images/benefit_pharmacy.png',
+                              validity: 'Valid through 30 Jun 2027',
                             );
                           },
                         ),
@@ -296,10 +282,7 @@ class _InboxScreenState extends State<InboxScreen> {
                               !InboxIds.instance.isRead(InboxIds.salarySlip),
                           onTap: () {
                             InboxIds.instance.markRead(InboxIds.salarySlip);
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                  builder: (_) => const SalarySlipScreen()),
-                            );
+                            AppNavigation.toSalarySlip(context);
                           },
                         ),
                         const SizedBox(height: 10),

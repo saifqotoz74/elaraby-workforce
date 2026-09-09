@@ -5,7 +5,7 @@ import '../../../../core/localization/app_locale.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../controllers/settings_controller.dart';
-import 'help_support_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -142,10 +142,7 @@ class SettingsScreen extends ConsumerWidget {
                     subtitle: 'Contact IT or HR',
                     hasChevron: true,
                     onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const HelpSupportScreen()),
-                      );
+                      AppNavigation.toHelpSupport(context);
                     },
                   ),
                   const Divider(

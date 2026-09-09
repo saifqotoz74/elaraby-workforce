@@ -1,18 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../../inbox/presentation/screens/inbox_screen.dart';
 import '../../data/requests_store.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/localization/app_locale.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../../core/theme/app_typography.dart';
-import 'employee_data_screen.dart';
-import 'hr_request_screen.dart';
-import 'raise_concern_screen.dart';
-import 'request_leave_screen.dart';
-import 'salary_slip_screen.dart';
-import 'shift_schedule_screen.dart';
-import 'vacation_balance_screen.dart';
-import 'your_requests_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
 
 class ServicesScreen extends StatefulWidget {
   const ServicesScreen({super.key});
@@ -67,9 +59,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                 ),
                 GestureDetector(
                   onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const InboxScreen()),
-                    );
+                    AppNavigation.toInbox(context);
                   },
                   child: Container(
                     width: 42,
@@ -111,10 +101,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     title: AppLocale.tr('salary_slip'),
                     subtitle: AppLocale.tr('svc_salary_subtitle'),
                     onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const SalarySlipScreen()),
-                      );
+                      AppNavigation.toSalarySlip(context);
                     },
                   ),
                   const SizedBox(height: 10),
@@ -123,10 +110,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     title: AppLocale.tr('shift_schedule'),
                     subtitle: AppLocale.tr('svc_shift_subtitle'),
                     onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const ShiftScheduleScreen()),
-                      );
+                      AppNavigation.toShiftSchedule(context);
                     },
                   ),
                   const SizedBox(height: 10),
@@ -136,10 +120,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     subtitle:
                         '${LocalStore.instance.vacationDaysRemaining} ${AppLocale.tr('svc_days_remaining')}',
                     onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const VacationBalanceScreen()),
-                      );
+                      AppNavigation.toVacationBalance(context);
                     },
                   ),
                   const SizedBox(height: 24),
@@ -156,10 +137,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     badgeBg: const Color(0xFFFFF7ED),
                     badgeColor: const Color(0xFFEA580C),
                     onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const RequestLeaveScreen()),
-                      );
+                      AppNavigation.toRequestLeave(context);
                     },
                   ),
                   const SizedBox(height: 10),
@@ -168,10 +146,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     title: AppLocale.tr('hr_request'),
                     subtitle: AppLocale.tr('svc_hr_subtitle'),
                     onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const HrRequestScreen()),
-                      );
+                      AppNavigation.toHrRequest(context);
                     },
                   ),
                   const SizedBox(height: 10),
@@ -180,10 +155,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     title: AppLocale.tr('raise_concern'),
                     subtitle: AppLocale.tr('svc_concern_subtitle'),
                     onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const RaiseConcernScreen()),
-                      );
+                      AppNavigation.toRaiseConcern(context);
                     },
                   ),
                   const SizedBox(height: 24),
@@ -196,10 +168,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     title: AppLocale.tr('employee_data'),
                     subtitle: AppLocale.tr('svc_view_profile'),
                     onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const EmployeeDataScreen()),
-                      );
+                      AppNavigation.toEmployeeData(context);
                     },
                   ),
                   const SizedBox(height: 24),
@@ -272,10 +241,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     icon: const Icon(Icons.history_rounded,
                         color: AppColors.textPrimary, size: 22),
                     onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const YourRequestsScreen()),
-                      );
+                      AppNavigation.toYourRequests(context);
                     },
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
@@ -327,10 +293,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const YourRequestsScreen()),
-                      );
+                      AppNavigation.toYourRequests(context);
                     },
                     child: Row(
                       children: [

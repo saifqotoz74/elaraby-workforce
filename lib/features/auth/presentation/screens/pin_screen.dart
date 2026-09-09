@@ -4,7 +4,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../widgets/auth_progress_bar.dart';
 import '../widgets/numeric_keypad.dart';
-import 'confirm_pin_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
 
 class PinScreen extends StatefulWidget {
   const PinScreen({super.key});
@@ -41,11 +41,7 @@ class _PinScreenState extends State<PinScreen> {
         }
         Future.delayed(const Duration(milliseconds: 200), () {
           if (mounted) {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => ConfirmPinScreen(createdPin: _pin),
-              ),
-            );
+            AppNavigation.toConfirmPin(context, createdPin: _pin);
           }
         });
       }

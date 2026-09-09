@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/localization/app_locale.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/storage/local_store.dart';
-import '../../../services/presentation/screens/raise_concern_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/app_network_image.dart';
@@ -211,11 +211,7 @@ class BenefitDetailScreen extends StatelessWidget {
                         Center(
                           child: TextButton.icon(
                             onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const RaiseConcernScreen(),
-                                ),
-                              );
+                              AppNavigation.toRaiseConcern(context);
                             },
                             icon: const Icon(
                               Icons.outlined_flag_rounded,

@@ -4,7 +4,7 @@ import '../../../../core/localization/app_locale.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../profile/presentation/controllers/profile_controller.dart';
-import 'request_leave_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
 
 class VacationBalanceScreen extends ConsumerWidget {
   const VacationBalanceScreen({super.key});
@@ -162,10 +162,7 @@ class VacationBalanceScreen extends ConsumerWidget {
                 height: 50,
                 child: ElevatedButton.icon(
                   onPressed: () async {
-                    await Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const RequestLeaveScreen()),
-                    );
+                    await AppNavigation.toRequestLeave(context);
                   },
                   icon: const Icon(Icons.add_circle_outline_rounded,
                       color: Colors.white, size: 20),

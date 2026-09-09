@@ -9,7 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/national_id_validator.dart';
 import '../widgets/auth_progress_bar.dart';
-import 'profile_confirmation_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
 
 class OtpScreen extends StatefulWidget {
   final String? nationalId;
@@ -137,9 +137,7 @@ class _OtpScreenState extends State<OtpScreen> {
     }
     final ok = result == AuthResult.success;
     if (ok) {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const ProfileConfirmationScreen()),
-      );
+      await AppNavigation.toProfileConfirmation(context);
       setState(() => _verifying = false);
     } else {
       setState(() {

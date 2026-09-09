@@ -4,8 +4,7 @@ import '../../../../core/network/backend.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../common/presentation/widgets/update_dialog.dart';
-import 'get_started_screen.dart';
-import 'pin_lock_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -45,12 +44,11 @@ class _SplashScreenState extends State<SplashScreen> {
         LocalStore.instance.isOnboarded && await LocalStore.instance.hasPin();
 
     if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) =>
-              onboarded ? const PinLockScreen() : const GetStartedScreen(),
-        ),
-      );
+      if (onboarded) {
+        AppNavigation.toLock(context);
+      } else {
+        AppNavigation.toGetStarted(context);
+      }
     }
   }
 

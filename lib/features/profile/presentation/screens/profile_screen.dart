@@ -5,9 +5,8 @@ import '../../../../core/localization/app_locale.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/backend.dart';
 import '../../../../core/storage/local_store.dart';
-import '../../../auth/presentation/screens/get_started_screen.dart';
-import 'change_pin_screen.dart';
-import 'settings_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
+import '../../../../core/navigation/app_router.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -179,10 +178,7 @@ class ProfileScreen extends StatelessWidget {
                     icon: Icons.settings_outlined,
                     title: AppLocale.tr('menu_settings'),
                     onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const SettingsScreen()),
-                      );
+                      AppNavigation.toSettings(context);
                     },
                   ),
                   const SizedBox(height: 12),
@@ -192,10 +188,7 @@ class ProfileScreen extends StatelessWidget {
                     icon: Icons.lock_outline_rounded,
                     title: AppLocale.tr('menu_change_pin'),
                     onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const ChangePinScreen()),
-                      );
+                      AppNavigation.toChangePin(context);
                     },
                   ),
                   const SizedBox(height: 12),
@@ -491,10 +484,8 @@ class ProfileScreen extends StatelessWidget {
               Navigator.of(ctx).pop();
               await Backend.instance.clearAllUserData();
               if (!context.mounted) return;
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const GetStartedScreen()),
-                (route) => false,
-              );
+              AppAuthState.instance.markLocked();
+              AppNavigation.toGetStarted(context);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.announcementButton,
@@ -778,10 +769,8 @@ For privacy questions or support, contact HR & IT at workforce-support@elarabygr
                   backgroundColor: AppColors.textPrimary,
                 ),
               );
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const GetStartedScreen()),
-                (route) => false,
-              );
+              AppAuthState.instance.markLocked();
+              AppNavigation.toGetStarted(context);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.announcementButton,

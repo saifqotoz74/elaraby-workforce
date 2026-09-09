@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import '../../../../core/localization/app_locale.dart';
 import '../../../../core/network/api_client.dart';
 import '../../data/benefits_content.dart';
-import '../../../inbox/presentation/screens/inbox_screen.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/app_network_image.dart';
-import 'benefit_detail_screen.dart';
-import 'trip_detail_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
 
 class BenefitsScreen extends StatefulWidget {
   /// 0 Featured, 1 Supermarkets, 2 Health Care — lets other screens open a
@@ -82,9 +80,7 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
                 ),
                 GestureDetector(
                   onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const InboxScreen()),
-                    );
+                    AppNavigation.toInbox(context);
                   },
                   child: Container(
                     width: 42,
@@ -201,18 +197,14 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
                                   'assets/images/benefit_supermarket.png',
                               heroImageUrl: b.imageUrl,
                               onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => BenefitDetailScreen(
-                                      title: b.title,
-                                      discount: b.discount,
-                                      category: b.category,
-                                      description: b.description,
-                                      validity:
-                                          'Valid through ${b.validThrough}',
-                                      imageUrl: b.imageUrl,
-                                    ),
-                                  ),
+                                AppNavigation.toBenefitDetail(
+                                  context,
+                                  title: b.title,
+                                  discount: b.discount,
+                                  category: b.category,
+                                  description: b.description,
+                                  validity: 'Valid through ${b.validThrough}',
+                                  imageUrl: b.imageUrl,
                                 );
                               },
                             ),
@@ -228,17 +220,14 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
                           subtitle: 'Supermarkets • Valid through Dec 2026',
                           imagePath: 'assets/images/benefit_supermarket.png',
                           onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const BenefitDetailScreen(
-                                  title: 'Saudi Supermarket',
-                                  discount: '20% OFF',
-                                  category: 'Exclusive Perk',
-                                  imagePath:
-                                      'assets/images/benefit_supermarket.png',
-                                  validity: 'Valid through 31 Dec 2026',
-                                ),
-                              ),
+                            AppNavigation.toBenefitDetail(
+                              context,
+                              title: 'Saudi Supermarket',
+                              discount: '20% OFF',
+                              category: 'Exclusive Perk',
+                              imagePath:
+                                  'assets/images/benefit_supermarket.png',
+                              validity: 'Valid through 31 Dec 2026',
                             );
                           },
                         ),
@@ -249,17 +238,13 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
                           subtitle: 'Health Care • Valid through Jun 2027',
                           imagePath: 'assets/images/benefit_pharmacy.png',
                           onTap: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const BenefitDetailScreen(
-                                  title: 'Seif Pharmacies',
-                                  discount: '15% OFF',
-                                  category: 'Exclusive Perk',
-                                  imagePath:
-                                      'assets/images/benefit_pharmacy.png',
-                                  validity: 'Valid through 30 Jun 2027',
-                                ),
-                              ),
+                            AppNavigation.toBenefitDetail(
+                              context,
+                              title: 'Seif Pharmacies',
+                              discount: '15% OFF',
+                              category: 'Exclusive Perk',
+                              imagePath: 'assets/images/benefit_pharmacy.png',
+                              validity: 'Valid through 30 Jun 2027',
                             );
                           },
                         ),
@@ -296,20 +281,17 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
                                     ? const Color(0xFFD97706)
                                     : AppColors.statusGreen,
                                 onTap: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => TripDetailScreen(
-                                        tripId: t.id,
-                                        title: t.title,
-                                        destination: t.destination,
-                                        price: t.price,
-                                        originalPrice: t.originalPrice,
-                                        date: t.date,
-                                        imageUrl: t.imageUrl,
-                                        totalSeats: t.totalSeats,
-                                        bookedSeats: t.bookedSeats,
-                                      ),
-                                    ),
+                                  AppNavigation.toTripDetail(
+                                    context,
+                                    tripId: t.id,
+                                    title: t.title,
+                                    destination: t.destination,
+                                    price: t.price,
+                                    originalPrice: t.originalPrice,
+                                    date: t.date,
+                                    imageUrl: t.imageUrl,
+                                    totalSeats: t.totalSeats,
+                                    bookedSeats: t.bookedSeats,
                                   );
                                 },
                               );
@@ -331,12 +313,9 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
                                 progress: 23 / 30,
                                 progressColor: const Color(0xFFD97706),
                                 onTap: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => const TripDetailScreen(
-                                        tripId: 'trip_1',
-                                      ),
-                                    ),
+                                  AppNavigation.toTripDetail(
+                                    context,
+                                    tripId: 'trip_1',
                                   );
                                 },
                               ),
@@ -349,21 +328,17 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
                                 progress: 20 / 50,
                                 progressColor: AppColors.statusGreen,
                                 onTap: () {
-                                  Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => const TripDetailScreen(
-                                        tripId: 'trip_2',
-                                        title: 'Siwa Oasis Escape',
-                                        destination: 'Siwa Oasis • Matrouh',
-                                        price: 'EGP 800',
-                                        originalPrice: 'EGP 2,100',
-                                        date: 'Thu – Sat, 12 Nov 2026',
-                                        imagePath:
-                                            'assets/images/benefit_siwa.png',
-                                        totalSeats: 50,
-                                        bookedSeats: 20,
-                                      ),
-                                    ),
+                                  AppNavigation.toTripDetail(
+                                    context,
+                                    tripId: 'trip_2',
+                                    title: 'Siwa Oasis Escape',
+                                    destination: 'Siwa Oasis • Matrouh',
+                                    price: 'EGP 800',
+                                    originalPrice: 'EGP 2,100',
+                                    date: 'Thu – Sat, 12 Nov 2026',
+                                    imagePath: 'assets/images/benefit_siwa.png',
+                                    totalSeats: 50,
+                                    bookedSeats: 20,
                                   );
                                 },
                               ),
@@ -382,16 +357,13 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
                         subtitle: 'Electronics • Valid through Sep 2026',
                         imagePath: 'assets/images/benefit_raya.png',
                         onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const BenefitDetailScreen(
-                                title: 'Raya Shop',
-                                discount: '5% OFF',
-                                category: 'Electronics & Mobile',
-                                imagePath: 'assets/images/benefit_raya.png',
-                                validity: 'Valid through 30 Sep 2026',
-                              ),
-                            ),
+                          AppNavigation.toBenefitDetail(
+                            context,
+                            title: 'Raya Shop',
+                            discount: '5% OFF',
+                            category: 'Electronics & Mobile',
+                            imagePath: 'assets/images/benefit_raya.png',
+                            validity: 'Valid through 30 Sep 2026',
                           );
                         },
                       ),
@@ -401,16 +373,13 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
                         subtitle: 'Restaurants • Valid through Aug 2026',
                         imagePath: 'assets/images/benefit_flame.png',
                         onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const BenefitDetailScreen(
-                                title: 'Flame & Fork',
-                                discount: '20% OFF',
-                                category: 'Dining & Restaurants',
-                                imagePath: 'assets/images/benefit_flame.png',
-                                validity: 'Valid through 31 Aug 2026',
-                              ),
-                            ),
+                          AppNavigation.toBenefitDetail(
+                            context,
+                            title: 'Flame & Fork',
+                            discount: '20% OFF',
+                            category: 'Dining & Restaurants',
+                            imagePath: 'assets/images/benefit_flame.png',
+                            validity: 'Valid through 31 Aug 2026',
                           );
                         },
                       ),

@@ -4,7 +4,7 @@ import '../../../../core/storage/local_store.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../widgets/auth_progress_bar.dart';
-import 'pin_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
 
 class ProfileConfirmationScreen extends StatelessWidget {
   const ProfileConfirmationScreen({super.key});
@@ -114,9 +114,7 @@ class ProfileConfirmationScreen extends StatelessWidget {
                 height: 50,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const PinScreen()),
-                    );
+                    AppNavigation.toCreatePin(context);
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,

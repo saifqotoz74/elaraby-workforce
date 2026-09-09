@@ -6,9 +6,9 @@ import '../../../../core/network/backend.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../main_navigation/presentation/screens/main_nav_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
+import '../../../../core/navigation/app_router.dart';
 import '../widgets/numeric_keypad.dart';
-import 'get_started_screen.dart';
 
 /// Lock screen shown at launch once onboarding is complete: the stored PIN
 /// must be verified before the app opens. When "Fingerprint Login" is enabled
@@ -78,10 +78,8 @@ class _PinLockScreenState extends State<PinLockScreen> {
   }
 
   void _enterApp() {
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const MainNavScreen()),
-      (route) => false,
-    );
+    AppAuthState.instance.markUnlocked();
+    AppNavigation.toMain(context);
   }
 
   Future<void> _onPinComplete() async {
@@ -162,10 +160,8 @@ class _PinLockScreenState extends State<PinLockScreen> {
     if (confirmed != true || !mounted) return;
     await Backend.instance.clearAllUserData();
     if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const GetStartedScreen()),
-      (route) => false,
-    );
+    AppAuthState.instance.markLocked();
+    AppNavigation.toGetStarted(context);
   }
 
   Future<void> _switchEmployee() async {
@@ -189,10 +185,8 @@ class _PinLockScreenState extends State<PinLockScreen> {
     if (confirmed != true || !mounted) return;
     await Backend.instance.clearAllUserData();
     if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const GetStartedScreen()),
-      (route) => false,
-    );
+    AppAuthState.instance.markLocked();
+    AppNavigation.toGetStarted(context);
   }
 
   @override

@@ -26,6 +26,7 @@ import 'package:elaraby_workforce/features/services/presentation/screens/shift_s
 import 'package:elaraby_workforce/features/services/presentation/screens/vacation_balance_screen.dart';
 import 'package:elaraby_workforce/features/services/presentation/screens/your_requests_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:elaraby_workforce/main.dart';
 
 Widget createTestApp(Widget child, {Locale locale = const Locale('en')}) {
@@ -48,6 +49,8 @@ void main() {
     await LocalStore.instance.saveProfile(const EmployeeProfile());
     await LocalStore.instance.setSetting('salary_protection', false);
     AppLocale.instance.setLocale(const Locale('en'));
+    await initializeDateFormatting('en', null);
+    await initializeDateFormatting('ar', null);
   });
 
   group('Auth Screens Functional Tests', () {
@@ -161,7 +164,10 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
 
       await tester.pumpWidget(
-          const ElarabyWorkforceApp(initialScreen: MainNavScreen()));
+        const ProviderScope(
+          child: ElarabyWorkforceApp(initialScreen: MainNavScreen()),
+        ),
+      );
       await tester.pumpAndSettle();
 
       // Home Tab

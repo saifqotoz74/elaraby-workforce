@@ -3,8 +3,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/localization/app_locale.dart';
 import '../../../../core/storage/local_store.dart';
-import '../../../services/presentation/screens/salary_slip_screen.dart';
-import '../../../services/presentation/screens/vacation_balance_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
 
 class MetricCardsRow extends StatelessWidget {
   const MetricCardsRow({super.key});
@@ -23,10 +22,7 @@ class MetricCardsRow extends StatelessWidget {
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (_) => const VacationBalanceScreen()),
-                  );
+                  AppNavigation.toVacationBalance(context);
                 },
                 child: Container(
                   padding:
@@ -72,9 +68,7 @@ class MetricCardsRow extends StatelessWidget {
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SalarySlipScreen()),
-                  );
+                  AppNavigation.toSalarySlip(context);
                 },
                 child: Container(
                   padding:

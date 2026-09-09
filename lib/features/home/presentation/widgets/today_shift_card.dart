@@ -3,7 +3,7 @@ import '../../../../core/localization/app_locale.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../services/presentation/screens/shift_schedule_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
 import '../../data/home_content.dart';
 
 class TodayShiftCard extends StatelessWidget {
@@ -47,11 +47,7 @@ class TodayShiftCard extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const ShiftScheduleScreen(),
-                ),
-              );
+              AppNavigation.toShiftSchedule(context);
             },
             child: Container(
               width: double.infinity,

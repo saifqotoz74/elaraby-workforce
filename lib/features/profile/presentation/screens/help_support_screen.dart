@@ -3,7 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/localization/app_locale.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../services/presentation/screens/hr_request_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
 
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});
@@ -212,10 +212,7 @@ class HelpSupportScreen extends StatelessWidget {
                     height: 42,
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) => const HrRequestScreen()),
-                        );
+                        AppNavigation.toHrRequest(context);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/localization/app_locale.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import 'national_id_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
 
 class GetStartedScreen extends StatelessWidget {
   const GetStartedScreen({super.key});
@@ -161,10 +161,7 @@ class GetStartedScreen extends StatelessWidget {
                     height: 52,
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                              builder: (_) => const NationalIdScreen()),
-                        );
+                        AppNavigation.toNationalId(context);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,

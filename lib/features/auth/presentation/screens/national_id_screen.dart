@@ -6,7 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/national_id_validator.dart';
 import '../widgets/auth_progress_bar.dart';
-import 'otp_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
 
 class NationalIdScreen extends StatefulWidget {
   const NationalIdScreen({super.key});
@@ -45,14 +45,11 @@ class _NationalIdScreenState extends State<NationalIdScreen> {
       return;
     }
 
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => OtpScreen(
-          nationalId: nationalId,
-          devCode: otpRes.devCode,
-          maskedPhone: otpRes.maskedPhone,
-        ),
-      ),
+    await AppNavigation.toOtp(
+      context,
+      nationalId: nationalId,
+      devCode: otpRes.devCode,
+      maskedPhone: otpRes.maskedPhone,
     );
   }
 

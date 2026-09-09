@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../../../core/localization/app_locale.dart';
+import '../../../../core/navigation/app_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../../core/localization/app_locale.dart';
-import '../../../benefits/presentation/screens/benefits_screen.dart';
-import '../../../profile/presentation/screens/help_support_screen.dart';
-import '../../../services/presentation/screens/salary_slip_screen.dart';
-import '../../../services/presentation/screens/shift_schedule_screen.dart';
-import '../../../services/presentation/screens/vacation_balance_screen.dart';
 
 class QuickActionsGrid extends StatelessWidget {
   const QuickActionsGrid({super.key});
@@ -20,61 +16,32 @@ class QuickActionsGrid extends StatelessWidget {
           _QuickActionItem(
             title: AppLocale.tr('qa_salary'),
             icon: Icons.account_balance_wallet_rounded,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SalarySlipScreen()),
-              );
-            },
+            onTap: () => AppNavigation.toSalarySlip(context),
           ),
           _QuickActionItem(
             title: AppLocale.tr('qa_vacation'),
             icon: Icons.beach_access_rounded,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                    builder: (_) => const VacationBalanceScreen()),
-              );
-            },
+            onTap: () => AppNavigation.toVacationBalance(context),
           ),
           _QuickActionItem(
             title: AppLocale.tr('qa_shift'),
             icon: Icons.calendar_today_rounded,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const ShiftScheduleScreen()),
-              );
-            },
+            onTap: () => AppNavigation.toShiftSchedule(context),
           ),
           _QuickActionItem(
             title: AppLocale.tr('qa_benefits'),
             icon: Icons.card_giftcard_rounded,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const BenefitsScreen(initialTab: 0),
-                ),
-              );
-            },
+            onTap: () => AppNavigation.toBenefits(context, initialTab: 0),
           ),
           _QuickActionItem(
             title: AppLocale.tr('qa_trips'),
             icon: Icons.flight_rounded,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const BenefitsScreen(initialTab: 1),
-                ),
-              );
-            },
+            onTap: () => AppNavigation.toBenefits(context, initialTab: 1),
           ),
           _QuickActionItem(
             title: AppLocale.tr('qa_support'),
             icon: Icons.headphones_rounded,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const HelpSupportScreen()),
-              );
-            },
+            onTap: () => AppNavigation.toHelpSupport(context),
           ),
         ];
 

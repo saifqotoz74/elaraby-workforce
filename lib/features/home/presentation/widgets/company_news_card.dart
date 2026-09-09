@@ -5,7 +5,7 @@ import '../../../../core/localization/app_locale.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/utils/app_network_image.dart';
 import '../../data/home_content.dart';
-import '../screens/company_news_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
 
 class CompanyNewsCard extends StatelessWidget {
   const CompanyNewsCard({super.key});
@@ -31,12 +31,9 @@ class CompanyNewsCard extends StatelessWidget {
                 ),
                 GestureDetector(
                   onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => CompanyNewsScreen(
-                          serverNews: HomeContent.instance.news,
-                        ),
-                      ),
+                    AppNavigation.toCompanyNews(
+                      context,
+                      serverNews: HomeContent.instance.news,
                     );
                   },
                   child: Text(
@@ -65,12 +62,9 @@ class CompanyNewsCard extends StatelessWidget {
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => CompanyNewsScreen(
-                          serverNews: HomeContent.instance.news,
-                        ),
-                      ),
+                    AppNavigation.toCompanyNews(
+                      context,
+                      serverNews: HomeContent.instance.news,
                     );
                   },
                   child: Column(

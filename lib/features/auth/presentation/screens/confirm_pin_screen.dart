@@ -5,7 +5,8 @@ import '../../../../core/network/backend.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
-import '../../../main_navigation/presentation/screens/main_nav_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
+import '../../../../core/navigation/app_router.dart';
 import '../widgets/auth_progress_bar.dart';
 import '../widgets/numeric_keypad.dart';
 
@@ -35,10 +36,8 @@ class _ConfirmPinScreenState extends State<ConfirmPinScreen> {
         await Backend.instance.setPin(nationalId, widget.createdPin);
       }
       if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const MainNavScreen()),
-        (route) => false,
-      );
+      AppAuthState.instance.markUnlocked();
+      AppNavigation.toMain(context);
     } else {
       setState(() => _mismatch = true);
       ScaffoldMessenger.of(context).showSnackBar(

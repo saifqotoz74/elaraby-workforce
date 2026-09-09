@@ -3,7 +3,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/localization/app_locale.dart';
 import '../../data/home_content.dart';
-import '../screens/announcement_detail_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
 
 class AnnouncementCard extends StatelessWidget {
   const AnnouncementCard({super.key});
@@ -70,14 +70,11 @@ class AnnouncementCard extends StatelessWidget {
                 height: 44,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => AnnouncementDetailScreen(
-                          title: server?.title,
-                          body: server?.body,
-                          imageUrl: server?.imageUrl,
-                        ),
-                      ),
+                    AppNavigation.toAnnouncementDetail(
+                      context,
+                      title: server?.title,
+                      body: server?.body,
+                      imageUrl: server?.imageUrl,
                     );
                   },
                   style: ElevatedButton.styleFrom(

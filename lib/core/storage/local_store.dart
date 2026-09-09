@@ -300,6 +300,9 @@ class LocalStore extends ChangeNotifier {
   }
 
   // ---- PIN (hardware-backed secure storage with AES-256 GCM) ----
+  bool get hasSavedPin =>
+      _cachedPinHash != null || (_prefs?.containsKey(_kPinHash) ?? false);
+
   Future<bool> hasPin() async {
     if (_cachedPinHash != null) return true;
     if (_isTest) {

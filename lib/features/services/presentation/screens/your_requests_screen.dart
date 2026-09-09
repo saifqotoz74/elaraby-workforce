@@ -5,7 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../data/requests_store.dart';
 import '../controllers/requests_controller.dart';
-import 'hr_request_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
 
 class YourRequestsScreen extends ConsumerStatefulWidget {
   const YourRequestsScreen({super.key});
@@ -356,9 +356,7 @@ class _YourRequestsScreenState extends ConsumerState<YourRequestsScreen> {
             Center(
               child: TextButton.icon(
                 onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const HrRequestScreen()),
-                  );
+                  AppNavigation.toHrRequest(context);
                 },
                 icon: const Icon(Icons.refresh_rounded,
                     size: 18, color: AppColors.primary),

@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/localization/app_locale.dart';
+import 'core/navigation/app_router.dart';
 import 'core/network/api_client.dart';
-import 'core/network/push_service.dart';
 import 'core/network/backend.dart';
+import 'core/network/push_service.dart';
 import 'core/storage/local_store.dart';
 import 'core/theme/app_theme.dart';
-import 'features/auth/presentation/screens/pin_lock_screen.dart';
-import 'features/auth/presentation/screens/splash_screen.dart';
 import 'features/benefits/data/benefits_content.dart';
 import 'features/home/data/home_content.dart';
 import 'features/inbox/presentation/screens/inbox_ids.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'features/services/data/requests_store.dart';
 
-final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+GlobalKey<NavigatorState> get appNavigatorKey => rootNavigatorKey;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,14 +30,6 @@ void main() async {
   AppLocale.instance.loadFromStorage();
   AppTheme.init();
   InboxIds.instance.load();
-
-  // Route back to lock screen automatically whenever backend revokes session token (401)
-  ApiClient.onSessionExpired = () {
-    appNavigatorKey.currentState?.pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const PinLockScreen()),
-      (route) => false,
-    );
-  };
 
   // Reach out to the backend when available; the app stays fully usable
   // offline either way.
@@ -59,10 +50,14 @@ void main() async {
       statusBarIconBrightness: Brightness.dark,
     ),
   );
-  runApp(const ElarabyWorkforceApp());
+  runApp(
+    const ProviderScope(
+      child: ElarabyWorkforceApp(),
+    ),
+  );
 }
 
-class ElarabyWorkforceApp extends StatelessWidget {
+class ElarabyWorkforceApp extends ConsumerWidget {
   final Widget? initialScreen;
 
   const ElarabyWorkforceApp({
@@ -71,16 +66,18 @@ class ElarabyWorkforceApp extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return ProviderScope(
-      child: ListenableBuilder(
-        listenable: Listenable.merge([
-          AppLocale.instance,
-          AppTheme.themeModeNotifier,
-        ]),
-        builder: (context, _) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(appRouterProvider);
+
+    return ListenableBuilder(
+      listenable: Listenable.merge([
+        AppLocale.instance,
+        AppTheme.themeModeNotifier,
+      ]),
+      builder: (context, _) {
+        if (initialScreen != null) {
           return MaterialApp(
-            navigatorKey: appNavigatorKey,
+            navigatorKey: rootNavigatorKey,
             title: 'Elaraby Connect',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
@@ -108,10 +105,41 @@ class ElarabyWorkforceApp extends StatelessWidget {
                 child: child ?? const SizedBox.shrink(),
               );
             },
-            home: initialScreen ?? const SplashScreen(),
+            home: initialScreen,
           );
-        },
-      ),
+        }
+
+        return MaterialApp.router(
+          routerConfig: router,
+          title: 'Elaraby Connect',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: AppTheme.themeModeNotifier.value,
+          locale: AppLocale.instance.currentLocale,
+          supportedLocales: const [
+            Locale('en'),
+            Locale('ar'),
+          ],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          builder: (context, child) {
+            final mediaQuery = MediaQuery.of(context);
+            return MediaQuery(
+              data: mediaQuery.copyWith(
+                textScaler: mediaQuery.textScaler.clamp(
+                  minScaleFactor: 1.0,
+                  maxScaleFactor: 1.25,
+                ),
+              ),
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
+        );
+      },
     );
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../../inbox/presentation/screens/inbox_screen.dart';
+import '../../../../core/navigation/app_navigation.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../inbox/presentation/screens/inbox_ids.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -86,9 +86,7 @@ class HomeHeader extends StatelessWidget {
           // Notification Bell Button
           GestureDetector(
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const InboxScreen()),
-              );
+              AppNavigation.toInbox(context);
             },
             child: Container(
               width: 42,

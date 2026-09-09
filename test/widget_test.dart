@@ -8,6 +8,8 @@ import 'package:elaraby_workforce/core/storage/local_store.dart';
 import 'package:elaraby_workforce/features/home/data/home_content.dart';
 import 'package:elaraby_workforce/features/main_navigation/presentation/screens/main_nav_screen.dart';
 import 'package:elaraby_workforce/features/services/data/requests_store.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:elaraby_workforce/main.dart';
 
 void main() {
@@ -188,8 +190,13 @@ void main() {
     // Reset singleton state mutated by earlier tests.
     await LocalStore.instance.saveProfile(const EmployeeProfile());
     AppLocale.instance.setLocale(const Locale('en'));
-    await tester
-        .pumpWidget(const ElarabyWorkforceApp(initialScreen: MainNavScreen()));
+    await initializeDateFormatting('en', null);
+    await initializeDateFormatting('ar', null);
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: ElarabyWorkforceApp(initialScreen: MainNavScreen()),
+      ),
+    );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
