@@ -4,6 +4,7 @@ const express = require('express');
 require('./src/config').load();
 const { data, save, flushSync } = require('./src/db');
 const { seed } = require('./src/seed');
+const { errorHandler } = require('./src/errors');
 const employeeRoutes = require('./src/routes/employee');
 const adminRoutes = require('./src/routes/admin');
 
@@ -117,11 +118,8 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin', 'index.html'));
 });
 
-// JSON error handler
-app.use((err, req, res, next) => {
-  console.error('[error]', err.message);
-  res.status(500).json({ error: 'internal_error' });
-});
+// Structured JSON error handler
+app.use(errorHandler);
 
 if (!isVercel) {
   app.listen(PORT, () => {

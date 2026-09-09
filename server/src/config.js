@@ -1,12 +1,14 @@
-// Tiny .env loader (zero deps): reads server/.env into process.env once.
-// Real environment variables always win over .env values.
+// Environment configuration loader & validator.
+// Supports discrete development, staging, and production profiles.
+// Real environment variables always take precedence over file-defined values.
 const fs = require('fs');
 const path = require('path');
 
-function load() {
-  const envFile = path.join(__dirname, '..', '.env');
-  if (!fs.existsSync(envFile)) return;
-  for (const line of fs.readFileSync(envFile, 'utf8').split('\n')) {
+function parseEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) return {};
+  const result = {};
+  const content = fs.readFileSync(filePath, 'utf8');
+  for (const line of content.split('\n')) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
     const eq = trimmed.indexOf('=');
@@ -17,27 +19,79 @@ function load() {
         (value.startsWith("'") && value.endsWith("'"))) {
       value = value.slice(1, -1);
     }
-    if (!(key in process.env)) process.env[key] = value;
+    result[key] = value;
   }
+  return result;
+}
+
+function load() {
+  const env = process.env.NODE_ENV || 'development';
+  const rootDir = path.join(__dirname, '..');
+
+  // Load order: .env, .env.local, .env.{environment}
+  const filesToLoad = [
+    path.join(rootDir, '.env'),
+    path.join(rootDir, '.env.local'),
+    path.join(rootDir, `.env.${env}`),
+  ];
+
+  for (const file of filesToLoad) {
+    const parsed = parseEnvFile(file);
+    for (const [k, v] of Object.entries(parsed)) {
+      if (!(k in process.env)) {
+        process.env[k] = v;
+      }
+    }
+  }
+
   validateSecurity();
 }
 
+function getEnv() {
+  return process.env.NODE_ENV || 'development';
+}
+
+function isProd() {
+  return getEnv() === 'production';
+}
+
+function isStaging() {
+  return getEnv() === 'staging';
+}
+
+function isDev() {
+  return getEnv() === 'development';
+}
+
 function validateSecurity() {
-  const isProd = process.env.NODE_ENV === 'production';
-  if (!isProd) return;
+  const env = getEnv();
 
-  const jwtSecret = process.env.JWT_SECRET;
-  const adminPass = process.env.ADMIN_PASS;
+  if (env === 'production') {
+    const jwtSecret = process.env.JWT_SECRET;
+    const adminPass = process.env.ADMIN_PASS;
 
-  if (!jwtSecret || jwtSecret === 'dev-secret-change-me-in-production') {
-    console.error('FATAL: JWT_SECRET must be set to a cryptographically secure random string in production.');
-    process.exit(1);
-  }
+    if (!jwtSecret || jwtSecret === 'dev-secret-elaraby-2026' || jwtSecret.length < 32) {
+      console.error('FATAL: In production, JWT_SECRET must be set to an unpredictable string of at least 32 characters.');
+      process.exit(1);
+    }
 
-  if (!adminPass || adminPass === 'elaraby2026') {
-    console.error('FATAL: ADMIN_PASS must be changed from the default password in production.');
-    process.exit(1);
+    if (!adminPass || adminPass === 'elaraby2026' || adminPass === 'Admin@12345') {
+      console.error('FATAL: In production, ADMIN_PASS must be changed from the default development credentials.');
+      process.exit(1);
+    }
+  } else if (env === 'staging') {
+    const jwtSecret = process.env.JWT_SECRET;
+    if (jwtSecret === 'dev-secret-elaraby-2026') {
+      console.warn('⚠️ [STAGING WARNING] Staging environment is using the default development JWT secret.');
+    }
   }
 }
 
-module.exports = { load, validateSecurity };
+module.exports = {
+  load,
+  getEnv,
+  isProd,
+  isStaging,
+  isDev,
+  validateSecurity,
+};

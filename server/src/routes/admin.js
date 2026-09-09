@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
-const { data: db, save, nextId } = require('../db');
+const { data: db, save, nextId, transaction, indexes } = require('../db');
 const { verifyHash, hash, signToken, requireAdmin } = require('../auth');
 const { guard, registerFailure, clearFailures } = require('../rateLimit');
 const { notify } = require('../notify');
@@ -216,33 +216,45 @@ router.post('/employees', (req, res) => {
   if (!name || !/^\d{14}$/.test(String(nationalId || ''))) {
     return res.status(400).json({ error: 'name_and_14_digit_national_id_required' });
   }
-  if (db().employees.some((e) => e.nationalId === nationalId)) {
-    return res.status(422).json({ error: 'national_id_already_exists' });
+  let employee;
+  try {
+    employee = transaction((state) => {
+      if (state.employees.some((e) => e.nationalId === nationalId)) {
+        const err = new Error('national_id_already_exists');
+        err.statusCode = 422;
+        throw err;
+      }
+      const newEmp = {
+        id: `emp_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+        name,
+        nationalId,
+        employeeCode: employeeCode || `EG-${Math.floor(10000 + Math.random() * 90000)}`,
+        factory: factory || '10th of Ramadan',
+        department: department || 'Production A',
+        position: position || 'Operator',
+        supervisor: supervisor || '—',
+        phone: phone || '',
+        vacationBalance: Number(vacationBalance) || 12,
+        pinHash: null,
+        active: true,
+        createdAt: Date.now(),
+      };
+      state.employees.push(newEmp);
+      recordAuditLog(state, {
+        actor: req.admin?.sub || 'admin',
+        action: 'create_employee',
+        targetId: newEmp.id,
+        details: `Created employee ${newEmp.name} (${newEmp.employeeCode})`,
+        ip: req.ip,
+      });
+      return newEmp;
+    });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
+    throw err;
   }
-  const employee = {
-    id: `emp_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-    name,
-    nationalId,
-    employeeCode: employeeCode || `EG-${Math.floor(10000 + Math.random() * 90000)}`,
-    factory: factory || '10th of Ramadan',
-    department: department || 'Production A',
-    position: position || 'Operator',
-    supervisor: supervisor || '—',
-    phone: phone || '',
-    vacationBalance: Number(vacationBalance) || 12,
-    pinHash: null,
-    active: true,
-    createdAt: Date.now(),
-  };
-  db().employees.push(employee);
-  recordAuditLog(db(), {
-    actor: req.admin?.sub || 'admin',
-    action: 'create_employee',
-    targetId: employee.id,
-    details: `Created employee ${employee.name} (${employee.employeeCode})`,
-    ip: req.ip,
-  });
-  save();
   res.json({ employee: employeeOut(employee) });
 });
 
@@ -303,32 +315,49 @@ router.post('/requests/:id/decide', (req, res) => {
   if (!['approved', 'rejected'].includes(status)) {
     return res.status(400).json({ error: 'status_must_be_approved_or_rejected' });
   }
-  const request = db().requests.find((r) => r.id === req.params.id);
-  if (!request) return res.status(404).json({ error: 'not_found' });
-  if (request.status !== 'inReview') {
-    return res.status(422).json({ error: 'already_decided' });
-  }
-  request.status = status;
-  request.decisionReason = reason || null;
-  request.decidedBy = req.admin?.sub || 'HR Admin';
-  request.decidedAt = Date.now();
-  request.summary =
-    status === 'approved' ? 'Approved by HR' : `Rejected by HR${reason ? ` — ${reason}` : ''}`;
-
-  // If HR rejects an Annual Leave request, refund the employee's deducted vacation days.
-  if (status === 'rejected') {
-    const isAnnualLeave = request.type === 'Leave' && (
-      request.details?.leaveType === 'Annual Leave' ||
-      request.details?.leaveType === 'annual' ||
-      String(request.title).toLowerCase().includes('annual leave')
-    );
-    if (isAnnualLeave) {
-      const employee = db().employees.find((e) => e.id === request.employeeId);
-      const days = Number(request.details?.days ?? request.days) || 0;
-      if (employee && days > 0) {
-        employee.vacationBalance = (employee.vacationBalance || 0) + days;
+  let request;
+  try {
+    request = transaction((state) => {
+      const reqItem = state.requests.find((r) => r.id === req.params.id);
+      if (!reqItem) {
+        const err = new Error('not_found');
+        err.statusCode = 404;
+        throw err;
       }
+      if (reqItem.status !== 'inReview') {
+        const err = new Error('already_decided');
+        err.statusCode = 422;
+        throw err;
+      }
+      reqItem.status = status;
+      reqItem.decisionReason = reason || null;
+      reqItem.decidedBy = req.admin?.sub || 'HR Admin';
+      reqItem.decidedAt = Date.now();
+      reqItem.summary =
+        status === 'approved' ? 'Approved by HR' : `Rejected by HR${reason ? ` — ${reason}` : ''}`;
+
+      // If HR rejects an Annual Leave request, refund the employee's deducted vacation days.
+      if (status === 'rejected') {
+        const isAnnualLeave = reqItem.type === 'Leave' && (
+          reqItem.details?.leaveType === 'Annual Leave' ||
+          reqItem.details?.leaveType === 'annual' ||
+          String(reqItem.title).toLowerCase().includes('annual leave')
+        );
+        if (isAnnualLeave) {
+          const employee = state.employees.find((e) => e.id === reqItem.employeeId);
+          const days = Number(reqItem.details?.days ?? reqItem.days) || 0;
+          if (employee && days > 0) {
+            employee.vacationBalance = (employee.vacationBalance || 0) + days;
+          }
+        }
+      }
+      return reqItem;
+    });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
     }
+    throw err;
   }
 
   const title =

@@ -1,7 +1,7 @@
 // Employee-facing API: auth (OTP + PIN), profile, requests, inbox, content.
 const express = require('express');
 const crypto = require('crypto');
-const { data: db, save, nextId } = require('../db');
+const { data: db, save, nextId, transaction, indexes } = require('../db');
 const {
   createOtp,
   verifyOtp,
@@ -434,9 +434,6 @@ router.post('/requests', requireAuth, (req, res) => {
   }
 
   if (!type || !title) return res.status(400).json({ error: 'type_and_title_required' });
-  const me = db().employees.find((e) => e.id === req.employeeId);
-  const ref = `REQ-2026-${nextId('request')}`;
-
   const requested = Number(days ?? details?.days) || 0;
   const isAnnualLeave = type === 'Leave' && (
     details?.leaveType === 'Annual Leave' ||
@@ -444,36 +441,50 @@ router.post('/requests', requireAuth, (req, res) => {
     String(title).toLowerCase().includes('annual leave')
   );
 
-  // Annual leave deducts the balance immediately and is rejected if exceeded.
-  if (isAnnualLeave) {
-    if (requested > (me?.vacationBalance ?? 0)) {
+  let responsePayload;
+  try {
+    responsePayload = transaction((state) => {
+      const me = state.employees.find((e) => e.id === req.employeeId);
+      const ref = `REQ-2026-${nextId('request')}`;
+
+      // Annual leave deducts the balance immediately and is rejected if exceeded.
+      if (isAnnualLeave) {
+        if (requested > (me?.vacationBalance ?? 0)) {
+          const err = new Error('exceeds_balance');
+          err.statusCode = 422;
+          throw err;
+        }
+        if (me && requested > 0) me.vacationBalance -= requested;
+      }
+
+      const request = {
+        id: `req_${ref}`,
+        employeeId: req.employeeId,
+        type,
+        title,
+        refNumber: ref,
+        status: 'inReview',
+        summary: 'Waiting on: Line Manager Approval',
+        details: {
+          ...(details || {}),
+          ...(requested > 0 ? { days: requested } : {}),
+          ...(isAnnualLeave && !details?.leaveType ? { leaveType: 'Annual Leave' } : {}),
+        },
+        decisionReason: null,
+        decidedBy: null,
+        decidedAt: null,
+        createdAt: Date.now(),
+      };
+      state.requests.push(request);
+      return { request, vacationBalance: me?.vacationBalance };
+    });
+  } catch (err) {
+    if (err.statusCode === 422 || err.message === 'exceeds_balance') {
       return res.status(422).json({ error: 'exceeds_balance' });
     }
-    if (me && requested > 0) me.vacationBalance -= requested;
+    throw err;
   }
 
-  const request = {
-    id: `req_${ref}`,
-    employeeId: req.employeeId,
-    type,
-    title,
-    refNumber: ref,
-    status: 'inReview',
-    summary: 'Waiting on: Line Manager Approval',
-    details: {
-      ...(details || {}),
-      ...(requested > 0 ? { days: requested } : {}),
-      ...(isAnnualLeave && !details?.leaveType ? { leaveType: 'Annual Leave' } : {}),
-    },
-    decisionReason: null,
-    decidedBy: null,
-    decidedAt: null,
-    createdAt: Date.now(),
-  };
-  db().requests.push(request);
-  save();
-
-  const responsePayload = { request, vacationBalance: me?.vacationBalance };
   if (idempKey) {
     const cacheKey = `${req.employeeId}:${idempKey}`;
     const timer = setTimeout(() => _idempotencyStore.delete(cacheKey), 2 * 60 * 1000);
@@ -488,27 +499,42 @@ router.post('/requests', requireAuth, (req, res) => {
 });
 
 router.post('/requests/:id/cancel', requireAuth, (req, res) => {
-  const request = db().requests.find(
-    (r) => r.id === req.params.id && r.employeeId === req.employeeId,
-  );
-  if (!request) return res.status(404).json({ error: 'not_found' });
-  if (request.status !== 'inReview') {
-    return res.status(422).json({ error: 'only_in_review_can_be_cancelled' });
+  let result;
+  try {
+    result = transaction((state) => {
+      const request = state.requests.find(
+        (r) => r.id === req.params.id && r.employeeId === req.employeeId,
+      );
+      if (!request) {
+        const err = new Error('not_found');
+        err.statusCode = 404;
+        throw err;
+      }
+      if (request.status !== 'inReview') {
+        const err = new Error('only_in_review_can_be_cancelled');
+        err.statusCode = 422;
+        throw err;
+      }
+      const isAnnualLeave = request.type === 'Leave' && (
+        request.details?.leaveType === 'Annual Leave' ||
+        request.details?.leaveType === 'annual' ||
+        String(request.title).toLowerCase().includes('annual leave')
+      );
+      const me = state.employees.find((e) => e.id === req.employeeId);
+      if (isAnnualLeave) {
+        const days = Number(request.details?.days) || 0;
+        if (me && days > 0) me.vacationBalance += days;
+      }
+      state.requests = state.requests.filter((r) => r.id !== request.id);
+      return { ok: true, vacationBalance: me ? me.vacationBalance : undefined };
+    });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
+    throw err;
   }
-  // Annual leave refunds the balance when cancelled.
-  const isAnnualLeave = request.type === 'Leave' && (
-    request.details?.leaveType === 'Annual Leave' ||
-    request.details?.leaveType === 'annual' ||
-    String(request.title).toLowerCase().includes('annual leave')
-  );
-  const me = db().employees.find((e) => e.id === req.employeeId);
-  if (isAnnualLeave) {
-    const days = Number(request.details?.days) || 0;
-    if (me && days > 0) me.vacationBalance += days;
-  }
-  db().requests = db().requests.filter((r) => r.id !== request.id);
-  save();
-  res.json({ ok: true, vacationBalance: me ? me.vacationBalance : undefined });
+  res.json(result);
 });
 
 // ---------- Inbox ----------
@@ -650,35 +676,65 @@ router.get('/benefits', requireAuth, (req, res) => {
 });
 
 router.post('/trips/:id/book', requireAuth, (req, res) => {
-  const trip = db().trips.find((t) => t.id === req.params.id);
-  if (!trip) return res.status(404).json({ error: 'not_found' });
-  const me = db().employees.find((e) => e.id === req.employeeId);
-  const already = trip.bookedBy?.includes(req.employeeId);
-  if (!already) {
-    if (trip.bookedSeats >= trip.totalSeats) {
-      return res.status(422).json({ error: 'trip_full' });
-    }
-    trip.bookedSeats = (trip.bookedSeats || 0) + 1;
-    trip.bookedBy = [...(trip.bookedBy || []), req.employeeId];
-    notify({
-      employeeId: req.employeeId,
-      title: 'Trip seat confirmed',
-      body: `Your seat for "${trip.title}" is confirmed. Check trip details for departure info.`,
+  let result;
+  try {
+    result = transaction((state) => {
+      const trip = state.trips.find((t) => t.id === req.params.id);
+      if (!trip) {
+        const err = new Error('not_found');
+        err.statusCode = 404;
+        throw err;
+      }
+      const me = state.employees.find((e) => e.id === req.employeeId);
+      const already = trip.bookedBy?.includes(req.employeeId);
+      if (!already) {
+        if (trip.bookedSeats >= trip.totalSeats) {
+          const err = new Error('trip_full');
+          err.statusCode = 422;
+          throw err;
+        }
+        trip.bookedSeats = (trip.bookedSeats || 0) + 1;
+        trip.bookedBy = [...(trip.bookedBy || []), req.employeeId];
+        notify({
+          employeeId: req.employeeId,
+          title: 'Trip seat confirmed',
+          body: `Your seat for "${trip.title}" is confirmed. Check trip details for departure info.`,
+        });
+      }
+      return { ok: true, trip, bookedFor: me?.name };
     });
-    save();
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
+    throw err;
   }
-  res.json({ ok: true, trip, bookedFor: me?.name });
+  res.json(result);
 });
 
 router.post('/trips/:id/unbook', requireAuth, (req, res) => {
-  const trip = db().trips.find((t) => t.id === req.params.id);
-  if (!trip) return res.status(404).json({ error: 'not_found' });
-  if (trip.bookedBy?.includes(req.employeeId)) {
-    trip.bookedBy = trip.bookedBy.filter((id) => id !== req.employeeId);
-    trip.bookedSeats = Math.max(0, (trip.bookedSeats || 1) - 1);
-    save();
+  let result;
+  try {
+    result = transaction((state) => {
+      const trip = state.trips.find((t) => t.id === req.params.id);
+      if (!trip) {
+        const err = new Error('not_found');
+        err.statusCode = 404;
+        throw err;
+      }
+      if (trip.bookedBy?.includes(req.employeeId)) {
+        trip.bookedBy = trip.bookedBy.filter((id) => id !== req.employeeId);
+        trip.bookedSeats = Math.max(0, (trip.bookedSeats || 1) - 1);
+      }
+      return { ok: true, trip };
+    });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
+    throw err;
   }
-  res.json({ ok: true, trip });
+  res.json(result);
 });
 
 // ---------- Account deletion / Deactivation (Apple Guideline 5.1.1(v) & Google Play compliance) ----------
