@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/errors/app_error.dart';
 import '../../../../core/localization/app_locale.dart';
-import '../../../../core/theme/app_typography.dart';
-
 import '../../../../core/network/backend.dart';
 import '../../../../core/storage/local_store.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_typography.dart';
+import '../../../../core/utils/ui_feedback.dart';
 
 class RaiseConcernScreen extends StatefulWidget {
   const RaiseConcernScreen({super.key});
@@ -347,34 +348,42 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
         category: _selectedCategory,
         details: details,
       );
-      await LocalStore.instance.clearDraft('raise_concern');
+      if (res != null && (res['ok'] == true || res['refNumber'] != null)) {
+        await LocalStore.instance.clearDraft('raise_concern');
+        if (!mounted) return;
+        setState(() => _submitting = false);
+        final ref = res['refNumber'] as String?;
+        final isAr = AppLocale.instance.isArabic;
+        final msg = ref != null
+            ? (isAr
+                ? 'تم إرسال بلاغك بنجاح وسرية تامة (رقم: $ref)'
+                : 'Concern submitted securely (Ref: $ref)')
+            : AppLocale.tr('concern_success');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(msg),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+        Navigator.of(context).maybePop();
+      } else {
+        if (!mounted) return;
+        setState(() => _submitting = false);
+        final serverErr =
+            res?['error'] as String? ?? 'Failed to submit concern';
+        final isAr = AppLocale.instance.isArabic;
+        UiFeedback.showError(
+          context,
+          isAr
+              ? 'فشل إرسال البلاغ إلى الخادم: $serverErr'
+              : 'Failed to submit concern: $serverErr',
+        );
+      }
+    } catch (e, st) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      final ref = res?['refNumber'] as String?;
-      final isAr = AppLocale.instance.isArabic;
-      final msg = ref != null
-          ? (isAr
-              ? 'تم إرسال بلاغك بنجاح وسرية تامة (رقم: $ref)'
-              : 'Concern submitted securely (Ref: $ref)')
-          : AppLocale.tr('concern_success');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(msg),
-          backgroundColor: AppColors.primary,
-        ),
-      );
-      Navigator.of(context).maybePop();
-    } catch (_) {
-      await LocalStore.instance.clearDraft('raise_concern');
-      if (!mounted) return;
-      setState(() => _submitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppLocale.tr('concern_success')),
-          backgroundColor: AppColors.primary,
-        ),
-      );
-      Navigator.of(context).maybePop();
+      final appErr = AppError.fromException(e, st);
+      UiFeedback.showAppError(context, appErr);
     }
   }
 }

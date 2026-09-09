@@ -28,7 +28,9 @@ class _SplashScreenState extends State<SplashScreen> {
     AppVersionInfo? versionInfo;
     try {
       versionInfo = await Backend.instance.checkAppVersion();
-    } catch (_) {}
+    } on Exception catch (e) {
+      debugPrint('SplashScreen: App version check failed: $e');
+    }
 
     await splashMinWait;
     if (!mounted) return;

@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../errors/app_error.dart';
 
 /// Thin HTTP client for the Elaraby Connect backend.
 ///
@@ -14,6 +16,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiClient {
   static final ApiClient instance = ApiClient._();
   ApiClient._();
+
+  factory ApiClient.createForTesting({http.Client? mockClient}) {
+    final clientInstance = ApiClient._();
+    if (mockClient != null) {
+      clientInstance.client = mockClient;
+    }
+    return clientInstance;
+  }
 
   static const _kToken = 'api_token';
   static const _kNationalId = 'last_national_id';
@@ -40,6 +50,9 @@ class ApiClient {
   /// Global callback invoked whenever network reachability status transitions
   static void Function(bool online)? onNetworkStateChanged;
 
+  /// Most recent error caught during network operations
+  AppError? lastError;
+
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
     iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
@@ -51,7 +64,7 @@ class ApiClient {
   bool get _isTest {
     try {
       return Platform.environment.containsKey('FLUTTER_TEST');
-    } catch (_) {
+    } on UnsupportedError {
       return false;
     }
   }
@@ -67,7 +80,8 @@ class ApiClient {
     // Load token from hardware-backed secure storage.
     try {
       _cachedToken = await _secureStorage.read(key: _kToken);
-    } catch (_) {
+    } on Exception catch (e) {
+      debugPrint('ApiClient: Secure storage read error: $e');
       _cachedToken = null;
     }
 
@@ -79,7 +93,9 @@ class ApiClient {
         _cachedToken = legacyToken;
         try {
           await _secureStorage.write(key: _kToken, value: legacyToken);
-        } catch (_) {}
+        } on Exception catch (e) {
+          debugPrint('ApiClient: Secure storage write error: $e');
+        }
       }
       await _prefs?.remove(_kToken);
     }
@@ -123,7 +139,9 @@ class ApiClient {
       } else {
         await _secureStorage.write(key: _kToken, value: value);
       }
-    } catch (_) {}
+    } on Exception catch (e) {
+      debugPrint('ApiClient: Secure storage write/delete error: $e');
+    }
     // Ensure plaintext key is never retained in SharedPreferences
     await _prefs?.remove(_kToken);
   }
@@ -137,64 +155,124 @@ class ApiClient {
         if (token != null) 'Authorization': 'Bearer $token',
       };
 
-  /// Returns decoded JSON or null on any failure (offline, 4xx, 5xx).
-  Future<Map<String, dynamic>?> get(
+  /// Core HTTP dispatcher with typed domain error mapping and result encapsulation.
+  Future<Result<Map<String, dynamic>, AppError>> request(
+    String method,
     String path, {
+    Map<String, dynamic>? body,
     Map<String, String>? extraHeaders,
     Duration timeout = const Duration(seconds: 6),
   }) async {
     if (offlineMockMode) {
       onNetworkStateChanged?.call(false);
-      return null;
+      const err = NetworkError('Device is currently operating in offline mode');
+      lastError = err;
+      return const Result.failure(err);
     }
+
     try {
-      final res = await client.get(
-        Uri.parse('$baseUrl$path'),
-        headers: {..._headers, ...(extraHeaders ?? {})},
-      ).timeout(timeout);
-      onNetworkStateChanged?.call(true);
-      if (res.statusCode == 401) {
-        setToken(null);
-        onSessionExpired?.call();
-        return null;
+      final uri = Uri.parse('$baseUrl$path');
+      final combinedHeaders = {..._headers, ...(extraHeaders ?? {})};
+      final http.Response res;
+
+      if (method.toUpperCase() == 'POST') {
+        res = await client
+            .post(
+              uri,
+              headers: combinedHeaders,
+              body: body != null ? jsonEncode(body) : null,
+            )
+            .timeout(timeout);
+      } else {
+        res = await client
+            .get(
+              uri,
+              headers: combinedHeaders,
+            )
+            .timeout(timeout);
       }
-      if (res.statusCode >= 400) return null;
-      return jsonDecode(res.body) as Map<String, dynamic>;
-    } catch (_) {
+
+      onNetworkStateChanged?.call(true);
+
+      Map<String, dynamic> json = {};
+      if (res.body.isNotEmpty) {
+        try {
+          final decoded = jsonDecode(res.body);
+          if (decoded is Map<String, dynamic>) {
+            json = decoded;
+          }
+        } on FormatException catch (fe) {
+          final err = ValidationError(
+            'Invalid server response format: ${fe.message}',
+            cause: fe,
+          );
+          lastError = err;
+          return Result.failure(err);
+        }
+      }
+
+      if (res.statusCode == 401) {
+        await setToken(null);
+        onSessionExpired?.call();
+        final err = UnauthorizedError(
+          json['error'] as String? ?? 'Session expired or invalid credentials',
+        );
+        lastError = err;
+        return Result.failure(err);
+      }
+
+      if (res.statusCode >= 400) {
+        final err = AppError.fromResponse(res.statusCode, body: json);
+        lastError = err;
+        return Result.failure(err);
+      }
+
+      lastError = null;
+      return Result.success(json);
+    } catch (e, st) {
       onNetworkStateChanged?.call(false);
-      return null;
+      final err = AppError.fromException(e, st);
+      lastError = err;
+      return Result.failure(err);
     }
   }
 
+  /// Returns decoded JSON or null on failure while recording typed [lastError].
+  Future<Map<String, dynamic>?> get(
+    String path, {
+    Map<String, String>? extraHeaders,
+    Duration timeout = const Duration(seconds: 6),
+  }) async {
+    final result = await request(
+      'GET',
+      path,
+      extraHeaders: extraHeaders,
+      timeout: timeout,
+    );
+    return result.isSuccess ? result.data : null;
+  }
+
+  /// Sends a POST request, returning JSON or structured error metadata on failure.
   Future<Map<String, dynamic>?> post(
     String path,
     Map<String, dynamic> body, {
     Duration timeout = const Duration(seconds: 6),
   }) async {
-    if (offlineMockMode) {
-      onNetworkStateChanged?.call(false);
-      return null;
+    final result = await request(
+      'POST',
+      path,
+      body: body,
+      timeout: timeout,
+    );
+    if (result.isSuccess) {
+      return result.data;
     }
-    try {
-      final res = await client
-          .post(
-            Uri.parse('$baseUrl$path'),
-            headers: _headers,
-            body: jsonEncode(body),
-          )
-          .timeout(timeout);
-      onNetworkStateChanged?.call(true);
-      if (res.statusCode == 401) {
-        setToken(null);
-        onSessionExpired?.call();
-        return {'_status': 401, 'error': 'token_revoked'};
-      }
-      final json = jsonDecode(res.body) as Map<String, dynamic>;
-      if (res.statusCode >= 400) return {'_status': res.statusCode, ...json};
-      return json;
-    } catch (_) {
-      onNetworkStateChanged?.call(false);
-      return null;
-    }
+
+    final err = result.error!;
+    return {
+      '_status': err.statusCode ?? 500,
+      'error': err.message,
+      'code': err.code,
+    };
   }
 }

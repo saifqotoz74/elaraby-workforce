@@ -1,6 +1,6 @@
 import 'dart:io' show Platform;
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -83,8 +83,9 @@ Future<void> shareSalarySlipPdf(SalarySlipData data) async {
           await PdfGoogleFonts.cairoBold().timeout(const Duration(seconds: 5));
       _cachedCairoRegular = regularFont;
       _cachedCairoBold = boldFont;
-    } catch (_) {
+    } on Exception catch (e) {
       // In headless test environments or offline mode, gracefully fall back to base font
+      debugPrint('PdfGoogleFonts fallback to base font: $e');
     }
   }
 

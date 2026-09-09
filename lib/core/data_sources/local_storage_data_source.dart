@@ -26,7 +26,7 @@ class LocalStorageDataSource {
   bool get _isTest {
     try {
       return Platform.environment.containsKey('FLUTTER_TEST');
-    } catch (_) {
+    } on UnsupportedError {
       return false;
     }
   }
@@ -63,7 +63,7 @@ class LocalStorageDataSource {
     if (_isTest) return _prefs.getString(key);
     try {
       return await _secureStorage.read(key: key);
-    } catch (_) {
+    } on Exception {
       return _prefs.getString(key);
     }
   }
@@ -75,7 +75,7 @@ class LocalStorageDataSource {
     }
     try {
       await _secureStorage.write(key: key, value: value);
-    } catch (_) {
+    } on Exception {
       await _prefs.setString(key, value);
     }
   }
@@ -87,7 +87,9 @@ class LocalStorageDataSource {
     }
     try {
       await _secureStorage.delete(key: key);
-    } catch (_) {}
+    } on Exception {
+      // Ignored if key didn't exist in secure store
+    }
     await _prefs.remove(key);
   }
 }

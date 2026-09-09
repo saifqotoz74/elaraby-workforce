@@ -51,7 +51,9 @@ class _SalaryPinGateDialogState extends State<SalaryPinGateDialog> {
         setState(() => _biometricAvailable = true);
         _authenticateBiometric();
       }
-    } catch (_) {}
+    } on Exception catch (e) {
+      debugPrint('Biometric check failed: $e');
+    }
   }
 
   Future<void> _authenticateBiometric() async {
@@ -67,7 +69,9 @@ class _SalaryPinGateDialogState extends State<SalaryPinGateDialog> {
         if (!mounted) return;
         Navigator.of(context).pop(true);
       }
-    } catch (_) {}
+    } on Exception catch (e) {
+      debugPrint('Biometric authentication failed: $e');
+    }
   }
 
   @override

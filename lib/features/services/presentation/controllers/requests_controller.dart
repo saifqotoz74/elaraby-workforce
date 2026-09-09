@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/errors/app_error.dart';
 import '../../../../core/network/backend.dart';
 import '../../../../core/providers/repository_providers.dart';
 import '../../../../core/repositories/requests_repository.dart';
@@ -27,9 +28,11 @@ class RequestsNotifier extends StateNotifier<UiState<List<EmployeeRequest>>> {
       } else {
         state = UiState.success(list);
       }
-    } catch (e) {
+    } catch (e, st) {
+      final appErr = AppError.fromException(e, st);
       state = UiState.error(
-        e.toString(),
+        appErr.message,
+        code: appErr.code,
         previousData: _repo.requests.isNotEmpty ? _repo.requests : null,
       );
     }
@@ -48,9 +51,11 @@ class RequestsNotifier extends StateNotifier<UiState<List<EmployeeRequest>>> {
       } else {
         state = UiState.success(list);
       }
-    } catch (e) {
+    } catch (e, st) {
+      final appErr = AppError.fromException(e, st);
       state = UiState.error(
-        e.toString(),
+        appErr.message,
+        code: appErr.code,
         previousData: _repo.requests.isNotEmpty ? _repo.requests : null,
       );
     }

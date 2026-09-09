@@ -35,7 +35,9 @@ class DraftsRepositoryImpl implements DraftsRepository {
     if (raw == null) return null;
     try {
       return jsonDecode(raw) as Map<String, dynamic>;
-    } catch (_) {
+    } on FormatException {
+      return null;
+    } on TypeError {
       return null;
     }
   }

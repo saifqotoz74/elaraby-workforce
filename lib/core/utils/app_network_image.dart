@@ -84,10 +84,13 @@ class _AppNetworkImageState extends State<AppNetworkImage> {
           for (final f in toDelete) {
             try {
               await f.delete();
-            } catch (_) {}
+            } on FileSystemException catch (e) {
+              debugPrint('Image cache file delete error: $e');
+            }
           }
         }
-      } catch (_) {
+      } on Exception catch (e) {
+        debugPrint('Image cache pruning error: $e');
       } finally {
         _pruning = false;
       }
@@ -111,7 +114,9 @@ class _AppNetworkImageState extends State<AppNetworkImage> {
       Directory cacheDir;
       try {
         cacheDir = await getTemporaryDirectory();
-      } catch (_) {
+      } on Exception catch (e) {
+        debugPrint(
+            'AppNetworkImage: getTemporaryDirectory fallback to systemTemp: $e');
         cacheDir = Directory.systemTemp;
       }
       final cacheFile = File('${cacheDir.path}/img_cache_${_hashUrl(url)}.img');
@@ -159,7 +164,8 @@ class _AppNetworkImageState extends State<AppNetworkImage> {
           _error = true;
         });
       }
-    } catch (_) {
+    } on Exception catch (e) {
+      debugPrint('AppNetworkImage: Image loading failed: $e');
       if (mounted) {
         setState(() {
           _loading = false;

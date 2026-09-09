@@ -52,7 +52,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         Backend.instance.syncProfile(),
         Backend.instance.syncRequests(),
       ]);
-    } catch (_) {}
+    } on Exception catch (e) {
+      debugPrint('HomeScreen: refresh sync encountered error: $e');
+    }
     if (mounted) setState(() {});
   }
 

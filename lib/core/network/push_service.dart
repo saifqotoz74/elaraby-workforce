@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../../firebase_options.dart';
@@ -12,7 +13,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-  } catch (_) {}
+  } on Exception catch (e) {
+    debugPrint('FCM background handler Firebase init exception: $e');
+  }
 }
 
 /// FCM push notifications with foreground heads-up banner via [FlutterLocalNotificationsPlugin].
@@ -43,10 +46,11 @@ class PushService {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
-    } catch (_) {
+    } on Exception catch (e1) {
       try {
         await Firebase.initializeApp();
-      } catch (_) {
+      } on Exception catch (e2) {
+        debugPrint('PushService Firebase init failed: $e1 / $e2');
         return;
       }
     }
@@ -76,7 +80,9 @@ class PushService {
           try {
             final data = jsonDecode(payload) as Map<String, dynamic>;
             onNotificationTapped?.call(data);
-          } catch (_) {}
+          } on FormatException catch (e) {
+            debugPrint('PushService: Corrupted notification payload: $e');
+          }
         }
       },
     );
@@ -88,56 +94,61 @@ class PushService {
         ?.createNotificationChannel(_highImportanceChannel);
 
     // Permission prompt (notifications are denied by default on Android 13+).
-    await FirebaseMessaging.instance.requestPermission(
-      alert: true,
-      announcement: false,
-      badge: true,
-      carPlay: false,
-      criticalAlert: false,
-      provisional: false,
-      sound: true,
-    );
-
-    // Foreground presentation options for iOS
-    await FirebaseMessaging.instance
-        .setForegroundNotificationPresentationOptions(
+    final settings = await FirebaseMessaging.instance.requestPermission(
       alert: true,
       badge: true,
       sound: true,
     );
+    if (settings.authorizationStatus == AuthorizationStatus.denied) {
+      return;
+    }
 
-    // Register device token with backend
-    final token = await FirebaseMessaging.instance.getToken();
-    await _registerToken(token);
-    FirebaseMessaging.instance.onTokenRefresh.listen(_registerToken);
+    // Capture token and send to backend
+    await registerCurrentToken();
 
-    // Listen to foreground FCM messages and display heads-up banner immediately
+    // Listen for FCM token refreshes
+    FirebaseMessaging.instance.onTokenRefresh.listen((token) {
+      _registerToken(token);
+    });
+
+    // Foreground message presentation -> show local notification
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      final notification = message.notification;
-      if (notification != null) {
-        _localNotifications.show(
-          notification.hashCode,
-          notification.title,
-          notification.body,
-          NotificationDetails(
-            android: AndroidNotificationDetails(
-              _highImportanceChannel.id,
-              _highImportanceChannel.name,
-              channelDescription: _highImportanceChannel.description,
-              icon: '@mipmap/ic_launcher',
-              importance: Importance.max,
-              priority: Priority.high,
-              playSound: true,
-              enableVibration: true,
-            ),
-            iOS: const DarwinNotificationDetails(
-              presentAlert: true,
-              presentBadge: true,
-              presentSound: true,
-            ),
+      final notif = message.notification;
+      if (notif == null) return;
+      _localNotifications.show(
+        message.hashCode,
+        notif.title,
+        notif.body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _highImportanceChannel.id,
+            _highImportanceChannel.name,
+            channelDescription: _highImportanceChannel.description,
+            importance: Importance.max,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
           ),
-          payload: message.data.isNotEmpty ? jsonEncode(message.data) : null,
-        );
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+        payload: jsonEncode(message.data),
+      );
+    });
+
+    // Background tap -> app opens
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      onNotificationTapped?.call(message.data);
+    });
+
+    // Cold-start tap (app was terminated)
+    FirebaseMessaging.instance
+        .getInitialMessage()
+        .then((RemoteMessage? message) {
+      if (message != null) {
+        onNotificationTapped?.call(message.data);
       }
     });
   }
@@ -152,12 +163,16 @@ class PushService {
     try {
       final token = await FirebaseMessaging.instance.getToken();
       await _registerToken(token);
-    } catch (_) {}
+    } on Exception catch (e) {
+      debugPrint('PushService registerCurrentToken error: $e');
+    }
   }
 
   Future<void> unregisterToken() async {
     try {
       await FirebaseMessaging.instance.deleteToken();
-    } catch (_) {}
+    } on Exception catch (e) {
+      debugPrint('PushService unregisterToken error: $e');
+    }
   }
 }

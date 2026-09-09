@@ -129,7 +129,12 @@ class RequestsStore extends ChangeNotifier {
       _requests = list
           .map((e) => EmployeeRequest.fromJson(e as Map<String, dynamic>))
           .toList();
-    } catch (_) {
+    } on FormatException catch (e) {
+      debugPrint('RequestsStore: corrupted JSON ($e), resetting to seed');
+      _requests = _seedRequests;
+      await _persist();
+    } on TypeError catch (e) {
+      debugPrint('RequestsStore: schema mismatch ($e), resetting to seed');
       _requests = _seedRequests;
       await _persist();
     }
@@ -334,7 +339,8 @@ class RequestsStore extends ChangeNotifier {
         notifyListeners();
         return false;
       }
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('RequestsStore: cancelRequest failed ($e\n$st), rolling back');
       // Rollback state on network or unexpected failure
       _requests.insert(originalIndex, originalReq);
       notifyListeners();

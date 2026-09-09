@@ -145,7 +145,7 @@ class LocalStore extends ChangeNotifier {
   bool get _isTest {
     try {
       return Platform.environment.containsKey('FLUTTER_TEST');
-    } catch (_) {
+    } on UnsupportedError {
       return false;
     }
   }
@@ -157,8 +157,10 @@ class LocalStore extends ChangeNotifier {
       try {
         _profile = EmployeeProfile.fromJson(
             jsonDecode(stored) as Map<String, dynamic>);
-      } catch (_) {
-        // Corrupted profile falls back to defaults on next save.
+      } on FormatException catch (e) {
+        debugPrint('LocalStore: Corrupted profile JSON ($e), using defaults');
+      } on TypeError catch (e) {
+        debugPrint('LocalStore: Invalid profile schema ($e), using defaults');
       }
     }
 
@@ -170,7 +172,8 @@ class LocalStore extends ChangeNotifier {
     // Load PIN hash from hardware-backed secure storage
     try {
       _cachedPinHash = await _secureStorage.read(key: _kPinHash);
-    } catch (_) {
+    } on Exception catch (e) {
+      debugPrint('LocalStore: Secure storage read PIN error: $e');
       _cachedPinHash = null;
     }
 
@@ -181,7 +184,9 @@ class LocalStore extends ChangeNotifier {
         _cachedPinHash = legacy;
         try {
           await _secureStorage.write(key: _kPinHash, value: legacy);
-        } catch (_) {}
+        } on Exception catch (e) {
+          debugPrint('LocalStore: Secure storage write PIN error: $e');
+        }
       }
       await _prefs!.remove(_kPinHash);
     }
@@ -193,7 +198,9 @@ class LocalStore extends ChangeNotifier {
         _secureDrafts['raise_concern'] =
             jsonDecode(secRaw) as Map<String, dynamic>;
       }
-    } catch (_) {}
+    } on Exception catch (e) {
+      debugPrint('LocalStore: Secure storage read draft error: $e');
+    }
   }
 
   SharedPreferences get _p {
@@ -227,7 +234,9 @@ class LocalStore extends ChangeNotifier {
               key: 'sec_draft_$formKey', value: serialized);
           await _p.remove('draft_$formKey');
           return;
-        } catch (_) {}
+        } on Exception catch (e) {
+          debugPrint('LocalStore: Secure draft write error: $e');
+        }
       }
     }
     await _p.setString('draft_$formKey', serialized);
@@ -241,7 +250,11 @@ class LocalStore extends ChangeNotifier {
     if (raw == null) return null;
     try {
       return jsonDecode(raw) as Map<String, dynamic>;
-    } catch (_) {
+    } on FormatException catch (e) {
+      debugPrint('LocalStore: Corrupted draft JSON for $formKey: $e');
+      return null;
+    } on TypeError catch (e) {
+      debugPrint('LocalStore: Invalid draft schema for $formKey: $e');
       return null;
     }
   }
@@ -251,7 +264,9 @@ class LocalStore extends ChangeNotifier {
     if (formKey == 'raise_concern' && !_isTest) {
       try {
         await _secureStorage.delete(key: 'sec_draft_$formKey');
-      } catch (_) {}
+      } on Exception catch (e) {
+        debugPrint('LocalStore: Failed deleting secure draft: $e');
+      }
     }
     await _p.remove('draft_$formKey');
   }
@@ -268,7 +283,9 @@ class LocalStore extends ChangeNotifier {
     if (!_isTest) {
       try {
         await _secureStorage.delete(key: _kPinHash);
-      } catch (_) {}
+      } on Exception catch (e) {
+        debugPrint('LocalStore: Secure PIN delete error: $e');
+      }
     }
     await _p.remove(_kProfile);
     await _p.remove(_kOnboarded);
@@ -291,7 +308,9 @@ class LocalStore extends ChangeNotifier {
     }
     try {
       _cachedPinHash = await _secureStorage.read(key: _kPinHash);
-    } catch (_) {}
+    } on Exception catch (e) {
+      debugPrint('LocalStore: hasPin secure read error: $e');
+    }
     return _cachedPinHash != null || _p.getString(_kPinHash) != null;
   }
 
@@ -304,7 +323,9 @@ class LocalStore extends ChangeNotifier {
     }
     try {
       await _secureStorage.write(key: _kPinHash, value: hashed);
-    } catch (_) {}
+    } on Exception catch (e) {
+      debugPrint('LocalStore: setPin secure write error: $e');
+    }
     // Ensure plaintext key is never retained in SharedPreferences
     await _p.remove(_kPinHash);
   }
@@ -318,7 +339,9 @@ class LocalStore extends ChangeNotifier {
       try {
         stored = await _secureStorage.read(key: _kPinHash);
         _cachedPinHash = stored;
-      } catch (_) {}
+      } on Exception catch (e) {
+        debugPrint('LocalStore: verifyPin secure read error: $e');
+      }
     } else if (stored == null && _isTest) {
       stored = _p.getString(_kPinHash);
       _cachedPinHash = stored;

@@ -105,7 +105,9 @@ class EgyptianNationalIdValidator {
       final month = int.parse(id.substring(3, 5));
       final day = int.parse(id.substring(5, 7));
       return DateTime(year, month, day);
-    } catch (_) {
+    } on FormatException {
+      return null;
+    } on RangeError {
       return null;
     }
   }

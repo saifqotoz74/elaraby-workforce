@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/errors/app_error.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../../core/providers/repository_providers.dart';
 import '../../../../core/repositories/salary_repository.dart';
 import '../../../../core/state/ui_state.dart';
@@ -16,8 +18,11 @@ class SalaryNotifier extends StateNotifier<UiState<Map<String, dynamic>>> {
     try {
       final token = await _repo.unlockSalary(pin);
       if (token == null) {
-        state = const UiState.error('Invalid PIN or verification failed',
-            code: 'INVALID_PIN');
+        final lastErr = ApiClient.instance.lastError;
+        state = UiState.error(
+          lastErr?.message ?? 'Invalid PIN or verification failed',
+          code: lastErr?.code ?? 'INVALID_PIN',
+        );
         return;
       }
       _salaryToken = token;
@@ -27,14 +32,17 @@ class SalaryNotifier extends StateNotifier<UiState<Map<String, dynamic>>> {
           payload['payroll'] != null) {
         state = UiState.success(payload['payroll'] as Map<String, dynamic>);
       } else {
+        final lastErr = ApiClient.instance.lastError;
         state = UiState.error(
-          payload?['error'] as String? ??
+          lastErr?.message ??
+              payload?['error'] as String? ??
               'Failed to load salary statement from server',
-          code: 'PAYROLL_UNAVAILABLE',
+          code: lastErr?.code ?? 'PAYROLL_UNAVAILABLE',
         );
       }
-    } catch (e) {
-      state = UiState.error(e.toString(), code: 'NETWORK_ERROR');
+    } catch (e, st) {
+      final appErr = AppError.fromException(e, st);
+      state = UiState.error(appErr.message, code: appErr.code);
     }
   }
 
@@ -51,13 +59,17 @@ class SalaryNotifier extends StateNotifier<UiState<Map<String, dynamic>>> {
           payload['payroll'] != null) {
         state = UiState.success(payload['payroll'] as Map<String, dynamic>);
       } else {
+        final lastErr = ApiClient.instance.lastError;
         state = UiState.error(
-          payload?['error'] as String? ?? 'Failed to load salary statement',
-          code: 'PAYROLL_UNAVAILABLE',
+          lastErr?.message ??
+              payload?['error'] as String? ??
+              'Failed to load salary statement',
+          code: lastErr?.code ?? 'PAYROLL_UNAVAILABLE',
         );
       }
-    } catch (e) {
-      state = UiState.error(e.toString(), code: 'NETWORK_ERROR');
+    } catch (e, st) {
+      final appErr = AppError.fromException(e, st);
+      state = UiState.error(appErr.message, code: appErr.code);
     }
   }
 

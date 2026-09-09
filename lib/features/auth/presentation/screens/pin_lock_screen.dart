@@ -47,7 +47,8 @@ class _PinLockScreenState extends State<PinLockScreen> {
         setState(() => _biometricAvailable = true);
         _authenticateBiometric();
       }
-    } catch (_) {
+    } on Exception catch (e) {
+      debugPrint('PinLockScreen: Biometric check unavailable: $e');
       // No biometric hardware — the PIN remains the only path.
     }
   }
@@ -66,7 +67,8 @@ class _PinLockScreenState extends State<PinLockScreen> {
         Backend.instance.syncProfile();
         _enterApp();
       }
-    } catch (_) {
+    } on Exception catch (e) {
+      debugPrint('PinLockScreen: Biometric auth error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppLocale.tr('biometric_not_setup'))),

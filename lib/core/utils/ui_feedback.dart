@@ -1,10 +1,26 @@
 import 'package:flutter/material.dart';
+import '../errors/app_error.dart';
+import '../localization/app_locale.dart';
 import '../theme/app_colors.dart';
 
 /// Centralized UI feedback service for showing SnackBar alerts and toasts
 /// to ensure errors and confirmations are never swallowed silently.
 class UiFeedback {
   UiFeedback._();
+
+  static void showAppError(
+    BuildContext context,
+    AppError error, {
+    VoidCallback? onRetry,
+  }) {
+    final isAr = AppLocale.instance.isArabic;
+    showError(
+      context,
+      error.userFacingMessage(isAr),
+      onRetry: onRetry,
+      retryLabel: isAr ? 'إعادة المحاولة' : 'Retry',
+    );
+  }
 
   static void showError(
     BuildContext context,

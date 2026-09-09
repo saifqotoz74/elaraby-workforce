@@ -36,7 +36,11 @@ class ProfileRepositoryImpl implements ProfileRepository {
       try {
         _profile =
             EmployeeProfile.fromJson(jsonDecode(raw) as Map<String, dynamic>);
-      } catch (_) {}
+      } on FormatException {
+        _profile = const EmployeeProfile();
+      } on TypeError {
+        _profile = const EmployeeProfile();
+      }
     }
   }
 

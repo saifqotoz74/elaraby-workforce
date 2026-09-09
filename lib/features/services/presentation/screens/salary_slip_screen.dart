@@ -375,7 +375,9 @@ class _SalarySlipScreenState extends ConsumerState<SalarySlipScreen> {
                                     backgroundColor: AppColors.statusGreen,
                                   ),
                                 );
-                              } catch (_) {
+                              } catch (e, st) {
+                                debugPrint(
+                                    'Failed to share salary slip: $e\n$st');
                                 messenger.showSnackBar(
                                   SnackBar(
                                     content:

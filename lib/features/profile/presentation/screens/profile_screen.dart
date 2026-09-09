@@ -762,7 +762,10 @@ For privacy questions or support, contact HR & IT at workforce-support@elarabygr
                 await ApiClient.instance.post('/employee/delete-account', {
                   if (enteredPin.isNotEmpty) 'pin': enteredPin,
                 });
-              } catch (_) {}
+              } on Exception catch (e) {
+                debugPrint(
+                    'Account deletion notification to server failed: $e');
+              }
               await Backend.instance.clearAllUserData();
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
