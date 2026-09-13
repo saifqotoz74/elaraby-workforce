@@ -1,11 +1,13 @@
-// Topbar Component
+// Topbar Component — Executive Command Header
 
 import { store } from '../state/store.js';
 
 export class Topbar {
-  constructor({ onToggleSidebar }) {
+  constructor({ onToggleSidebar, onOpenCommandPalette }) {
     this.onToggleSidebar = onToggleSidebar;
+    this.onOpenCommandPalette = onOpenCommandPalette;
     this.element = null;
+    this.clockInterval = null;
   }
 
   render() {
@@ -25,26 +27,65 @@ export class Topbar {
       document.documentElement.setAttribute('data-theme', 'dark');
     }
 
+    const currentLang = localStorage.getItem('admin_lang') || 'en';
+    if (currentLang === 'ar') {
+      document.documentElement.setAttribute('dir', 'rtl');
+      document.documentElement.setAttribute('lang', 'ar');
+    } else {
+      document.documentElement.setAttribute('dir', 'ltr');
+      document.documentElement.setAttribute('lang', 'en');
+    }
+
+    // Determine Cairo active shift
+    const nowCairo = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Cairo' }));
+    const cairoHour = nowCairo.getHours();
+    let shiftText = '🌅 Morning Shift';
+    if (cairoHour >= 16) shiftText = '🌇 Evening Shift';
+    if (cairoHour < 8) shiftText = '🌙 Night Shift';
+
     this.element.innerHTML = `
       <div class="topbar-left">
         <button class="topbar-menu-btn" aria-label="Toggle Navigation">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
         <h1 class="topbar-page-title" id="topbar-title">Dashboard</h1>
+
+        <!-- Spotlight Command Bar Trigger -->
+        <button class="topbar-command-trigger" id="topbar-command-btn" title="Quick Search & Actions (Ctrl+K)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span style="font-size: 13px;">Search or jump to...</span>
+          <span class="kbd-badge" style="margin-left: 6px;">Ctrl K</span>
+        </button>
       </div>
 
       <div class="topbar-right">
-        <button class="btn btn-secondary btn-icon" id="topbar-theme-toggle" title="Toggle Theme (Light/Dark)" style="border-radius: var(--radius-pill); padding: 7px 12px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+        <!-- Live Shift Indicator -->
+        <div class="topbar-clock" id="topbar-shift-badge" title="Active Factory Operational Shift">
+          <span>${shiftText}</span>
+          <span style="color: var(--text-light);">•</span>
+          <span class="clock-time" id="topbar-live-clock">--:--:--</span>
+        </div>
+
+        <!-- Language Switcher Toggle (EN / AR) -->
+        <button class="btn btn-secondary btn-icon" id="topbar-lang-toggle" title="Switch Language (العربية / English)" style="border-radius: var(--radius-pill); padding: 6px 12px; font-size: 12.5px; display: flex; align-items: center; gap: 6px;">
+          <span>🌐</span>
+          <span id="lang-toggle-text" style="font-weight: 700;">${currentLang === 'ar' ? 'English' : 'العربية'}</span>
+        </button>
+
+        <!-- Theme Toggle (Light / Dark) -->
+        <button class="btn btn-secondary btn-icon" id="topbar-theme-toggle" title="Toggle Theme (Light/Dark)" style="border-radius: var(--radius-pill); padding: 6px 12px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
           <span id="theme-toggle-icon">${currentTheme === 'dark' ? '☀️' : '🌙'}</span>
           <span id="theme-toggle-text" style="font-size: 12px; font-weight: 600;">${currentTheme === 'dark' ? 'Light' : 'Dark'}</span>
         </button>
 
+        <!-- Realtime Live Sync Badge -->
         <div class="realtime-indicator" id="topbar-realtime-badge">
           <span class="realtime-dot"></span>
           <span>Live Sync</span>
         </div>
 
-        <div class="user-profile-badge">
+        <!-- User Profile Badge -->
+        <div class="user-profile-badge" id="topbar-user-badge" title="Authenticated Administrator">
           <div class="user-avatar">${username.slice(0, 2).toUpperCase()}</div>
           <div class="user-meta">
             <b>${username}</b>
@@ -54,6 +95,52 @@ export class Topbar {
       </div>
     `;
 
+    // Live Clock Ticker (Cairo Timezone)
+    const clockEl = this.element.querySelector('#topbar-live-clock');
+    const updateClock = () => {
+      try {
+        const cairoTime = new Intl.DateTimeFormat('en-GB', {
+          timeZone: 'Africa/Cairo',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        }).format(new Date());
+        if (clockEl) clockEl.textContent = cairoTime;
+      } catch (_) {
+        const d = new Date();
+        if (clockEl) clockEl.textContent = d.toTimeString().split(' ')[0];
+      }
+    };
+    updateClock();
+    this.clockInterval = setInterval(updateClock, 1000);
+
+    // Command palette trigger
+    const cmdBtn = this.element.querySelector('#topbar-command-btn');
+    if (cmdBtn) {
+      cmdBtn.onclick = () => {
+        if (this.onOpenCommandPalette) this.onOpenCommandPalette();
+      };
+    }
+
+    // Language switcher toggle
+    const langBtn = this.element.querySelector('#topbar-lang-toggle');
+    if (langBtn) {
+      langBtn.onclick = () => {
+        const isRtl = document.documentElement.getAttribute('dir') === 'rtl';
+        const newLang = isRtl ? 'en' : 'ar';
+        document.documentElement.setAttribute('dir', newLang === 'ar' ? 'rtl' : 'ltr');
+        document.documentElement.setAttribute('lang', newLang);
+        localStorage.setItem('admin_lang', newLang);
+        const textEl = this.element.querySelector('#lang-toggle-text');
+        if (textEl) textEl.textContent = newLang === 'ar' ? 'English' : 'العربية';
+
+        // Dispatch language change event so views can react if needed
+        window.dispatchEvent(new CustomEvent('admin:language.changed', { detail: { lang: newLang } }));
+      };
+    }
+
+    // Theme toggle
     const themeToggleBtn = this.element.querySelector('#topbar-theme-toggle');
     if (themeToggleBtn) {
       themeToggleBtn.onclick = () => {
@@ -108,4 +195,12 @@ export class Topbar {
       }
     }
   }
+
+  destroy() {
+    if (this.clockInterval) {
+      clearInterval(this.clockInterval);
+      this.clockInterval = null;
+    }
+  }
 }
+

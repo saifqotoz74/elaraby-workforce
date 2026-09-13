@@ -3,6 +3,7 @@
 
 import { concernsApi } from '../api/services.js';
 import { toast } from '../components/Toast.js';
+import { Modal } from '../components/Modal.js';
 import { escapeHtml, sanitizeUrl } from '../utils/sanitize.js';
 
 export class ConcernsView {
@@ -19,10 +20,10 @@ export class ConcernsView {
 
   renderSkeleton() {
     this.container.innerHTML = `
-      <div class="view-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+      <div class="view-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
         <div>
-          <h2 style="font-size: 20px; font-weight: 800; color: var(--navy-900); margin: 0 0 4px 0;">
-            Workplace Concerns & Safety Reports
+          <h2 style="font-size: 20px; font-weight: 800; color: var(--text-main); margin: 0 0 4px 0;">
+            Workplace Concerns & Safety Reports / البلاغات والسلامة المهنية
           </h2>
           <p style="color: var(--text-muted); font-size: 13.5px; margin: 0;">
             Anonymous reports submitted by factory and office employees for compliance, safety, and ethics.
@@ -34,25 +35,25 @@ export class ConcernsView {
             <polyline points="23 4 23 10 17 10"></polyline>
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
           </svg>
-          Refresh
+          Refresh Reports
         </button>
       </div>
 
-      <div class="toolbar-container">
-        <div class="toolbar-left">
-          <select id="concern-category-filter" class="form-select" style="min-width: 220px;">
-            <option value="">All Categories</option>
-            <option value="Safety">Safety & Hazards</option>
-            <option value="Health">Occupational Health</option>
-            <option value="Ethics">Ethics & Compliance</option>
-            <option value="Harassment">Workplace Environment</option>
-            <option value="Facilities">Facilities & Equipment</option>
-            <option value="Other">Other Issues</option>
-          </select>
-        </div>
+      <div class="card" style="margin-bottom: 24px; padding: 16px 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;" id="concern-category-pills">
+            <button type="button" class="btn btn-sm btn-primary category-pill" data-cat="">All Reports</button>
+            <button type="button" class="btn btn-sm btn-secondary category-pill" data-cat="safety">🚨 Safety & Hazards</button>
+            <button type="button" class="btn btn-sm btn-secondary category-pill" data-cat="health">🏥 Health & Medical</button>
+            <button type="button" class="btn btn-sm btn-secondary category-pill" data-cat="ethics">⚖️ Ethics & Compliance</button>
+            <button type="button" class="btn btn-sm btn-secondary category-pill" data-cat="facilities">🏭 Facilities</button>
+            <button type="button" class="btn btn-sm btn-secondary category-pill" data-cat="harassment">👥 Workplace Environment</button>
+          </div>
 
-        <div class="toolbar-right">
-          <span id="concerns-counter" class="badge badge-neutral">0 Reports</span>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="badge badge-success">🔒 100% Encrypted & Anonymous</span>
+            <span id="concerns-counter" class="badge badge-neutral">0 Reports</span>
+          </div>
         </div>
       </div>
 
@@ -65,9 +66,14 @@ export class ConcernsView {
       this.loadConcerns();
     });
 
-    this.container.querySelector('#concern-category-filter').addEventListener('change', (e) => {
-      this.filterCategory = e.target.value.toLowerCase();
-      this.renderCards();
+    const pills = this.container.querySelectorAll('.category-pill');
+    pills.forEach(pill => {
+      pill.addEventListener('click', () => {
+        pills.forEach(p => p.className = 'btn btn-sm btn-secondary category-pill');
+        pill.className = 'btn btn-sm btn-primary category-pill';
+        this.filterCategory = pill.dataset.cat;
+        this.renderCards();
+      });
     });
   }
 
@@ -77,7 +83,8 @@ export class ConcernsView {
 
     listWrap.innerHTML = `
       <div style="text-align: center; padding: 48px; color: var(--text-muted);">
-        Loading anonymous reports...
+        <div class="animate-spin" style="width: 28px; height: 28px; border: 2px solid var(--border-light); border-top-color: var(--primary); border-radius: 50%; margin: 0 auto 12px;"></div>
+        Loading anonymous safety reports...
       </div>
     `;
 
@@ -139,13 +146,20 @@ export class ConcernsView {
         : 'Unknown date';
 
       const safePhoto = sanitizeUrl(c.attachedPhoto);
+      const catLower = (c.category || '').toLowerCase();
+      
+      let badgeClass = 'badge-info';
+      if (catLower.includes('safety') || catLower.includes('hazard')) badgeClass = 'badge-danger';
+      else if (catLower.includes('health')) badgeClass = 'badge-warning';
+      else if (catLower.includes('ethics')) badgeClass = 'badge-primary';
+
       return `
-        <div class="concern-card">
+        <div class="concern-card animate-fade-in">
           <div class="concern-header">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <span class="concern-ref">${escapeHtml(c.refNumber || c.id)}</span>
-              <span class="badge badge-warning">${escapeHtml(c.category || 'General')}</span>
-              <span class="badge badge-info">Anonymous Submission</span>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <span class="concern-ref" title="Case Reference">${escapeHtml(c.refNumber || c.id)}</span>
+              <span class="badge ${badgeClass}">${escapeHtml(c.category || 'General')}</span>
+              <span class="badge badge-neutral">🔒 Anonymous Worker</span>
             </div>
             <div class="concern-meta">
               🕒 ${escapeHtml(dateStr)}
@@ -155,16 +169,49 @@ export class ConcernsView {
           <div class="concern-body">${escapeHtml(c.details || 'No details provided.')}</div>
 
           ${safePhoto ? `
-            <div>
-              <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">Attached Photo Evidence:</div>
-              <a href="${safePhoto}" target="_blank" rel="noopener noreferrer">
-                <img src="${safePhoto}" class="concern-photo-preview" alt="Concern Attachment" />
-              </a>
+            <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-light);">
+              <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+                <span>📷 Attached Evidence Photo (Click to Enlarge):</span>
+              </div>
+              <img src="${safePhoto}" class="concern-photo-preview concern-photo-lightbox" data-src="${safePhoto}" alt="Concern Attachment" />
             </div>
           ` : ''}
         </div>
       `;
     }).join('');
+
+    // Lightbox modal on photo click
+    listWrap.querySelectorAll('.concern-photo-lightbox').forEach(img => {
+      img.addEventListener('click', () => {
+        const fullSrc = img.dataset.src;
+        this.openLightbox(fullSrc);
+      });
+    });
+  }
+
+  openLightbox(photoUrl) {
+    const modal = new Modal({
+      title: 'Evidence Photo Viewer / فحص الصورة المرفقة',
+      wide: true,
+      content: `
+        <div style="text-align: center; background: #0B1120; border-radius: var(--radius-md); padding: 16px; overflow: hidden;">
+          <img src="${photoUrl}" style="max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" alt="Evidence Fullscreen" />
+        </div>
+        <div style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 12px; color: var(--text-muted);">Confidential Investigation Record</span>
+          <a href="${photoUrl}" target="_blank" download class="btn btn-secondary btn-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Download High-Res</span>
+          </a>
+        </div>
+      `,
+      footer: `
+        <button type="button" class="btn btn-primary" id="btn-close-lightbox">Close Viewer</button>
+      `,
+    });
+
+    modal.open();
+    modal.element.querySelector('#btn-close-lightbox').addEventListener('click', () => modal.close());
   }
 
   destroy() {

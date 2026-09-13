@@ -42,10 +42,12 @@ export class LeaveView {
     this.element.innerHTML = `
       <div class="toolbar-container">
         <div>
-          <h2 style="font-size: 20px; font-weight: 700; color: var(--text-main);">Leave & Exception Requests</h2>
-          <p style="font-size: 13px; color: var(--text-muted);">Review, approve, or reject employee annual leaves, sick leaves, and mission requests.</p>
+          <h2 style="font-size: 22px; font-weight: 800; color: var(--text-main); letter-spacing: -0.02em;">Leave & Exception Requests</h2>
+          <p style="font-size: 13.5px; color: var(--text-muted); margin-top: 3px;">
+            Review, approve, or reject employee annual leaves, sick leaves, and mission requests.
+          </p>
         </div>
-        <div style="display: flex; gap: 10px; align-items: center;">
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
           <button class="btn btn-secondary btn-sm" id="btn-export-leave">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span>Export to Excel</span>
@@ -57,21 +59,34 @@ export class LeaveView {
         </div>
       </div>
 
-      <!-- Filters -->
-      <div class="toolbar-container" style="margin-bottom: 14px;">
-        <div class="toolbar-left">
-          <select class="form-select" id="leave-status-filter" style="width: 170px;">
-            <option value="">All Statuses</option>
-            <option value="inReview" selected>In Review (Pending)</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-          </select>
+      <!-- Modern Interactive Tabs Navigation -->
+      <div class="tabs-nav" id="leave-status-tabs" style="margin-bottom: 18px;">
+        <button class="tab-btn active" data-status="inReview">
+          <span>Pending Review</span>
+          <span class="nav-counter" id="tab-cnt-inReview" style="background: var(--status-amber); color: #fff; font-size: 11px; padding: 2px 7px; border-radius: var(--radius-pill);">0</span>
+        </button>
+        <button class="tab-btn" data-status="approved">
+          <span>Approved</span>
+          <span class="nav-counter" id="tab-cnt-approved" style="background: var(--status-green); color: #fff; font-size: 11px; padding: 2px 7px; border-radius: var(--radius-pill);">0</span>
+        </button>
+        <button class="tab-btn" data-status="rejected">
+          <span>Rejected</span>
+          <span class="nav-counter" id="tab-cnt-rejected" style="background: var(--status-red); color: #fff; font-size: 11px; padding: 2px 7px; border-radius: var(--radius-pill);">0</span>
+        </button>
+        <button class="tab-btn" data-status="">
+          <span>All Requests</span>
+          <span class="nav-counter" id="tab-cnt-all" style="background: var(--surface-subtle); color: var(--text-muted); font-size: 11px; padding: 2px 7px; border-radius: var(--radius-pill); border: 1px solid var(--border-light);">0</span>
+        </button>
+      </div>
 
-          <select class="form-select" id="leave-type-filter" style="width: 170px;">
+      <!-- Secondary Filters -->
+      <div class="toolbar-container" style="margin-bottom: 16px;">
+        <div class="toolbar-left">
+          <select class="form-select" id="leave-type-filter" style="width: 190px;">
             <option value="">All Request Types</option>
-            <option value="Leave">Annual Leave</option>
-            <option value="Sick Leave">Sick Leave</option>
-            <option value="Mission">Mission</option>
+            <option value="Leave">🏖️ Annual Leave</option>
+            <option value="Sick Leave">🩺 Sick Leave</option>
+            <option value="Mission">💼 Work Mission</option>
           </select>
         </div>
       </div>
@@ -86,22 +101,27 @@ export class LeaveView {
         {
           header: 'Employee',
           render: (r) => `
-            <div>
-              <b style="color: var(--navy-900); display: block;">${escapeHtml(r.employeeName || '—')}</b>
-              <small style="color: var(--text-muted); font-size: 11px;">${escapeHtml(r.employeeCode || r.employeeId)}</small>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 34px; height: 34px; border-radius: 10px; background: var(--grad-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px;">
+                ${escapeHtml(r.employeeName?.charAt(0) || 'E')}
+              </div>
+              <div>
+                <b style="color: var(--text-main); display: block;">${escapeHtml(r.employeeName || '—')}</b>
+                <small style="color: var(--text-muted); font-size: 11px; font-family: monospace;">${escapeHtml(r.employeeCode || r.employeeId)}</small>
+              </div>
             </div>
           `,
         },
         {
           header: 'Type',
-          render: (r) => `<span class="badge badge-neutral">${escapeHtml(r.type || 'Leave')}</span>`,
+          render: (r) => `<span class="badge badge-primary" style="font-size: 11.5px;">${escapeHtml(r.type || 'Leave')}</span>`,
         },
         {
           header: 'Title / Reason',
           render: (r) => `
             <div>
-              <span style="font-weight: 600;">${escapeHtml(r.title || 'Leave Request')}</span>
-              ${r.decisionReason ? `<small style="display: block; color: var(--status-red); font-size: 11px;">Note: ${escapeHtml(r.decisionReason)}</small>` : ''}
+              <span style="font-weight: 600; color: var(--text-main);">${escapeHtml(r.title || 'Leave Request')}</span>
+              ${r.decisionReason ? `<small style="display: block; color: var(--status-red); font-size: 11.5px; font-weight: 500;">Note: ${escapeHtml(r.decisionReason)}</small>` : ''}
             </div>
           `,
         },
@@ -116,7 +136,7 @@ export class LeaveView {
           header: 'Date Submitted',
           render: (r) => {
             const d = new Date(r.createdAt || Date.now());
-            return `<small style="color: var(--text-muted);">${d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</small>`;
+            return `<small style="color: var(--text-muted); font-weight: 500;">${d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</small>`;
           },
         },
         {
@@ -127,7 +147,7 @@ export class LeaveView {
           header: 'Actions',
           render: (r) => {
             if (r.status !== 'inReview') {
-              return `<small style="color: var(--text-light); font-size: 12px;">Decided by ${r.decidedBy || 'HR'}</small>`;
+              return `<small style="color: var(--text-light); font-size: 12px; font-weight: 600;">Decided by ${r.decidedBy || 'HR'}</small>`;
             }
 
             const wrap = document.createElement('div');
@@ -154,14 +174,18 @@ export class LeaveView {
 
     this.element.querySelector('#leave-table-wrapper').appendChild(this.table.render());
 
-    // Filter Listeners
+    // Tab Listeners
     this.statusFilter = 'inReview';
-    const statusSelect = this.element.querySelector('#leave-status-filter');
-    statusSelect.onchange = (e) => {
-      this.statusFilter = e.target.value;
-      this.page = 1;
-      this.loadRequests();
-    };
+    const tabs = this.element.querySelectorAll('#leave-status-tabs .tab-btn');
+    tabs.forEach((tab) => {
+      tab.onclick = () => {
+        tabs.forEach((t) => t.classList.remove('active'));
+        tab.classList.add('active');
+        this.statusFilter = tab.dataset.status;
+        this.page = 1;
+        this.loadRequests();
+      };
+    });
 
     const typeSelect = this.element.querySelector('#leave-type-filter');
     typeSelect.onchange = (e) => {

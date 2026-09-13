@@ -41,41 +41,45 @@ export class DashboardView {
 
   render() {
     this.element = document.createElement('div');
-    this.element.className = 'animate-fade-in';
-
-    this.element.innerHTML = `
+    this.element.className = 'animate-fade-in';    this.element.innerHTML = `
       <!-- Top Title & Action Controls -->
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 14px;">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; flex-wrap: wrap; gap: 16px;">
         <div>
           <div style="display: flex; align-items: center; gap: 10px;">
-            <h2 style="font-size: 24px; font-weight: 800; color: var(--navy-900); letter-spacing: -0.02em;">Executive Workforce Analytics</h2>
-            <span class="realtime-indicator" style="font-size: 11.5px; padding: 2px 9px;">
+            <h2 style="font-size: 24px; font-weight: 800; color: var(--text-main); letter-spacing: -0.02em;">Executive Workforce Analytics</h2>
+            <span class="realtime-indicator" style="font-size: 11.5px; padding: 2px 10px;">
               <span class="realtime-dot animate-pulse"></span>
               Live Sync
             </span>
           </div>
-          <p style="font-size: 13.5px; color: var(--text-muted); margin-top: 3px;">
+          <p style="font-size: 13.5px; color: var(--text-muted); margin-top: 4px;">
             Real-time enterprise overview, factory distributions, payroll commitments, and active credentials.
           </p>
         </div>
-        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-          <button class="btn btn-secondary btn-sm" id="dash-refresh-btn">
+
+        <!-- Executive Quick Action Bar -->
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+          <button class="btn btn-secondary btn-sm" id="dash-refresh-btn" title="Refresh Latest Metrics">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             <span>Refresh</span>
           </button>
-          <button class="btn btn-secondary btn-sm" id="dash-goto-workforce">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            <span>Workforce</span>
+          <button class="btn btn-secondary btn-sm" id="dash-act-add-emp">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>New Employee</span>
+          </button>
+          <button class="btn btn-secondary btn-sm" id="dash-act-broadcast">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span>Broadcast</span>
           </button>
           <button class="btn btn-primary btn-sm" id="dash-goto-requests">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <span>Review Requests</span>
+            <span>Review Leaves</span>
           </button>
         </div>
       </div>
 
       <!-- Quick Metrics Ribbon -->
-      <div style="display: flex; gap: 10px; margin-bottom: 22px; flex-wrap: wrap;" id="quick-metrics-ribbon">
+      <div style="display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap;" id="quick-metrics-ribbon">
         <div class="metric-chip">
           <span style="color: var(--status-green);">●</span>
           <span>Active Workforce: <b id="ribbon-active-rate">—%</b></span>
@@ -85,7 +89,7 @@ export class DashboardView {
           <span>Approval Rate: <b id="ribbon-approval-rate">—%</b></span>
         </div>
         <div class="metric-chip">
-          <span style="color: #9333EA;">●</span>
+          <span style="color: var(--status-purple);">●</span>
           <span>Net Payroll Pool: <b id="ribbon-payroll-pool">—</b></span>
         </div>
         <div class="metric-chip">
@@ -98,8 +102,11 @@ export class DashboardView {
       <div class="stats-grid" id="stats-container">
         <!-- 1. Total Workforce -->
         <div class="stat-card">
-          <div class="stat-card-icon blue">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <div class="stat-card-header">
+            <div class="stat-card-icon blue">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <span class="stat-trend up" id="stat-active-emp-trend">Active</span>
           </div>
           <div class="stat-value" id="stat-active-emp">—</div>
           <div class="stat-label">Total Workforce</div>
@@ -108,8 +115,11 @@ export class DashboardView {
 
         <!-- 2. Pending Requests -->
         <div class="stat-card">
-          <div class="stat-card-icon amber">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <div class="stat-card-header">
+            <div class="stat-card-icon amber">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <span class="stat-trend neutral" id="stat-pending-req-trend">Action Req</span>
           </div>
           <div class="stat-value" id="stat-pending-req">—</div>
           <div class="stat-label">Pending Leave Requests</div>
@@ -118,8 +128,11 @@ export class DashboardView {
 
         <!-- 3. Approved Requests -->
         <div class="stat-card">
-          <div class="stat-card-icon green">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <div class="stat-card-header">
+            <div class="stat-card-icon green">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <span class="stat-trend up" id="stat-approved-req-trend">Optimal</span>
           </div>
           <div class="stat-value" id="stat-approved-req">—</div>
           <div class="stat-label">Approved Requests</div>
@@ -128,8 +141,11 @@ export class DashboardView {
 
         <!-- 4. Vacation Days Taken -->
         <div class="stat-card">
-          <div class="stat-card-icon red">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <div class="stat-card-header">
+            <div class="stat-card-icon red">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </div>
+            <span class="stat-trend neutral">Balances</span>
           </div>
           <div class="stat-value" id="stat-vacation-days">—</div>
           <div class="stat-label">Vacation Days Taken</div>
@@ -138,8 +154,11 @@ export class DashboardView {
 
         <!-- 5. Monthly Net Payroll Pool -->
         <div class="stat-card">
-          <div class="stat-card-icon purple">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          <div class="stat-card-header">
+            <div class="stat-card-icon purple">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            </div>
+            <span class="stat-trend up">Disbursed</span>
           </div>
           <div class="stat-value" id="stat-payroll-net">—</div>
           <div class="stat-label">Monthly Net Payroll</div>
@@ -148,8 +167,11 @@ export class DashboardView {
 
         <!-- 6. Rostered Shifts & Working Hours -->
         <div class="stat-card">
-          <div class="stat-card-icon teal">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+          <div class="stat-card-header">
+            <div class="stat-card-icon teal">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+            </div>
+            <span class="stat-trend up">Covered</span>
           </div>
           <div class="stat-value" id="stat-shifts-rostered">—</div>
           <div class="stat-label">Rostered Personnel</div>
@@ -158,8 +180,11 @@ export class DashboardView {
 
         <!-- 7. Welfare & Trip Bookings -->
         <div class="stat-card">
-          <div class="stat-card-icon orange">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+          <div class="stat-card-header">
+            <div class="stat-card-icon orange">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+            </div>
+            <span class="stat-trend neutral">Welfare</span>
           </div>
           <div class="stat-value" id="stat-trips-booked">—</div>
           <div class="stat-label">Trip Seats Booked</div>
@@ -168,8 +193,11 @@ export class DashboardView {
 
         <!-- 8. Broadcasts & Engagement -->
         <div class="stat-card">
-          <div class="stat-card-icon indigo">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <div class="stat-card-header">
+            <div class="stat-card-icon indigo">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <span class="stat-trend up">Live</span>
           </div>
           <div class="stat-value" id="stat-broadcasts">—</div>
           <div class="stat-label">Broadcasts & Comms</div>
@@ -179,7 +207,7 @@ export class DashboardView {
 
       <!-- Live Verification Codes (OTP / SMS Fallback Monitor) -->
       <div class="analytics-card" style="margin-top: 24px; border-left: 4px solid var(--primary);">
-        <div class="analytics-card-header">
+        <div class="analytics-card-header" style="flex-wrap: wrap; gap: 14px;">
           <div>
             <h3 class="analytics-card-title">
               <span>🔐 Live Verification Codes (OTP / SMS Fallback)</span>
@@ -189,18 +217,21 @@ export class DashboardView {
               Temporary 4-6 digit authorization codes generated for employee mobile login & PIN reset (valid 5 min).
             </p>
           </div>
-          <div id="otp-stats-badge" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">
-            Active in memory: <b style="color: var(--status-green);" id="otp-active-counter">0</b>
+          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <input type="text" class="form-input" id="otp-live-search" placeholder="Filter codes by name, phone..." style="width: 220px; padding: 6px 12px; font-size: 12px;" />
+            <div id="otp-stats-badge" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">
+              Active in memory: <b style="color: var(--status-green);" id="otp-active-counter">0</b>
+            </div>
           </div>
         </div>
-        <div id="live-otp-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+        <div id="live-otp-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px;">
           <div style="color: var(--text-muted); font-size: 13px;">No recent OTP requests.</div>
         </div>
       </div>
 
       <!-- Section 1: Request Trends & Category Breakdown -->
       <div class="analytics-grid-2">
-        <!-- 7-Day Request Volume -->
+        <!-- 7-Day Request Volume SVG Chart -->
         <div class="analytics-card">
           <div class="analytics-card-header">
             <h3 class="analytics-card-title">
@@ -209,12 +240,12 @@ export class DashboardView {
             </h3>
             <span class="badge badge-primary" style="font-size: 11px;">7-Day Velocity</span>
           </div>
-          <div id="requests-chart-bars" style="display: flex; align-items: flex-end; gap: 14px; height: 180px; padding: 10px 0; border-bottom: 1px solid var(--border-light); margin-bottom: 14px;">
-            <!-- Dynamic Bars -->
+          <div id="requests-chart-bars" style="height: 190px; padding: 6px 0; border-bottom: 1px solid var(--border-light); margin-bottom: 14px;">
+            <!-- Dynamic SVG Chart populated by JS -->
           </div>
           <div style="display: flex; justify-content: space-around; font-size: 11.5px; color: var(--text-muted); padding-top: 4px;">
             <span><span style="color: var(--primary);">■</span> Total Submissions</span>
-            <span><span style="color: var(--status-green);">■</span> Approved Decisions</span>
+            <span><span style="color: var(--status-green);">■</span> Approved</span>
             <span><span style="color: var(--status-red);">■</span> Rejected</span>
           </div>
         </div>
@@ -228,7 +259,7 @@ export class DashboardView {
             </h3>
             <span class="badge" style="background: var(--surface-bg); color: var(--text-muted); font-size: 11px;">Breakdown</span>
           </div>
-          <div id="requests-by-type-list" style="display: flex; flex-direction: column; gap: 12px;">
+          <div id="requests-by-type-list" style="display: flex; flex-direction: column; gap: 14px;">
             <div style="color: var(--text-muted); font-size: 13px;">Loading category distributions...</div>
           </div>
         </div>
@@ -291,7 +322,7 @@ export class DashboardView {
         <div class="analytics-card">
           <div class="analytics-card-header">
             <h3 class="analytics-card-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
               <span>Corporate Trips & Employee Welfare</span>
             </h3>
             <span class="badge badge-success" style="font-size: 11px;">Social Engagement</span>
@@ -347,16 +378,52 @@ export class DashboardView {
     `;
 
     // Event handlers
-    this.element.querySelector('#dash-refresh-btn').onclick = () => this.loadStats();
-    this.element.querySelector('#dash-goto-workforce').onclick = () => {
-      if (this.onNavigate) this.onNavigate('employees');
-    };
-    this.element.querySelector('#dash-goto-requests').onclick = () => {
-      if (this.onNavigate) this.onNavigate('leave');
-    };
-    this.element.querySelector('#dash-view-all-activity').onclick = () => {
-      if (this.onNavigate) this.onNavigate('leave');
-    };
+    const refreshBtn = this.element.querySelector('#dash-refresh-btn');
+    if (refreshBtn) refreshBtn.onclick = () => this.loadStats();
+
+    const addEmpBtn = this.element.querySelector('#dash-act-add-emp');
+    if (addEmpBtn) {
+      addEmpBtn.onclick = () => {
+        if (this.onNavigate) this.onNavigate('employees');
+        setTimeout(() => {
+          const btn = document.querySelector('#btn-add-employee');
+          if (btn) btn.click();
+        }, 150);
+      };
+    }
+
+    const broadcastBtn = this.element.querySelector('#dash-act-broadcast');
+    if (broadcastBtn) {
+      broadcastBtn.onclick = () => {
+        if (this.onNavigate) this.onNavigate('announcements');
+        setTimeout(() => {
+          const btn = document.querySelector('#btn-new-announcement');
+          if (btn) btn.click();
+        }, 150);
+      };
+    }
+
+    const reqBtn = this.element.querySelector('#dash-goto-requests');
+    if (reqBtn) {
+      reqBtn.onclick = () => {
+        if (this.onNavigate) this.onNavigate('leave');
+      };
+    }
+
+    const viewAllAct = this.element.querySelector('#dash-view-all-activity');
+    if (viewAllAct) {
+      viewAllAct.onclick = () => {
+        if (this.onNavigate) this.onNavigate('leave');
+      };
+    }
+
+    // Live search filter inside OTP container
+    const otpSearch = this.element.querySelector('#otp-live-search');
+    if (otpSearch) {
+      otpSearch.oninput = () => {
+        this.filterOtps(otpSearch.value);
+      };
+    }
 
     // Auto-refresh when realtime events trigger
     this.refreshHandler = () => this.loadStats();
@@ -373,6 +440,91 @@ export class DashboardView {
 
     this.loadStats();
     return this.element;
+  }
+
+  filterOtps(query) {
+    const q = (query || '').trim().toLowerCase();
+    const stats = store.state.stats || {};
+    const otps = stats.recentOtps || [];
+    if (!q) {
+      this.renderOtps(otps);
+    } else {
+      const filtered = otps.filter((o) => {
+        return (
+          (o.employeeName && o.employeeName.toLowerCase().includes(q)) ||
+          (o.phone && o.phone.includes(q)) ||
+          (o.nationalId && o.nationalId.includes(q)) ||
+          (o.code && o.code.includes(q))
+        );
+      });
+      this.renderOtps(filtered);
+    }
+  }
+
+  renderOtps(otps) {
+    const otpContainer = this.element.querySelector('#live-otp-container');
+    const otpActiveCounter = this.element.querySelector('#otp-active-counter');
+    if (!otpContainer) return;
+
+    otpContainer.innerHTML = '';
+    const activeCount = otps.filter((o) => !o.isExpired).length;
+    if (otpActiveCounter) otpActiveCounter.textContent = activeCount;
+
+    if (otps.length === 0) {
+      otpContainer.innerHTML = `<div style="color: var(--text-muted); font-size: 13px; grid-column: 1/-1; padding: 18px 0; text-align: center;">No matching verification codes found.</div>`;
+      return;
+    }
+
+    for (const item of otps) {
+      const card = document.createElement('div');
+      card.className = 'otp-live-card';
+
+      const elapsedMs = item.timestamp ? Math.max(0, Date.now() - item.timestamp) : 0;
+      const timeAgo = Math.floor(elapsedMs / 60000);
+      const timeText = timeAgo === 0 ? 'Just now' : `${timeAgo}m ago`;
+      const isExpired = item.isExpired || timeAgo >= 5;
+      const progressPct = isExpired ? 0 : Math.max(0, Math.min(100, Math.round(((300000 - elapsedMs) / 300000) * 100)));
+
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <b style="color: var(--text-main); font-size: 14px; display: block;">${item.employeeName || 'Workforce Member'}</b>
+            <small style="color: var(--text-muted); font-size: 12px; font-family: monospace;">🇪🇬 ${item.phone || item.nationalId || '—'}</small>
+          </div>
+          <span class="badge ${isExpired ? 'badge-danger' : 'badge-success'}" style="font-size: 11px;">
+            <span class="badge-dot"></span>
+            ${isExpired ? 'Expired' : timeText}
+          </span>
+        </div>
+
+        <div class="otp-code-box">
+          <span class="otp-code-val">${item.code || '------'}</span>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-${item.code}" style="padding: 4px 10px; font-size: 11.5px; border-radius: var(--radius-xs);">
+            Copy
+          </button>
+        </div>
+
+        <div style="background: var(--surface-subtle); height: 4px; border-radius: var(--radius-pill); overflow: hidden;">
+          <div class="otp-timer-bar" style="width: ${progressPct}%; background-color: ${isExpired ? 'var(--status-red)' : 'var(--status-green)'};"></div>
+        </div>
+      `;
+
+      const copyBtn = card.querySelector(`#btn-copy-${item.code}`);
+      if (copyBtn && item.code) {
+        copyBtn.onclick = () => {
+          navigator.clipboard?.writeText(item.code);
+          copyBtn.textContent = 'Copied! ✓';
+          copyBtn.style.color = 'var(--status-green)';
+          setTimeout(() => {
+            copyBtn.textContent = 'Copy';
+            copyBtn.style.color = '';
+          }, 2000);
+          toast.success('Code Copied', `OTP verification code ${item.code} copied to clipboard.`);
+        };
+      }
+
+      otpContainer.appendChild(card);
+    }
   }
 
   async loadStats() {
@@ -447,83 +599,49 @@ export class DashboardView {
     this.element.querySelector('#stat-broadcasts').textContent = totalComms;
     this.element.querySelector('#stat-broadcasts-meta').textContent = `${s.announcements || 0} Broadcasts · ${s.news || 0} News`;
 
-    // 3. Live OTP Monitor
-    const otpContainer = this.element.querySelector('#live-otp-container');
-    const otpActiveCounter = this.element.querySelector('#otp-active-counter');
-    if (otpContainer) {
-      otpContainer.innerHTML = '';
-      const otps = s.recentOtps || [];
-      const activeCount = otps.filter((o) => !o.isExpired).length;
-      if (otpActiveCounter) otpActiveCounter.textContent = activeCount;
+    // 3. Render OTPs
+    this.renderOtps(s.recentOtps || []);
 
-      if (otps.length === 0) {
-        otpContainer.innerHTML = `<div style="color: var(--text-muted); font-size: 13px; grid-column: 1/-1; padding: 12px 0;">No active or recent OTP verification requests.</div>`;
-      } else {
-        for (const item of otps) {
-          const card = document.createElement('div');
-          card.style.cssText = 'background: var(--surface-alt); border: 1px solid var(--border-light); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px;';
-
-          const timeAgo = item.timestamp ? Math.max(0, Math.floor((Date.now() - item.timestamp) / 60000)) : 0;
-          const timeText = timeAgo === 0 ? 'Just now' : `${timeAgo}m ago`;
-          const isExpired = item.isExpired || timeAgo >= 5;
-
-          card.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-              <div>
-                <b style="color: var(--navy-900); font-size: 13.5px; display: block;">${item.employeeName || 'Employee'}</b>
-                <small style="color: var(--text-muted); font-size: 11.5px;">${item.phone || item.nationalId || '—'}</small>
-              </div>
-              <span class="badge ${isExpired ? 'badge-danger' : 'badge-success'}" style="font-size: 10.5px;">
-                ${isExpired ? 'Expired' : timeText}
-              </span>
-            </div>
-
-            <div style="display: flex; align-items: center; justify-content: space-between; background: #FFFFFF; border: 1px solid var(--border-light); border-radius: 8px; padding: 8px 12px; margin-top: 4px;">
-              <span style="font-size: 18px; font-weight: 800; letter-spacing: 3px; color: var(--primary); font-family: monospace;">${item.code || '------'}</span>
-              <button type="button" class="btn btn-secondary btn-sm" style="padding: 4px 8px; font-size: 11px;" title="Copy OTP">
-                Copy
-              </button>
-            </div>
-          `;
-
-          const copyBtn = card.querySelector('button');
-          if (copyBtn && item.code) {
-            copyBtn.onclick = () => {
-              navigator.clipboard?.writeText(item.code);
-              toast.success('Copied', `OTP code ${item.code} copied to clipboard.`);
-            };
-          }
-
-          otpContainer.appendChild(card);
-        }
-      }
-    }
-
-    // 4. Daily Request Velocity Chart
+    // 4. Daily Request Velocity SVG Chart
     const chartContainer = this.element.querySelector('#requests-chart-bars');
     if (chartContainer) {
-      chartContainer.innerHTML = '';
       const days = s.requestsByDay || [];
       const maxCount = Math.max(...days.map((d) => d.count), 1);
+      const svgHeight = 150;
+      const svgWidth = 500;
+      const barWidth = 36;
+      const step = svgWidth / Math.max(days.length, 1);
 
-      for (const d of days) {
-        const col = document.createElement('div');
-        col.style.flex = '1';
-        col.style.display = 'flex';
-        col.style.flexDirection = 'column';
-        col.style.alignItems = 'center';
-        col.style.gap = '6px';
-        col.style.height = '100%';
-        col.style.justifyContent = 'flex-end';
+      let barsSvg = '';
+      days.forEach((d, idx) => {
+        const h = Math.max(8, Math.round((d.count / maxCount) * (svgHeight - 40)));
+        const x = idx * step + (step - barWidth) / 2;
+        const y = svgHeight - 24 - h;
+        const textY = y - 6;
+        const labelY = svgHeight - 6;
 
-        const pct = Math.max(10, Math.round((d.count / maxCount) * 100));
-        col.innerHTML = `
-          <span style="font-size: 11px; font-weight: 700; color: var(--navy-900);">${d.count}</span>
-          <div style="width: 100%; max-width: 34px; height: ${pct}%; background: linear-gradient(180deg, var(--primary), #3B82F6); border-radius: 6px 6px 0 0; transition: height 0.3s ease; box-shadow: 0 2px 6px rgba(11, 99, 180, 0.2);" title="${d.label}: ${d.count} requests (${d.approved || 0} approved, ${d.rejected || 0} rejected)"></div>
-          <span style="font-size: 11px; font-weight: 600; color: var(--text-muted);">${d.label}</span>
+        barsSvg += `
+          <g class="chart-col-group" cursor="pointer">
+            <title>${d.label}: ${d.count} requests (${d.approved || 0} approved, ${d.rejected || 0} rejected)</title>
+            <rect x="${x}" y="${y}" width="${barWidth}" height="${h}" rx="6" fill="url(#dashChartGradient)" filter="drop-shadow(0 2px 4px rgba(2,132,199,0.25))"></rect>
+            <text x="${x + barWidth / 2}" y="${textY}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--text-main)">${d.count}</text>
+            <text x="${x + barWidth / 2}" y="${labelY}" text-anchor="middle" font-size="11" font-weight="600" fill="var(--text-muted)">${d.label}</text>
+          </g>
         `;
-        chartContainer.appendChild(col);
-      }
+      });
+
+      chartContainer.innerHTML = `
+        <svg viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="none" style="width: 100%; height: 100%; overflow: visible;">
+          <defs>
+            <linearGradient id="dashChartGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#0284C7"/>
+              <stop offset="100%" stop-color="#38BDF8" stop-opacity="0.85"/>
+            </linearGradient>
+          </defs>
+          <line x1="0" y1="${svgHeight - 24}" x2="${svgWidth}" y2="${svgHeight - 24}" stroke="var(--border-light)" stroke-width="1"/>
+          ${barsSvg}
+        </svg>
+      `;
     }
 
     // 5. Requests by Category Breakdown

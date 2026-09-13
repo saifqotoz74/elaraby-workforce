@@ -43,14 +43,30 @@ export class EmployeesView {
   render() {
     this.element = document.createElement('div');
     this.element.className = 'animate-fade-in';
+    this.viewMode = 'table';
+    this.statusFilter = '';
 
     this.element.innerHTML = `
       <div class="toolbar-container">
         <div>
-          <h2 style="font-size: 20px; font-weight: 700; color: var(--text-main);">Workforce Directory</h2>
-          <p style="font-size: 13px; color: var(--text-muted);">Manage employee profiles, credentials, department placement, and vacation balances.</p>
+          <h2 style="font-size: 22px; font-weight: 800; color: var(--text-main); letter-spacing: -0.02em;">Workforce Directory</h2>
+          <p style="font-size: 13.5px; color: var(--text-muted); margin-top: 3px;">
+            Manage employee profiles, credentials, factory placements, and vacation allocations.
+          </p>
         </div>
-        <div style="display: flex; gap: 10px; align-items: center;">
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <!-- Table vs Cards View Toggle Switcher -->
+          <div class="view-toggle-group">
+            <button class="view-toggle-btn active" id="btn-view-table" title="Table View">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              <span>Table</span>
+            </button>
+            <button class="view-toggle-btn" id="btn-view-cards" title="Grid Cards View">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              <span>Cards</span>
+            </button>
+          </div>
+
           <button class="btn btn-secondary" id="btn-export-employees">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span>Export to Excel</span>
@@ -63,24 +79,32 @@ export class EmployeesView {
       </div>
 
       <!-- Filters & Search Toolbar -->
-      <div class="toolbar-container" style="margin-bottom: 14px;">
+      <div class="toolbar-container" style="margin-bottom: 16px;">
         <div class="toolbar-left">
           <div class="search-box">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input type="text" class="form-input" id="emp-search-input" placeholder="Search by name, code, national ID..." />
+            <input type="text" class="form-input" id="emp-search-input" placeholder="Search by name, code, national ID, phone..." />
+            <span class="kbd-badge">Live</span>
           </div>
 
-          <select class="form-select" id="emp-factory-filter" style="width: 180px;">
-            <option value="">All Factories</option>
+          <select class="form-select" id="emp-factory-filter" style="width: 190px;">
+            <option value="">🏭 All Factories</option>
             <option value="10th of Ramadan">10th of Ramadan</option>
             <option value="Qwesna">Qwesna</option>
             <option value="Benha">Benha</option>
           </select>
+
+          <select class="form-select" id="emp-status-filter" style="width: 150px;">
+            <option value="">All Statuses</option>
+            <option value="active">Active Only</option>
+            <option value="inactive">Inactive</option>
+          </select>
         </div>
       </div>
 
-      <!-- Table Wrapper -->
+      <!-- Views Container -->
       <div id="emp-table-wrapper"></div>
+      <div id="emp-cards-wrapper" class="cards-grid" style="display: none;"></div>
       <div id="emp-pagination-wrapper"></div>
     `;
 
@@ -90,22 +114,32 @@ export class EmployeesView {
         {
           header: 'Employee',
           render: (e) => `
-            <div>
-              <b style="color: var(--navy-900); display: block;">${escapeHtml(e.name)}</b>
-              <small style="color: var(--text-muted); font-size: 11px;">${escapeHtml(e.employeeCode || '—')}</small>
+            <div style="display: flex; align-items: center; gap: 12px; cursor: pointer;" class="emp-row-clickable">
+              <div style="width: 36px; height: 36px; border-radius: 10px; background: var(--grad-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px;">
+                ${escapeHtml(e.name?.charAt(0) || 'E')}
+              </div>
+              <div>
+                <b style="color: var(--text-main); display: block;">${escapeHtml(e.name)}</b>
+                <small style="color: var(--text-muted); font-size: 11.5px; font-family: monospace;">${escapeHtml(e.employeeCode || '—')}</small>
+              </div>
             </div>
           `,
         },
         {
           header: 'National ID',
-          field: 'nationalId',
+          render: (e) => `
+            <div style="font-family: monospace; font-size: 13px; font-weight: 600;">
+              ${escapeHtml(e.nationalId || '—')}
+              ${e.phone ? `<small style="display: block; color: var(--text-muted); font-size: 11px;">📱 ${escapeHtml(e.phone)}</small>` : ''}
+            </div>
+          `,
         },
         {
           header: 'Factory & Department',
           render: (e) => `
             <div>
-              <span>${escapeHtml(e.factory || '—')}</span>
-              <small style="display: block; color: var(--text-muted); font-size: 11px;">${escapeHtml(e.department || '—')}</small>
+              <span class="badge badge-primary" style="font-size: 11px; padding: 2px 8px;">🏭 ${escapeHtml(e.factory || 'HQ')}</span>
+              <small style="display: block; color: var(--text-muted); font-size: 11.5px; margin-top: 3px;">${escapeHtml(e.department || '—')}</small>
             </div>
           `,
         },
@@ -115,7 +149,12 @@ export class EmployeesView {
         },
         {
           header: 'Vacation Balance',
-          render: (e) => `<b>${e.vacationBalance ?? 0}</b> <small style="color: var(--text-muted);">days</small>`,
+          render: (e) => `
+            <span style="font-weight: 800; color: ${(e.vacationBalance ?? 0) <= 3 ? 'var(--status-red)' : 'var(--text-main)'};">
+              ${e.vacationBalance ?? 0}
+            </span> 
+            <small style="color: var(--text-muted);">days</small>
+          `,
         },
         {
           header: 'Status',
@@ -127,6 +166,12 @@ export class EmployeesView {
             const wrap = document.createElement('div');
             wrap.className = 'table-actions';
 
+            const viewBtn = document.createElement('button');
+            viewBtn.className = 'btn btn-secondary btn-sm';
+            viewBtn.textContent = 'View';
+            viewBtn.title = 'View Full Profile';
+            viewBtn.onclick = () => this.openProfileModal(e);
+
             const editBtn = document.createElement('button');
             editBtn.className = 'btn btn-secondary btn-sm';
             editBtn.textContent = 'Edit';
@@ -137,6 +182,7 @@ export class EmployeesView {
             toggleBtn.textContent = e.active ? 'Deactivate' : 'Activate';
             toggleBtn.onclick = () => this.confirmToggle(e);
 
+            wrap.appendChild(viewBtn);
             wrap.appendChild(editBtn);
             wrap.appendChild(toggleBtn);
             return wrap;
@@ -147,6 +193,28 @@ export class EmployeesView {
     });
 
     this.element.querySelector('#emp-table-wrapper').appendChild(this.table.render());
+
+    // View Switcher Handlers
+    const btnTable = this.element.querySelector('#btn-view-table');
+    const btnCards = this.element.querySelector('#btn-view-cards');
+    const tableWrapper = this.element.querySelector('#emp-table-wrapper');
+    const cardsWrapper = this.element.querySelector('#emp-cards-wrapper');
+
+    btnTable.onclick = () => {
+      this.viewMode = 'table';
+      btnTable.classList.add('active');
+      btnCards.classList.remove('active');
+      tableWrapper.style.display = 'block';
+      cardsWrapper.style.display = 'none';
+    };
+
+    btnCards.onclick = () => {
+      this.viewMode = 'cards';
+      btnCards.classList.add('active');
+      btnTable.classList.remove('active');
+      tableWrapper.style.display = 'none';
+      cardsWrapper.style.display = 'grid';
+    };
 
     // Event Bindings
     this.element.querySelector('#btn-add-employee').onclick = () => this.openAddModal();
@@ -196,12 +264,87 @@ export class EmployeesView {
       this.loadEmployees();
     };
 
+    this.element.querySelector('#emp-status-filter').onchange = (e) => {
+      this.statusFilter = e.target.value;
+      this.page = 1;
+      this.loadEmployees();
+    };
+
     this.refreshHandler = () => this.loadEmployees();
     window.addEventListener('realtime:employee.created', this.refreshHandler);
     window.addEventListener('realtime:employee.updated', this.refreshHandler);
 
     this.loadEmployees();
     return this.element;
+  }
+
+  renderCardsView(employees) {
+    const cardsWrapper = this.element.querySelector('#emp-cards-wrapper');
+    if (!cardsWrapper) return;
+    cardsWrapper.innerHTML = '';
+
+    if (employees.length === 0) {
+      cardsWrapper.innerHTML = `
+        <div class="empty-state" style="grid-column: 1/-1;">
+          <div class="empty-state-icon">👥</div>
+          <div class="empty-state-title">No employees found</div>
+          <div class="empty-state-sub">Try changing your search query or factory filter.</div>
+        </div>
+      `;
+      return;
+    }
+
+    for (const e of employees) {
+      const card = document.createElement('div');
+      card.className = 'emp-card';
+
+      card.innerHTML = `
+        <div>
+          <div class="emp-card-header">
+            <div class="emp-avatar">${escapeHtml(e.name?.charAt(0) || 'E')}</div>
+            <div class="emp-info">
+              <b>${escapeHtml(e.name)}</b>
+              <small>${escapeHtml(e.position || 'Staff')} • ${escapeHtml(e.employeeCode || '—')}</small>
+            </div>
+          </div>
+
+          <div style="margin-top: 12px; display: flex; gap: 6px; flex-wrap: wrap;">
+            <span class="badge badge-primary" style="font-size: 11px;">🏭 ${escapeHtml(e.factory || 'HQ')}</span>
+            <span class="badge badge-neutral" style="font-size: 11px;">${escapeHtml(e.department || 'Operations')}</span>
+            ${createStatusBadge(e.active ? 'active' : 'inactive')}
+          </div>
+        </div>
+
+        <div class="emp-card-metrics">
+          <div>
+            <small style="color: var(--text-muted); font-size: 11px; display: block;">National ID</small>
+            <b style="font-family: monospace; font-size: 12.5px; color: var(--text-main);">${escapeHtml(e.nationalId || '—')}</b>
+          </div>
+          <div>
+            <small style="color: var(--text-muted); font-size: 11px; display: block;">Vacation Balance</small>
+            <b style="font-size: 13.5px; color: ${(e.vacationBalance ?? 0) <= 3 ? 'var(--status-red)' : 'var(--primary)'};">
+              ${e.vacationBalance ?? 0} days
+            </b>
+          </div>
+        </div>
+
+        <div class="emp-card-actions">
+          <button class="btn btn-secondary btn-sm" id="card-btn-view-${e.id}">Profile</button>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn btn-secondary btn-sm" id="card-btn-edit-${e.id}">Edit</button>
+            <button class="btn ${e.active ? 'btn-danger' : 'btn-success'} btn-sm" id="card-btn-toggle-${e.id}">
+              ${e.active ? 'Deactivate' : 'Activate'}
+            </button>
+          </div>
+        </div>
+      `;
+
+      card.querySelector(`#card-btn-view-${e.id}`).onclick = () => this.openProfileModal(e);
+      card.querySelector(`#card-btn-edit-${e.id}`).onclick = () => this.openEditModal(e);
+      card.querySelector(`#card-btn-toggle-${e.id}`).onclick = () => this.confirmToggle(e);
+
+      cardsWrapper.appendChild(card);
+    }
   }
 
   async loadEmployees() {
@@ -214,8 +357,15 @@ export class EmployeesView {
         factory: this.factory,
       });
 
-      const list = res.employees || [];
+      let list = res.employees || [];
+      if (this.statusFilter === 'active') {
+        list = list.filter((e) => e.active);
+      } else if (this.statusFilter === 'inactive') {
+        list = list.filter((e) => !e.active);
+      }
+
       this.table.update(list, false);
+      this.renderCardsView(list);
 
       const pagWrapper = this.element.querySelector('#emp-pagination-wrapper');
       pagWrapper.innerHTML = '';
@@ -234,6 +384,70 @@ export class EmployeesView {
     } catch (err) {
       toast.error('Failed to load employees', err.message);
     }
+  }
+
+  openProfileModal(e) {
+    const content = document.createElement('div');
+    content.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border-light);">
+        <div style="width: 56px; height: 56px; border-radius: 16px; background: var(--grad-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 800; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);">
+          ${escapeHtml(e.name?.charAt(0) || 'E')}
+        </div>
+        <div>
+          <h3 style="font-size: 18px; font-weight: 800; color: var(--text-main); margin-bottom: 2px;">${escapeHtml(e.name)}</h3>
+          <p style="font-size: 13px; color: var(--text-muted); margin: 0;">${escapeHtml(e.position || 'Staff')} • Code: <b>${escapeHtml(e.employeeCode || '—')}</b></p>
+        </div>
+        <div style="margin-left: auto;">
+          ${createStatusBadge(e.active ? 'active' : 'inactive')}
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px;">
+        <div style="background: var(--surface-subtle); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+          <small style="color: var(--text-muted); display: block; font-size: 11px;">National ID / الرقم القومي</small>
+          <b style="font-size: 13.5px; font-family: monospace; color: var(--text-main);">${escapeHtml(e.nationalId || '—')}</b>
+        </div>
+        <div style="background: var(--surface-subtle); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+          <small style="color: var(--text-muted); display: block; font-size: 11px;">Mobile Phone / الهاتف</small>
+          <b style="font-size: 13.5px; font-family: monospace; color: var(--text-main);">🇪🇬 ${escapeHtml(e.phone || '—')}</b>
+        </div>
+        <div style="background: var(--surface-subtle); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+          <small style="color: var(--text-muted); display: block; font-size: 11px;">Factory Complex / المجمع الصناعي</small>
+          <b style="font-size: 13.5px; color: var(--text-main);">🏭 ${escapeHtml(e.factory || 'HQ')}</b>
+        </div>
+        <div style="background: var(--surface-subtle); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+          <small style="color: var(--text-muted); display: block; font-size: 11px;">Department / الإدارة</small>
+          <b style="font-size: 13.5px; color: var(--text-main);">${escapeHtml(e.department || 'Operations')}</b>
+        </div>
+      </div>
+
+      <div style="background: var(--primary-soft); border: 1px solid var(--primary-border); padding: 14px 18px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: space-between;">
+        <div>
+          <span style="font-size: 12px; color: var(--primary); font-weight: 700; text-transform: uppercase;">Annual Vacation Allowance</span>
+          <div style="font-size: 22px; font-weight: 800; color: var(--text-main);">${e.vacationBalance ?? 0} <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Days Available</span></div>
+        </div>
+        <button class="btn btn-primary btn-sm" id="profile-modal-edit-bal">Adjust Balance</button>
+      </div>
+    `;
+
+    const footer = document.createElement('div');
+    footer.style.display = 'flex';
+    footer.style.justifyContent = 'flex-end';
+    footer.style.width = '100%';
+    footer.innerHTML = `<button class="btn btn-secondary btn-sm" id="profile-close-btn">Close</button>`;
+
+    const modal = new Modal({
+      title: `Employee Dossier — ${e.name}`,
+      content,
+      footer,
+      wide: true,
+    });
+
+    footer.querySelector('#profile-close-btn').onclick = () => modal.close();
+    content.querySelector('#profile-modal-edit-bal').onclick = () => {
+      modal.close();
+      this.openEditModal(e);
+    };
   }
 
   openAddModal() {

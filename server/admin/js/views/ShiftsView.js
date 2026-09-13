@@ -5,29 +5,31 @@ import { shiftApi, employeeApi } from '../api/services.js';
 import { store } from '../state/store.js';
 import { toast } from '../components/Toast.js';
 import { ExportService } from '../services/exportService.js';
+import { escapeHtml } from '../utils/sanitize.js';
 
 const SHIFT_OPTIONS = [
-  { value: 'morning', label: '🌅 Morning (07:00 - 15:30)' },
-  { value: 'evening', label: '🌇 Evening (15:30 - 23:30)' },
-  { value: 'night', label: '🌙 Night (23:30 - 07:30)' },
-  { value: 'office', label: '🏢 Office (08:00 - 16:30)' },
-  { value: 'off', label: '🏖️ Day Off' },
+  { value: 'morning', label: '🌅 Morning (07:00 - 15:30)', short: '🌅 Morning', class: 'shift-pill-morning', hours: 8.5 },
+  { value: 'evening', label: '🌇 Evening (15:30 - 23:30)', short: '🌇 Evening', class: 'shift-pill-evening', hours: 8 },
+  { value: 'night', label: '🌙 Night (23:30 - 07:30)', short: '🌙 Night', class: 'shift-pill-night', hours: 8 },
+  { value: 'office', label: '🏢 Office (08:00 - 16:30)', short: '🏢 Office', class: 'shift-pill-office', hours: 8.5 },
+  { value: 'off', label: '🏖️ Day Off (راحة أسبوعية)', short: '🏖️ Off', class: 'shift-pill-off', hours: 0 },
 ];
 
 const DAY_NAMES = [
-  'Sunday (الأحد)',
-  'Monday (الإثنين)',
-  'Tuesday (الثلاثاء)',
-  'Wednesday (الأربعاء)',
-  'Thursday (الخميس)',
-  'Friday (الجمعة)',
-  'Saturday (السبت)',
+  { en: 'Sunday', ar: 'الأحد' },
+  { en: 'Monday', ar: 'الإثنين' },
+  { en: 'Tuesday', ar: 'الثلاثاء' },
+  { en: 'Wednesday', ar: 'الأربعاء' },
+  { en: 'Thursday', ar: 'الخميس' },
+  { en: 'Friday', ar: 'الجمعة' },
+  { en: 'Saturday', ar: 'السبت' },
 ];
 
 export class ShiftsView {
   constructor(container) {
     this.container = container;
     this.employees = [];
+    this.filteredEmployees = [];
     this.selectedEmployeeId = null;
     this.currentRoster = null;
     this.weekStart = null;
@@ -44,7 +46,7 @@ export class ShiftsView {
       <div class="view-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
         <div>
           <h2 style="font-size: 20px; font-weight: 800; color: var(--text-main); margin: 0 0 4px 0;">
-            Shift & Roster Management
+            Shift & Roster Management / إدارة الورديات والجداول
           </h2>
           <p style="color: var(--text-muted); font-size: 13.5px; margin: 0;">
             Assign 7-day weekly shifts, rotate factory operators, and publish rosters.
@@ -59,15 +61,21 @@ export class ShiftsView {
         </button>
       </div>
 
-      <div class="roster-card">
-        <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
-          <div class="form-group" style="min-width: 300px; margin-bottom: 0; flex: 1;">
+      <div class="card" style="margin-bottom: 24px;">
+        <div style="display: grid; grid-template-columns: 240px 1fr auto; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">Search Worker</label>
+            <input type="text" id="shift-employee-filter" class="form-input" placeholder="Name or code..." />
+          </div>
+
+          <div class="form-group" style="margin-bottom: 0;">
             <label class="form-label">Select Employee</label>
             <select id="shift-employee-select" class="form-select">
               <option value="">-- Choose an employee --</option>
             </select>
           </div>
-          <div id="roster-employee-details" style="display: flex; gap: 16px; align-items: center; padding-top: 18px;">
+
+          <div id="roster-employee-details" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
             <!-- Employee metadata badge -->
           </div>
         </div>
@@ -152,21 +160,42 @@ export class ShiftsView {
         this.renderEmpty();
       }
     });
+
+    const filterInput = this.container.querySelector('#shift-employee-filter');
+    filterInput.addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      this.populateSelect(q);
+    });
+  }
+
+  populateSelect(searchQuery = '') {
+    const select = this.container.querySelector('#shift-employee-select');
+    if (!select) return;
+
+    let list = this.employees;
+    if (searchQuery) {
+      list = list.filter(emp =>
+        (emp.name || '').toLowerCase().includes(searchQuery) ||
+        (emp.employeeCode || '').toLowerCase().includes(searchQuery) ||
+        (emp.nationalId || '').includes(searchQuery)
+      );
+    }
+
+    select.innerHTML = `
+      <option value="">-- Choose an employee (${list.length} matches) --</option>
+      ${list.map((emp) => `
+        <option value="${emp.id}" ${emp.id === this.selectedEmployeeId ? 'selected' : ''}>
+          ${escapeHtml(emp.name)} (${emp.employeeCode || emp.nationalId.slice(-4)}) — ${escapeHtml(emp.factory || '')}
+        </option>
+      `).join('')}
+    `;
   }
 
   async loadEmployees() {
     try {
-      const res = await employeeApi.list({ limit: 100 });
+      const res = await employeeApi.list({ limit: 200 });
       this.employees = res.employees || [];
-      const select = this.container.querySelector('#shift-employee-select');
-      if (select) {
-        select.innerHTML = `
-          <option value="">-- Choose an employee (${this.employees.length} available) --</option>
-          ${this.employees.map((emp) => `
-            <option value="${emp.id}">${emp.name} (${emp.employeeCode || emp.nationalId.slice(-4)}) - ${emp.factory || ''}</option>
-          `).join('')}
-        `;
-      }
+      this.populateSelect();
     } catch (err) {
       toast.error('Failed to load employees', err.message);
     }
@@ -178,6 +207,7 @@ export class ShiftsView {
 
     editor.innerHTML = `
       <div style="text-align: center; padding: 48px; color: var(--text-muted);">
+        <div class="animate-spin" style="width: 28px; height: 28px; border: 2px solid var(--border-light); border-top-color: var(--primary); border-radius: 50%; margin: 0 auto 12px;"></div>
         Loading roster schedule...
       </div>
     `;
@@ -186,7 +216,6 @@ export class ShiftsView {
       const rosterData = await shiftApi.get(employeeId);
       this.weekStart = rosterData.weekStart;
 
-      // Default to office/off or default morning if no existing record
       if (!rosterData.days || rosterData.days.length !== 7) {
         this.currentRoster = [
           { dayIndex: 0, shift: 'office' },
@@ -221,38 +250,44 @@ export class ShiftsView {
     const detailsWrap = this.container.querySelector('#roster-employee-details');
     if (detailsWrap && emp) {
       detailsWrap.innerHTML = `
-        <span class="badge badge-info">🏭 ${emp.factory || 'Default Factory'}</span>
-        <span class="badge badge-neutral">📂 ${emp.department || 'Production'}</span>
-        <span class="badge badge-neutral">💼 ${emp.position || 'Operator'}</span>
+        <span class="badge badge-info">🏭 ${escapeHtml(emp.factory || 'Default Factory')}</span>
+        <span class="badge badge-neutral">📂 ${escapeHtml(emp.department || 'Production')}</span>
+        <span class="badge badge-neutral">💼 ${escapeHtml(emp.position || 'Operator')}</span>
       `;
     }
 
     const startDate = new Date(this.weekStart);
 
     editor.innerHTML = `
-      <div class="roster-card">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; margin-bottom: 20px;">
+      <div class="card" style="box-shadow: var(--shadow-sm);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; margin-bottom: 22px; padding-bottom: 16px; border-bottom: 1px solid var(--border-light);">
           <div>
-            <h3 style="font-size: 16px; font-weight: 700; color: var(--navy-900); margin: 0 0 4px 0;">
-              Week of ${this.weekStart}
-            </h3>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <h3 style="font-size: 17px; font-weight: 800; color: var(--text-main); margin: 0;">
+                Week of ${this.weekStart}
+              </h3>
+              <span class="badge badge-primary">EGY Operational Week</span>
+            </div>
             <span style="font-size: 12.5px; color: var(--text-muted);">
-              Middle East Work Week (Sunday - Saturday)
+              Sunday through Saturday (الأحد - السبت)
             </span>
           </div>
 
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             <button type="button" class="btn btn-secondary btn-sm" id="btn-preset-standard">
-              Standard Office
+              🏢 Standard Office
             </button>
             <button type="button" class="btn btn-secondary btn-sm" id="btn-preset-morning">
-              All Morning
+              🌅 All Morning
             </button>
             <button type="button" class="btn btn-secondary btn-sm" id="btn-preset-evening">
-              All Evening
+              🌇 All Evening
             </button>
             <button type="button" class="btn btn-secondary btn-sm" id="btn-preset-night">
-              All Night
+              🌙 All Night
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-preset-off" style="color: var(--text-muted);">
+              🏖️ Reset Off
             </button>
           </div>
         </div>
@@ -262,12 +297,28 @@ export class ShiftsView {
             const dayDate = new Date(startDate);
             dayDate.setDate(startDate.getDate() + index);
             const dateFormatted = dayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const dayMeta = DAY_NAMES[index];
+            const currentShiftObj = SHIFT_OPTIONS.find(o => o.value === d.shift) || SHIFT_OPTIONS[0];
 
             return `
-              <div class="roster-day-card" data-day="${index}">
-                <div class="roster-day-title">${DAY_NAMES[index].split(' ')[0]}</div>
+              <div class="roster-day-card ${d.shift === 'off' ? 'is-off' : ''}" data-day="${index}">
+                <div class="roster-day-title">${dayMeta.en}</div>
+                <div style="font-size: 11px; color: var(--primary); font-weight: 700; margin-bottom: 2px;">${dayMeta.ar}</div>
                 <div class="roster-day-date">${dateFormatted}</div>
-                <select class="shift-select" data-day-index="${index}">
+
+                <div class="shift-badge-pill ${currentShiftObj.class}" id="shift-badge-${index}">
+                  ${currentShiftObj.short}
+                </div>
+
+                <div class="shift-quick-pills">
+                  <button type="button" class="shift-quick-pill-btn ${d.shift === 'morning' ? 'active' : ''}" data-day="${index}" data-shift="morning" title="Morning 07:00-15:30">🌅 M</button>
+                  <button type="button" class="shift-quick-pill-btn ${d.shift === 'evening' ? 'active' : ''}" data-day="${index}" data-shift="evening" title="Evening 15:30-23:30">🌇 E</button>
+                  <button type="button" class="shift-quick-pill-btn ${d.shift === 'night' ? 'active' : ''}" data-day="${index}" data-shift="night" title="Night 23:30-07:30">🌙 N</button>
+                  <button type="button" class="shift-quick-pill-btn ${d.shift === 'office' ? 'active' : ''}" data-day="${index}" data-shift="office" title="Office 08:00-16:30">🏢 O</button>
+                  <button type="button" class="shift-quick-pill-btn ${d.shift === 'off' ? 'active' : ''}" data-day="${index}" data-shift="off" title="Day Off">🏖️ Off</button>
+                </div>
+
+                <select class="shift-select" data-day-index="${index}" style="margin-top: 8px;">
                   ${SHIFT_OPTIONS.map((opt) => `
                     <option value="${opt.value}" ${d.shift === opt.value ? 'selected' : ''}>
                       ${opt.label}
@@ -279,7 +330,7 @@ export class ShiftsView {
           }).join('')}
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border-light);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border-light); flex-wrap: wrap; gap: 14px;">
           <div style="font-size: 13px; color: var(--text-muted);" id="roster-workdays-summary">
             <!-- Count of working days vs off -->
           </div>
@@ -302,13 +353,21 @@ export class ShiftsView {
 
     this.updateSummary();
 
-    // Event listeners
+    // Event listeners for select boxes
     const selects = editor.querySelectorAll('.shift-select');
     selects.forEach((sel) => {
       sel.addEventListener('change', (e) => {
         const dayIdx = parseInt(e.target.dataset.dayIndex, 10);
-        this.currentRoster[dayIdx].shift = e.target.value;
-        this.updateSummary();
+        this.updateDayShift(dayIdx, e.target.value);
+      });
+    });
+
+    // Event listeners for quick pills
+    editor.querySelectorAll('.shift-quick-pill-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const dayIdx = parseInt(btn.dataset.day, 10);
+        const shiftVal = btn.dataset.shift;
+        this.updateDayShift(dayIdx, shiftVal);
       });
     });
 
@@ -325,6 +384,9 @@ export class ShiftsView {
     editor.querySelector('#btn-preset-night')?.addEventListener('click', () => {
       this.applyPreset(['night', 'night', 'night', 'night', 'night', 'off', 'off']);
     });
+    editor.querySelector('#btn-preset-off')?.addEventListener('click', () => {
+      this.applyPreset(['off', 'off', 'off', 'off', 'off', 'off', 'off']);
+    });
 
     // Save
     editor.querySelector('#btn-save-roster')?.addEventListener('click', () => {
@@ -332,23 +394,71 @@ export class ShiftsView {
     });
   }
 
-  applyPreset(shifts) {
-    this.currentRoster = shifts.map((shift, dayIndex) => ({ dayIndex, shift }));
-    const selects = this.container.querySelectorAll('.shift-select');
-    selects.forEach((sel, idx) => {
-      sel.value = shifts[idx];
-    });
+  updateDayShift(dayIdx, shiftValue) {
+    this.currentRoster[dayIdx].shift = shiftValue;
+
+    // Update select
+    const sel = this.container.querySelector(`.shift-select[data-day-index="${dayIdx}"]`);
+    if (sel) sel.value = shiftValue;
+
+    // Update quick pill active states
+    const dayCard = this.container.querySelector(`.roster-day-card[data-day="${dayIdx}"]`);
+    if (dayCard) {
+      if (shiftValue === 'off') {
+        dayCard.classList.add('is-off');
+      } else {
+        dayCard.classList.remove('is-off');
+      }
+
+      dayCard.querySelectorAll('.shift-quick-pill-btn').forEach(b => {
+        if (b.dataset.shift === shiftValue) b.classList.add('active');
+        else b.classList.remove('active');
+      });
+
+      // Update badge
+      const badge = dayCard.querySelector(`#shift-badge-${dayIdx}`);
+      const shiftObj = SHIFT_OPTIONS.find(o => o.value === shiftValue) || SHIFT_OPTIONS[0];
+      if (badge) {
+        badge.className = `shift-badge-pill ${shiftObj.class}`;
+        badge.textContent = shiftObj.short;
+      }
+    }
+
     this.updateSummary();
+  }
+
+  applyPreset(shifts) {
+    shifts.forEach((shift, dayIndex) => {
+      this.updateDayShift(dayIndex, shift);
+    });
   }
 
   updateSummary() {
     const summary = this.container.querySelector('#roster-workdays-summary');
     if (!summary) return;
 
-    const working = this.currentRoster.filter((d) => d.shift !== 'off').length;
+    let totalHours = 0;
+    let working = 0;
+    this.currentRoster.forEach(d => {
+      const opt = SHIFT_OPTIONS.find(o => o.value === d.shift);
+      if (d.shift !== 'off') {
+        working++;
+        totalHours += opt ? opt.hours : 8;
+      }
+    });
     const off = 7 - working;
+
+    const compliance = totalHours <= 48
+      ? '<span class="badge badge-success" style="margin-left: 8px;">✓ Legal Hours Compliant</span>'
+      : '<span class="badge badge-warning" style="margin-left: 8px;">⚠️ Overtime Alert (>48h)</span>';
+
     summary.innerHTML = `
-      <b>Schedule Summary:</b> <span>${working} Working Days</span> • <span>${off} Days Off</span>
+      <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+        <span class="badge badge-neutral"><b>${working}</b> Working Days</span>
+        <span class="badge badge-neutral"><b>${off}</b> Days Off</span>
+        <span class="badge badge-info">⏱️ ~<b>${totalHours}</b> Total Scheduled Hours</span>
+        ${compliance}
+      </div>
     `;
   }
 
