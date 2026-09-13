@@ -106,7 +106,7 @@ class ApiClient {
   /// Default live enterprise production backend endpoint.
   /// Can be overridden at build time via `--dart-define=API_BASE_URL=https://...`
   static const String _defaultLiveUrl =
-      'https://api.elarabygroup.com/api';
+      'https://server-six-xi-42.vercel.app/api';
 
   String get baseUrl {
     if (overrideBaseUrl != null) return overrideBaseUrl!;
