@@ -50,7 +50,7 @@ void main() {
 
       final deserialized = TenantBrand.fromJson(jsonMap);
       expect(deserialized.tenantId, 'elsewedy');
-      expect(deserialized.primaryColor.value, const Color(0xFFC8102E).value);
+      expect(deserialized.primaryColor, const Color(0xFFC8102E));
       expect(deserialized.companyName, 'Elsewedy Electric');
     });
 
@@ -160,7 +160,7 @@ void main() {
 
       final restored = TenantBrand.fromJson(jsonDecode(retrievedJson!));
       expect(restored.tenantId, 'fresh');
-      expect(restored.primaryColor.value, const Color(0xFFFF5722).value);
+      expect(restored.primaryColor, const Color(0xFFFF5722));
     });
 
     testWidgets('TenantThemeExtension attaches and resolves from context', (tester) async {

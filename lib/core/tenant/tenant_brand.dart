@@ -117,6 +117,11 @@ class TenantBrand {
   }
 
   static String _colorToHex(Color color) {
-    return '#${color.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
+    final int a = (color.a * 255).round() & 0xff;
+    final int r = (color.r * 255).round() & 0xff;
+    final int g = (color.g * 255).round() & 0xff;
+    final int b = (color.b * 255).round() & 0xff;
+    final int argb = (a << 24) | (r << 16) | (g << 8) | b;
+    return '#${argb.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}';
   }
 }
