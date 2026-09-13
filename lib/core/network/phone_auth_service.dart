@@ -100,7 +100,7 @@ class PhoneAuthService {
         },
         verificationFailed: (FirebaseAuthException e) {
           debugPrint('PhoneAuthService: Verification failed: ${e.code} - ${e.message}');
-          onFailed(e.message ?? e.code);
+          onFailed('${e.code}: ${e.message ?? ""}');
         },
         codeSent: (String verificationId, int? resendToken) {
           _currentVerificationId = verificationId;

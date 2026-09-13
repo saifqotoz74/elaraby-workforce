@@ -69,13 +69,38 @@ class _OtpScreenState extends State<OtpScreen> {
         setState(() {
           _firebaseVerificationId = verificationId;
         });
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocale.instance.isArabic
+                  ? 'تم إرسال كود التحقق بنجاح'
+                  : 'Verification code dispatched',
+            ),
+            backgroundColor: AppColors.primary,
+            duration: const Duration(seconds: 4),
+          ),
+        );
       },
       onAutoVerified: (idToken) async {
         if (!mounted) return;
         await _verifyWithFirebaseToken(idToken);
       },
       onFailed: (error) {
-        debugPrint('OtpScreen: Firebase Phone Auth notice: $error');
+        debugPrint('OtpScreen: Firebase Phone Auth error: $error');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocale.instance.isArabic
+                  ? 'تنبيه: $error'
+                  : 'Notice: $error',
+            ),
+            backgroundColor: AppColors.announcementHeader,
+            duration: const Duration(seconds: 8),
+          ),
+        );
       },
     );
   }
