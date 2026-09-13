@@ -53,6 +53,7 @@ class _NationalIdScreenState extends State<NationalIdScreen> {
       nationalId: nationalId,
       devCode: otpRes.devCode,
       maskedPhone: otpRes.maskedPhone,
+      phone: otpRes.phone,
     );
   }
 

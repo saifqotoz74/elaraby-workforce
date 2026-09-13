@@ -155,6 +155,7 @@ GoRouter createAppRouter({
             nationalId: extra?['nationalId'] as String?,
             devCode: extra?['devCode'] as String?,
             maskedPhone: extra?['maskedPhone'] as String?,
+            phone: extra?['phone'] as String?,
           );
         },
       ),

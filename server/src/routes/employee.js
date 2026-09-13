@@ -154,28 +154,55 @@ router.post('/auth/otp', async (req, res) => {
     found: true,
     hasPin: !!employee.pinHash,
     maskedPhone,
+    phone: employee.phone,
     smsSent: !!smsSent,
     ...(includeDevCode ? { devCode: code } : {}),
   });
 });
 
-router.post('/auth/otp/verify', (req, res) => {
-  const { nationalId, code } = req.body || {};
+router.post('/auth/otp/verify', async (req, res) => {
+  const { nationalId, code, firebaseIdToken } = req.body || {};
   if (guard(db(), `otp_verify:${nationalId}`, res)) return;
   const employee = db().employees.find((e) => e.nationalId === nationalId);
   if (!employee || !employee.active) return res.status(404).json({ error: 'not_found' });
-  const result = verifyOtp(db(), nationalId, String(code || ''));
-  if (!result.ok) {
-    const lockedForSecs = registerFailure(db(), `otp_verify:${nationalId}`);
-    if (result.reason === 'max_attempts_exceeded' || lockedForSecs > 0) {
-      return res.status(429).json({
-        error: 'too_many_attempts',
-        message: 'Maximum verification attempts exceeded. Code has been invalidated.',
-        retryAfter: lockedForSecs || 300,
-      });
+
+  let isVerified = false;
+
+  // 1. Firebase Phone Auth Token Verification (Google Enterprise Phone Auth)
+  if (firebaseIdToken) {
+    try {
+      const { verifyFirebaseIdToken } = require('../firebaseAuth');
+      const tokenResult = await verifyFirebaseIdToken(firebaseIdToken);
+      if (tokenResult.ok && tokenResult.decoded) {
+        const tokenPhone = String(tokenResult.decoded.phone_number || '').replace(/\D/g, '');
+        const empPhone = String(employee.phone || '').replace(/\D/g, '');
+        // Verify phone matches (allow international prefix matching, e.g. 201229105279 vs 01229105279)
+        if (tokenPhone === empPhone || (tokenPhone.length >= 10 && empPhone.endsWith(tokenPhone.slice(-10)))) {
+          isVerified = true;
+        }
+      }
+    } catch (e) {
+      console.warn('[employee:otp:verify] Firebase token verification error:', e.message);
     }
-    return res.status(401).json({ error: 'invalid_code', remainingAttempts: result.remainingAttempts });
   }
+
+  // 2. Fallback to Server OTP Code Verification
+  if (!isVerified) {
+    const result = verifyOtp(db(), nationalId, String(code || ''));
+    if (!result.ok) {
+      const lockedForSecs = registerFailure(db(), `otp_verify:${nationalId}`);
+      if (result.reason === 'max_attempts_exceeded' || lockedForSecs > 0) {
+        return res.status(429).json({
+          error: 'too_many_attempts',
+          message: 'Maximum verification attempts exceeded. Code has been invalidated.',
+          retryAfter: lockedForSecs || 300,
+        });
+      }
+      return res.status(401).json({ error: 'invalid_code', remainingAttempts: result.remainingAttempts });
+    }
+    isVerified = true;
+  }
+
   clearFailures(db(), `otp_verify:${nationalId}`);
   clearFailures(db(), `otp:${nationalId}`);
   const resetToken = signToken({ sub: employee.id, nationalId: employee.nationalId, scope: 'pin_reset' });

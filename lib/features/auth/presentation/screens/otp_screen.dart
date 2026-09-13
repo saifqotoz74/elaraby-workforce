@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/localization/app_locale.dart';
 import '../../../../core/network/backend.dart';
+import '../../../../core/network/phone_auth_service.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -21,11 +22,15 @@ class OtpScreen extends StatefulWidget {
   /// Masked phone number of the employee (e.g. +20 122 ••••• 79) returned by server.
   final String? maskedPhone;
 
+  /// Full E.164 phone number of the employee for Firebase Phone Authentication.
+  final String? phone;
+
   const OtpScreen({
     super.key,
     this.nationalId,
     this.devCode,
     this.maskedPhone,
+    this.phone,
   });
 
   @override
@@ -43,12 +48,58 @@ class _OtpScreenState extends State<OtpScreen> {
   bool _verifying = false;
   bool _wrongCode = false;
   String? _lockedMessage;
+  String? _firebaseVerificationId;
 
   @override
   void initState() {
     super.initState();
     _focusNode.requestFocus();
     _startTimer();
+    _startFirebasePhoneAuth();
+  }
+
+  void _startFirebasePhoneAuth({int? forceResendingToken}) {
+    final phone = widget.phone;
+    if (phone == null || phone.trim().isEmpty) return;
+    PhoneAuthService.instance.verifyPhoneNumber(
+      phoneNumber: phone,
+      forceResendingToken: forceResendingToken,
+      onCodeSent: (verificationId, resendToken) {
+        if (!mounted) return;
+        setState(() {
+          _firebaseVerificationId = verificationId;
+        });
+      },
+      onAutoVerified: (idToken) async {
+        if (!mounted) return;
+        await _verifyWithFirebaseToken(idToken);
+      },
+      onFailed: (error) {
+        debugPrint('OtpScreen: Firebase Phone Auth notice: $error');
+      },
+    );
+  }
+
+  Future<void> _verifyWithFirebaseToken(String idToken) async {
+    final String? nid = widget.nationalId;
+    if (nid == null || nid.isEmpty || _verifying) return;
+    setState(() {
+      _verifying = true;
+      _wrongCode = false;
+      _lockedMessage = null;
+    });
+    final result = await Backend.instance.verifyOtp(
+      nid,
+      'firebase_auto',
+      firebaseIdToken: idToken,
+    );
+    if (!mounted) return;
+    if (result == AuthResult.success) {
+      await AppNavigation.toProfileConfirmation(context);
+      setState(() => _verifying = false);
+    } else {
+      setState(() => _verifying = false);
+    }
   }
 
   @override
@@ -105,7 +156,24 @@ class _OtpScreenState extends State<OtpScreen> {
       return;
     }
 
-    final result = await Backend.instance.verifyOtp(nid, code);
+    // Attempt Firebase SMS Code confirmation if verificationId is active
+    String? firebaseIdToken;
+    if (_firebaseVerificationId != null) {
+      try {
+        firebaseIdToken = await PhoneAuthService.instance.verifySmsCode(
+          code,
+          verificationId: _firebaseVerificationId,
+        );
+      } catch (e) {
+        debugPrint('OtpScreen: Firebase SMS verification notice: $e');
+      }
+    }
+
+    final result = await Backend.instance.verifyOtp(
+      nid,
+      code,
+      firebaseIdToken: firebaseIdToken,
+    );
     if (!mounted) return;
     if (result == AuthResult.locked) {
       // The server does not tell us the remaining window — assume the full
@@ -158,6 +226,11 @@ class _OtpScreenState extends State<OtpScreen> {
     if (widget.nationalId != null) {
       await Backend.instance.requestOtp(widget.nationalId!);
       if (!mounted) return;
+    }
+    if (widget.phone != null && widget.phone!.trim().isNotEmpty) {
+      _startFirebasePhoneAuth(
+        forceResendingToken: PhoneAuthService.instance.resendToken,
+      );
     }
     messenger.showSnackBar(
       SnackBar(content: Text(AppLocale.tr('auth_code_resent'))),

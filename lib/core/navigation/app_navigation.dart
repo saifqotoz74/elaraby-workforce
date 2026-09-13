@@ -88,6 +88,7 @@ class AppNavigation {
     String? nationalId,
     String? devCode,
     String? maskedPhone,
+    String? phone,
   }) async {
     await _push(
       context,
@@ -96,11 +97,13 @@ class AppNavigation {
         'nationalId': nationalId,
         'devCode': devCode,
         'maskedPhone': maskedPhone,
+        'phone': phone,
       },
       fallbackBuilder: () => OtpScreen(
         nationalId: nationalId,
         devCode: devCode,
         maskedPhone: maskedPhone,
+        phone: phone,
       ),
     );
   }

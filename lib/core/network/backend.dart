@@ -216,11 +216,13 @@ class Backend {
     );
   }
 
-  /// Verifies the OTP and mirrors the server profile into [LocalStore].
-  Future<AuthResult> verifyOtp(String nationalId, String code) async {
+  /// Verifies the OTP (or Firebase ID token) and mirrors the server profile into [LocalStore].
+  Future<AuthResult> verifyOtp(String nationalId, String code,
+      {String? firebaseIdToken}) async {
     final res = await _api.post('/auth/otp/verify', {
       'nationalId': nationalId,
       'code': code,
+      if (firebaseIdToken != null) 'firebaseIdToken': firebaseIdToken,
     });
     if (res == null) return AuthResult.networkError; // network dropped/offline
     if (res['_status'] == 429) return AuthResult.locked;

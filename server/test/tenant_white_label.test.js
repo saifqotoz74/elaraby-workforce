@@ -122,7 +122,7 @@ async function runTests() {
   function invokeRoute(method, path, body, adminPayload) {
     return new Promise((resolve) => {
       const routeLayer = tenantRouter.stack.find(
-        (l) => l.route && l.route.path === path && l.route.methods[method.toLowerCase()]
+        (l) => l.route && (Array.isArray(l.route.path) ? l.route.path.includes(path) : l.route.path === path) && l.route.methods[method.toLowerCase()]
       );
       if (!routeLayer) throw new Error(`Route ${method} ${path} not found`);
 
@@ -196,7 +196,7 @@ async function runTests() {
     admin: { role: ROLES.SUPER_ADMIN, sub: 'admin_root' },
   };
   const updateHandler = tenantRouter.stack.find(
-    (l) => l.route && l.route.path === '/super-admin/tenants/:id' && l.route.methods.put
+    (l) => l.route && (Array.isArray(l.route.path) ? l.route.path.includes('/super-admin/tenants/:id') : l.route.path === '/super-admin/tenants/:id') && l.route.methods.put
   ).route.stack.slice(-1)[0].handle;
   let updatedData = null;
   updateHandler(updateReq, {
@@ -215,7 +215,7 @@ async function runTests() {
     admin: { role: ROLES.SUPER_ADMIN, sub: 'admin_root' },
   };
   const deactHandler = tenantRouter.stack.find(
-    (l) => l.route && l.route.path === '/super-admin/tenants/:id' && l.route.methods.delete
+    (l) => l.route && (Array.isArray(l.route.path) ? l.route.path.includes('/super-admin/tenants/:id') : l.route.path === '/super-admin/tenants/:id') && l.route.methods.delete
   ).route.stack.slice(-1)[0].handle;
   let deactData = null;
   deactHandler(deactReq, {
