@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:elaraby_workforce/core/tenant/tenant_brand.dart';
 import 'package:elaraby_workforce/core/tenant/tenant_features.dart';
 import 'package:elaraby_workforce/core/tenant/identity_strategy.dart';
-import 'package:elaraby_workforce/core/tenant/tenant_provider.dart';
 import 'package:elaraby_workforce/core/tenant/tenant_service.dart';
 import 'package:elaraby_workforce/core/theme/app_theme.dart';
 import 'package:elaraby_workforce/core/theme/tenant_theme_extension.dart';

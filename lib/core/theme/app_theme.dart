@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import '../localization/app_locale.dart';
 import '../storage/local_store.dart';
 import '../tenant/tenant_brand.dart';
-import 'app_colors.dart';
 
 class AppTheme {
   AppTheme._();
