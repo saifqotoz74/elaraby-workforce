@@ -1,3 +1,11 @@
+buildscript {
+    ext.kotlin_version = '2.1.0'
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
 allprojects {
     repositories {
         google()
@@ -7,6 +15,9 @@ allprojects {
         resolutionStrategy {
             force 'androidx.core:core:1.15.0'
             force 'androidx.core:core-ktx:1.15.0'
+            force 'org.jetbrains.kotlin:kotlin-stdlib:2.1.0'
+            force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.1.0'
+            force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.1.0'
         }
     }
 }
@@ -17,6 +28,11 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
+    project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+        kotlinOptions {
+            freeCompilerArgs += ["-Xskip-metadata-version-check"]
+        }
+    }
 }
 
 tasks.register("clean", Delete) {
