@@ -152,6 +152,26 @@ app.get('/api/version', (req, res) => {
   }
 });
 
+app.get('/api/announcements', (req, res) => {
+  try {
+    const d = data();
+    const items = [...(d.announcements || [])].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    res.json({ ok: true, announcements: items });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/news', (req, res) => {
+  try {
+    const d = data();
+    const items = [...(d.news || [])].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    res.json({ ok: true, news: items });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.use('/api', tenantRoutes);
 app.use('/api', employeeRoutes);
 app.use('/api/admin', adminRoutes);

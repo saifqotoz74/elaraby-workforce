@@ -28,13 +28,19 @@ function resolveTenantId(req) {
     return String(req.user.tenantId).trim().toLowerCase();
   }
 
-  // 3. Subdomain extraction (e.g., elsewedy.domain.com -> elsewedy)
+  // 3. Subdomain extraction (e.g., elsewedy.workforce.app -> elsewedy)
   const host = req.headers.host || '';
-  const parts = host.split(':')[0].split('.');
-  if (parts.length >= 3) {
-    const candidate = parts[0].toLowerCase();
-    if (candidate !== 'www' && candidate !== 'api' && candidate !== 'admin') {
-      return candidate;
+  const domain = host.split(':')[0].toLowerCase();
+  const cloudSuffixes = ['.vercel.app', '.onrender.com', '.koyeb.app', '.railway.app', '.herokuapp.com', '.github.io'];
+  const isCloudProviderDomain = cloudSuffixes.some((s) => domain.endsWith(s));
+
+  if (!isCloudProviderDomain) {
+    const parts = domain.split('.');
+    if (parts.length >= 3) {
+      const candidate = parts[0];
+      if (candidate !== 'www' && candidate !== 'api' && candidate !== 'admin') {
+        return candidate;
+      }
     }
   }
 
