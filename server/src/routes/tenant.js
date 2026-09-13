@@ -167,7 +167,7 @@ router.get('/tenant/list', (req, res) => {
  * GET /api/super-admin/tenants
  * Full management inventory of all tenants, license limits, and employee counts.
  */
-router.get('/super-admin/tenants', requireAdmin, requireRole(ROLES.SUPER_ADMIN), (req, res) => {
+router.get(['/super-admin/tenants', '/admin/tenants'], requireAdmin, requireRole(ROLES.SUPER_ADMIN), (req, res) => {
   const d = db();
   const dbTenants = d.tenants || [];
   const employees = d.employees || [];
@@ -197,7 +197,7 @@ router.get('/super-admin/tenants', requireAdmin, requireRole(ROLES.SUPER_ADMIN),
  * POST /api/super-admin/tenants
  * Provision a brand-new tenant organization with custom branding, modules, and SMS keys.
  */
-router.post('/super-admin/tenants', requireAdmin, requireRole(ROLES.SUPER_ADMIN), (req, res) => {
+router.post(['/super-admin/tenants', '/admin/tenants'], requireAdmin, requireRole(ROLES.SUPER_ADMIN), (req, res) => {
   const {
     slug,
     name,
@@ -278,7 +278,7 @@ router.post('/super-admin/tenants', requireAdmin, requireRole(ROLES.SUPER_ADMIN)
  * PUT /api/super-admin/tenants/:id
  * Update configuration, branding, or feature flags of an existing tenant.
  */
-router.put('/super-admin/tenants/:id', requireAdmin, requireRole(ROLES.SUPER_ADMIN), (req, res) => {
+router.put(['/super-admin/tenants/:id', '/admin/tenants/:id'], requireAdmin, requireRole(ROLES.SUPER_ADMIN), (req, res) => {
   const targetId = req.params.id.trim().toLowerCase();
   const d = db();
   d.tenants = d.tenants || [];
@@ -326,7 +326,7 @@ router.put('/super-admin/tenants/:id', requireAdmin, requireRole(ROLES.SUPER_ADM
  * DELETE /api/super-admin/tenants/:id
  * Soft-deactivates tenant (marks status as 'inactive').
  */
-router.delete('/super-admin/tenants/:id', requireAdmin, requireRole(ROLES.SUPER_ADMIN), (req, res) => {
+router.delete(['/super-admin/tenants/:id', '/admin/tenants/:id'], requireAdmin, requireRole(ROLES.SUPER_ADMIN), (req, res) => {
   const targetId = req.params.id.trim().toLowerCase();
 
   if (targetId === DEFAULT_TENANT_ID) {
