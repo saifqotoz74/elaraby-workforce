@@ -5,6 +5,7 @@ import '../../../../core/localization/app_locale.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/navigation/app_navigation.dart';
+import '../../../../core/theme/tenant_theme_extension.dart';
 
 class ServicesScreen extends StatefulWidget {
   const ServicesScreen({super.key});
@@ -20,6 +21,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
+    final features = context.tenantFeatures;
 
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
@@ -94,53 +96,66 @@ class _ServicesScreenState extends State<ServicesScreen> {
                   const SizedBox(height: 24),
 
                   // Section: Pay & Time
-                  _buildSectionTitle(AppLocale.tr('pay_and_time')),
-                  const SizedBox(height: 10),
-                  _buildServiceTile(
-                    icon: Icons.payments_outlined,
-                    title: AppLocale.tr('salary_slip'),
-                    subtitle: AppLocale.tr('svc_salary_subtitle'),
-                    onTap: () {
-                      AppNavigation.toSalarySlip(context);
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  _buildServiceTile(
-                    icon: Icons.calendar_month_outlined,
-                    title: AppLocale.tr('shift_schedule'),
-                    subtitle: AppLocale.tr('svc_shift_subtitle'),
-                    onTap: () {
-                      AppNavigation.toShiftSchedule(context);
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  _buildServiceTile(
-                    icon: Icons.beach_access_outlined,
-                    title: AppLocale.tr('vacation_balance'),
-                    subtitle:
-                        '${LocalStore.instance.vacationDaysRemaining} ${AppLocale.tr('svc_days_remaining')}',
-                    onTap: () {
-                      AppNavigation.toVacationBalance(context);
-                    },
-                  ),
-                  const SizedBox(height: 24),
+                  if (features.hasPayroll ||
+                      features.hasShifts ||
+                      features.hasVacations) ...[
+                    _buildSectionTitle(AppLocale.tr('pay_and_time')),
+                    const SizedBox(height: 10),
+                    if (features.hasPayroll) ...[
+                      _buildServiceTile(
+                        icon: Icons.payments_outlined,
+                        title: AppLocale.tr('salary_slip'),
+                        subtitle: AppLocale.tr('svc_salary_subtitle'),
+                        onTap: () {
+                          AppNavigation.toSalarySlip(context);
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    if (features.hasShifts) ...[
+                      _buildServiceTile(
+                        icon: Icons.calendar_month_outlined,
+                        title: AppLocale.tr('shift_schedule'),
+                        subtitle: AppLocale.tr('svc_shift_subtitle'),
+                        onTap: () {
+                          AppNavigation.toShiftSchedule(context);
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    if (features.hasVacations) ...[
+                      _buildServiceTile(
+                        icon: Icons.beach_access_outlined,
+                        title: AppLocale.tr('vacation_balance'),
+                        subtitle:
+                            '${LocalStore.instance.vacationDaysRemaining} ${AppLocale.tr('svc_days_remaining')}',
+                        onTap: () {
+                          AppNavigation.toVacationBalance(context);
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    const SizedBox(height: 14),
+                  ],
 
                   // Section: Requests
                   _buildSectionTitle(AppLocale.tr('requests_section')),
                   const SizedBox(height: 10),
-                  _buildServiceTile(
-                    icon: Icons.assignment_outlined,
-                    title: AppLocale.tr('request_leave'),
-                    badgeText: RequestsStore.instance.inReviewRequests.isEmpty
-                        ? null
-                        : '${RequestsStore.instance.inReviewRequests.length} ${AppLocale.tr('svc_pending')}',
-                    badgeBg: const Color(0xFFFFF7ED),
-                    badgeColor: const Color(0xFFEA580C),
-                    onTap: () {
-                      AppNavigation.toRequestLeave(context);
-                    },
-                  ),
-                  const SizedBox(height: 10),
+                  if (features.hasVacations) ...[
+                    _buildServiceTile(
+                      icon: Icons.assignment_outlined,
+                      title: AppLocale.tr('request_leave'),
+                      badgeText: RequestsStore.instance.inReviewRequests.isEmpty
+                          ? null
+                          : '${RequestsStore.instance.inReviewRequests.length} ${AppLocale.tr('svc_pending')}',
+                      badgeBg: const Color(0xFFFFF7ED),
+                      badgeColor: const Color(0xFFEA580C),
+                      onTap: () {
+                        AppNavigation.toRequestLeave(context);
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                   _buildServiceTile(
                     icon: Icons.description_outlined,
                     title: AppLocale.tr('hr_request'),
@@ -150,15 +165,18 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     },
                   ),
                   const SizedBox(height: 10),
-                  _buildServiceTile(
-                    icon: Icons.support_agent_outlined,
-                    title: AppLocale.tr('raise_concern'),
-                    subtitle: AppLocale.tr('svc_concern_subtitle'),
-                    onTap: () {
-                      AppNavigation.toRaiseConcern(context);
-                    },
-                  ),
-                  const SizedBox(height: 24),
+                  if (features.hasWhistleblower) ...[
+                    _buildServiceTile(
+                      icon: Icons.support_agent_outlined,
+                      title: AppLocale.tr('raise_concern'),
+                      subtitle: AppLocale.tr('svc_concern_subtitle'),
+                      onTap: () {
+                        AppNavigation.toRaiseConcern(context);
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  const SizedBox(height: 14),
 
                   // Section: My Info
                   _buildSectionTitle(AppLocale.tr('my_info')),

@@ -75,7 +75,7 @@ class AppVersionInfo {
         messageEn: json['messageEn'] as String? ??
             'A new version of Elaraby Connect is available. Please update to continue.',
         updateUrl: json['updateUrl'] as String? ??
-            'https://server-six-xi-42.vercel.app',
+            'https://app.elarabygroup.com',
       );
 
   static bool isVersionLower(String installed, String target) {
@@ -259,8 +259,8 @@ class Backend {
   }
 
   /// Verifies the PIN against the server and stores the session token.
-  /// [AuthResult.invalid] is returned (not `locked`) when the server is
-  /// unreachable, so callers can fall back to the local hash.
+  /// [AuthResult.networkError] is returned when the server is unreachable
+  /// or times out, so callers can fall back to the local hash without false lockout.
   Future<AuthResult> verifyPin(String pin) async {
     final nationalId = _api.lastNationalId;
     if (nationalId == null) return AuthResult.invalid;
@@ -268,10 +268,22 @@ class Backend {
       'nationalId': nationalId,
       'pin': pin,
     });
-    if (res == null) return AuthResult.invalid; // unreachable
-    online.value = true;
+    if (res == null) return AuthResult.networkError;
+    final lastErr = _api.lastError;
+    if (lastErr != null && (lastErr.isOffline || lastErr.isTimeout)) {
+      return AuthResult.networkError;
+    }
     if (res['_status'] == 429) return AuthResult.locked;
-    if (res['ok'] != true) return AuthResult.invalid;
+    if (res['ok'] != true) {
+      if (res['_status'] != null &&
+          (res['_status'] as int) >= 500 &&
+          lastErr != null &&
+          (lastErr.isOffline || lastErr.isTimeout)) {
+        return AuthResult.networkError;
+      }
+      return AuthResult.invalid;
+    }
+    online.value = true;
     await _api.setToken(res['token'] as String);
     _applyEmployee(res['employee'] as Map<String, dynamic>);
     // Contextually request notification permissions after authentication
@@ -292,9 +304,17 @@ class Backend {
       'currentPin': currentPin,
       'newPin': newPin,
     });
-    if (res == null) return AuthResult.invalid;
+    if (res == null) return AuthResult.networkError;
+    final lastErr = _api.lastError;
+    if (lastErr != null && (lastErr.isOffline || lastErr.isTimeout)) {
+      return AuthResult.networkError;
+    }
     if (res['_status'] == 429) return AuthResult.locked;
-    return res['ok'] == true ? AuthResult.success : AuthResult.invalid;
+    if (res['ok'] == true) {
+      online.value = true;
+      return AuthResult.success;
+    }
+    return AuthResult.invalid;
   }
 
   /// Refreshes the profile (e.g. vacation balance) from the server.

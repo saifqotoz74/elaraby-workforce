@@ -123,6 +123,9 @@ function checkScope(admin, employee) {
   const role = admin.role || ROLES.SUPER_ADMIN;
   if (role === ROLES.SUPER_ADMIN || role === 'admin') return true;
 
+  if (admin.tenantId && employee.tenantId && admin.tenantId !== employee.tenantId) {
+    return false;
+  }
   if (admin.scopeFactory && employee.factory && admin.scopeFactory !== employee.factory) {
     return false;
   }

@@ -48,6 +48,12 @@ class _EmployeeDataScreenState extends State<EmployeeDataScreen> {
     );
   }
 
+  String get _maskedNationalId {
+    final nid = LocalStore.instance.nationalId;
+    if (nid == null || nid.length < 8) return '290101•••••92';
+    return '${nid.substring(0, 6)}•••••${nid.substring(nid.length - 2)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -82,14 +88,6 @@ class _EmployeeDataScreenState extends State<EmployeeDataScreen> {
                   _buildDataField(
                     label: AppLocale.tr('emp_name'),
                     value: _profile.name,
-                    hasEdit: true,
-                    onEdit: () {
-                      _showEditSheet(
-                        AppLocale.tr('emp_name'),
-                        _profile.name,
-                        (v) => _save(_profile.copyWith(name: v)),
-                      );
-                    },
                   ),
                   const Divider(
                       height: 1,
@@ -104,7 +102,11 @@ class _EmployeeDataScreenState extends State<EmployeeDataScreen> {
                       indent: 16,
                       endIndent: 16,
                       color: AppColors.scaffoldBackground),
-                  _buildDataField(label: 'National ID', value: '290101•••••92'),
+                  _buildDataField(
+                      label: AppLocale.instance.isArabic
+                          ? 'الرقم القومي'
+                          : 'National ID',
+                      value: _maskedNationalId),
                   const Divider(
                       height: 1,
                       indent: 16,
@@ -427,7 +429,7 @@ class _EditFieldBottomSheetState extends State<_EditFieldBottomSheet> {
               autofocus: true,
               decoration: InputDecoration(
                 labelText: widget.fieldTitle,
-                labelStyle: const TextStyle(color: AppColors.primary),
+                labelStyle: TextStyle(color: AppColors.primary),
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 border: OutlineInputBorder(
@@ -437,7 +439,7 @@ class _EditFieldBottomSheetState extends State<_EditFieldBottomSheet> {
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide:
-                      const BorderSide(color: AppColors.primary, width: 1.5),
+                      BorderSide(color: AppColors.primary, width: 1.5),
                 ),
               ),
             ),

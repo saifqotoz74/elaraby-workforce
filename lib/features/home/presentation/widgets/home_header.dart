@@ -7,12 +7,15 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/localization/app_locale.dart';
 
+import '../../../../core/theme/tenant_theme_extension.dart';
+
 class HomeHeader extends StatelessWidget {
   const HomeHeader({super.key});
 
   @override
   Widget build(BuildContext context) {
     final topPadding = MediaQuery.of(context).padding.top;
+    final brand = context.tenantBrand;
 
     return Container(
       width: double.infinity,
@@ -79,8 +82,12 @@ class HomeHeader extends StatelessWidget {
             ),
             clipBehavior: Clip.antiAlias,
             child: Image.asset(
-              'assets/images/app_logo.png',
+              brand.localLogoAsset ?? 'assets/images/app_logo.png',
               fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => Image.asset(
+                'assets/images/app_logo.png',
+                fit: BoxFit.contain,
+              ),
             ),
           ),
           // Notification Bell Button

@@ -22,6 +22,7 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
   final Debouncer _draftDebouncer =
       Debouncer(delay: const Duration(milliseconds: 600));
   bool _submitting = false;
+  String? _attachedPhoto;
 
   final List<String> _categories = [
     'Workplace Environment',
@@ -43,6 +44,9 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
       if (draft['details'] is String) {
         _detailsController.text = draft['details'] as String;
       }
+      if (draft['attachedPhoto'] is String) {
+        _attachedPhoto = draft['attachedPhoto'] as String;
+      }
     }
     _detailsController.addListener(_onTextChanged);
   }
@@ -55,6 +59,7 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
     LocalStore.instance.saveDraft('raise_concern', {
       'category': _selectedCategory,
       'details': _detailsController.text,
+      if (_attachedPhoto != null) 'attachedPhoto': _attachedPhoto,
     });
   }
 
@@ -254,34 +259,52 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 20),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color(0xFFD1D5DB),
-                                style: BorderStyle.solid,
+                          InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () {
+                              setState(() {
+                                _attachedPhoto = _attachedPhoto == null
+                                    ? 'photo_${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}.jpg'
+                                    : null;
+                              });
+                              _saveDraftImmediate();
+                            },
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 20),
+                              decoration: BoxDecoration(
+                                color: _attachedPhoto != null
+                                    ? AppColors.shiftBg
+                                    : const Color(0xFFF9FAFB),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: _attachedPhoto != null
+                                      ? AppColors.primary
+                                      : const Color(0xFFD1D5DB),
+                                  style: BorderStyle.solid,
+                                ),
                               ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(
-                                  Icons.add_a_photo_outlined,
-                                  color: AppColors.primary,
-                                  size: 22,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Attach Photo',
-                                  style: AppTypography.fontBase.copyWith(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    _attachedPhoto != null
+                                        ? Icons.check_circle_rounded
+                                        : Icons.add_a_photo_outlined,
                                     color: AppColors.primary,
+                                    size: 22,
                                   ),
-                                ),
-                              ],
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _attachedPhoto ?? 'Attach Photo',
+                                    style: AppTypography.fontBase.copyWith(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -355,6 +378,7 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
       final res = await Backend.instance.submitConcern(
         category: _selectedCategory,
         details: details,
+        attachedPhoto: _attachedPhoto,
       );
       if (res != null && (res['ok'] == true || res['refNumber'] != null)) {
         _draftDebouncer.cancel();

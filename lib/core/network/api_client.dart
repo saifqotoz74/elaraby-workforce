@@ -6,6 +6,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../errors/app_error.dart';
+import '../storage/local_store.dart';
 import 'connectivity_service.dart';
 
 /// Thin HTTP client for the Elaraby Connect backend.
@@ -102,9 +103,10 @@ class ApiClient {
     }
   }
 
-  /// Default live production backend deployed on Vercel
+  /// Default live enterprise production backend endpoint.
+  /// Can be overridden at build time via `--dart-define=API_BASE_URL=https://...`
   static const String _defaultLiveUrl =
-      'https://server-six-xi-42.vercel.app/api';
+      'https://api.elarabygroup.com/api';
 
   String get baseUrl {
     if (overrideBaseUrl != null) return overrideBaseUrl!;
@@ -115,11 +117,16 @@ class ApiClient {
 
   /// Resolves a server-relative path like `/uploads/x.png` to a full URL.
   String resolveUrl(String path) {
-    if (path.startsWith('http')) return path;
+    final trimmed = path.trim();
+    if (trimmed.isEmpty) return '';
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    if (!trimmed.startsWith('/')) return trimmed;
     final root = baseUrl.endsWith('/api')
         ? baseUrl.substring(0, baseUrl.length - 4)
         : baseUrl;
-    return '$root$path';
+    return '$root$trimmed';
   }
 
   String? get token => _cachedToken;
@@ -154,6 +161,7 @@ class ApiClient {
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
         if (token != null) 'Authorization': 'Bearer $token',
+        'X-Tenant-ID': LocalStore.instance.activeTenantSlug,
       };
 
   /// Core HTTP dispatcher with typed domain error mapping and result encapsulation.
@@ -177,21 +185,53 @@ class ApiClient {
       final combinedHeaders = {..._headers, ...(extraHeaders ?? {})};
       final http.Response res;
 
-      if (method.toUpperCase() == 'POST') {
-        res = await client
-            .post(
-              uri,
-              headers: combinedHeaders,
-              body: body != null ? jsonEncode(body) : null,
-            )
-            .timeout(timeout);
-      } else {
-        res = await client
-            .get(
-              uri,
-              headers: combinedHeaders,
-            )
-            .timeout(timeout);
+      final upperMethod = method.toUpperCase();
+      switch (upperMethod) {
+        case 'POST':
+          res = await client
+              .post(
+                uri,
+                headers: combinedHeaders,
+                body: body != null ? jsonEncode(body) : null,
+              )
+              .timeout(timeout);
+          break;
+        case 'PUT':
+          res = await client
+              .put(
+                uri,
+                headers: combinedHeaders,
+                body: body != null ? jsonEncode(body) : null,
+              )
+              .timeout(timeout);
+          break;
+        case 'PATCH':
+          res = await client
+              .patch(
+                uri,
+                headers: combinedHeaders,
+                body: body != null ? jsonEncode(body) : null,
+              )
+              .timeout(timeout);
+          break;
+        case 'DELETE':
+          res = await client
+              .delete(
+                uri,
+                headers: combinedHeaders,
+                body: body != null ? jsonEncode(body) : null,
+              )
+              .timeout(timeout);
+          break;
+        case 'GET':
+        default:
+          res = await client
+              .get(
+                uri,
+                headers: combinedHeaders,
+              )
+              .timeout(timeout);
+          break;
       }
 
       onNetworkStateChanged?.call(true);
@@ -266,6 +306,78 @@ class ApiClient {
   }) async {
     final result = await request(
       'POST',
+      path,
+      body: body,
+      timeout: timeout,
+    );
+    if (result.isSuccess) {
+      return result.data;
+    }
+
+    final err = result.error!;
+    return {
+      '_status': err.statusCode ?? 500,
+      'error': err.message,
+      'code': err.code,
+    };
+  }
+
+  /// Sends a PUT request, returning JSON or structured error metadata on failure.
+  Future<Map<String, dynamic>?> put(
+    String path,
+    Map<String, dynamic> body, {
+    Duration timeout = const Duration(seconds: 6),
+  }) async {
+    final result = await request(
+      'PUT',
+      path,
+      body: body,
+      timeout: timeout,
+    );
+    if (result.isSuccess) {
+      return result.data;
+    }
+
+    final err = result.error!;
+    return {
+      '_status': err.statusCode ?? 500,
+      'error': err.message,
+      'code': err.code,
+    };
+  }
+
+  /// Sends a PATCH request, returning JSON or structured error metadata on failure.
+  Future<Map<String, dynamic>?> patch(
+    String path,
+    Map<String, dynamic> body, {
+    Duration timeout = const Duration(seconds: 6),
+  }) async {
+    final result = await request(
+      'PATCH',
+      path,
+      body: body,
+      timeout: timeout,
+    );
+    if (result.isSuccess) {
+      return result.data;
+    }
+
+    final err = result.error!;
+    return {
+      '_status': err.statusCode ?? 500,
+      'error': err.message,
+      'code': err.code,
+    };
+  }
+
+  /// Sends a DELETE request, returning JSON or structured error metadata on failure.
+  Future<Map<String, dynamic>?> delete(
+    String path, {
+    Map<String, dynamic>? body,
+    Duration timeout = const Duration(seconds: 6),
+  }) async {
+    final result = await request(
+      'DELETE',
       path,
       body: body,
       timeout: timeout,

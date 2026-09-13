@@ -12,6 +12,7 @@ const path = require('path');
 const { validateConstraints } = require('./schema');
 const { indexes } = require('./indexes');
 const { runMigrations } = require('./migrations/runner');
+const postgres = require('./db/postgres');
 
 const isVercel = !!(process.env.VERCEL || process.env.NOW_REGION);
 const isProd = process.env.NODE_ENV === 'production';
@@ -57,7 +58,7 @@ const EMPTY = () => ({
     titleEn: 'Update Available',
     message: 'يتوفر إصدار جديد من تطبيق العربي كونكت. يرجى التحديث لمتابعة استخدام التطبيق بكفاءة وأمان.',
     messageEn: 'A new version of Elaraby Connect is available. Please update to continue using the application securely.',
-    updateUrl: process.env.APP_UPDATE_URL || 'https://server-six-xi-42.vercel.app',
+    updateUrl: process.env.APP_UPDATE_URL || 'https://app.elarabygroup.com',
   },
 });
 
@@ -72,8 +73,33 @@ try {
   firestore = require('./firestore');
 } catch (_) {}
 
+function cleanupOrphanedTmpFiles() {
+  try {
+    if (fs.existsSync(DATA_DIR)) {
+      const files = fs.readdirSync(DATA_DIR);
+      for (const file of files) {
+        if (file.endsWith('.tmp')) {
+          try {
+            fs.unlinkSync(path.join(DATA_DIR, file));
+          } catch (_) {}
+        }
+      }
+    }
+  } catch (_) {}
+}
+
 function data() {
   if (_data) return _data;
+
+  // In production, refuse to silently rely on JSON file storage without PostgreSQL
+  if (process.env.NODE_ENV === 'production' && !postgres.isConfigured() && !process.env.ALLOW_JSON_IN_PROD) {
+    const fatalErr = new Error('FATAL: Production mode strictly forbids JSON persistence. Set DATABASE_URL to connect to PostgreSQL.');
+    console.error(`❌ [db] ${fatalErr.message}`);
+    throw fatalErr;
+  }
+
+  // Clean up any stale orphaned temporary files on startup
+  cleanupOrphanedTmpFiles();
 
   // On Vercel, if /tmp/db.json doesn't exist yet, seed it from bundled data
   if (isVercel && !fs.existsSync(DB_FILE) && fs.existsSync(SEED_FILE)) {
@@ -154,13 +180,32 @@ async function _flushAsync() {
     return;
   }
   _isSaving = true;
+  let tmp = null;
   try {
     if (!_data) return;
     await fs.promises.mkdir(DATA_DIR, { recursive: true });
     const serialized = JSON.stringify(_data, null, 2);
-    const tmp = DB_FILE + '.' + process.pid + '.' + Date.now() + '.tmp';
+    tmp = DB_FILE + '.' + process.pid + '.' + Date.now() + '.tmp';
     await fs.promises.writeFile(tmp, serialized);
-    await fs.promises.rename(tmp, DB_FILE);
+
+    // Atomic rename with Windows-resilient retry & copy fallback
+    let attempts = 0;
+    while (attempts < 5) {
+      try {
+        await fs.promises.rename(tmp, DB_FILE);
+        break;
+      } catch (renameErr) {
+        attempts++;
+        if (attempts >= 5) {
+          if (process.platform === 'win32') {
+            await fs.promises.copyFile(tmp, DB_FILE);
+            break;
+          }
+          throw renameErr;
+        }
+        await new Promise((r) => setTimeout(r, 20 * attempts));
+      }
+    }
 
     // Background sync to Cloud Firestore if connected and initial sync completed
     if (firestore && _firestoreLoaded) {
@@ -178,6 +223,14 @@ async function _flushAsync() {
   } catch (err) {
     console.error('[db] save error:', err.message);
   } finally {
+    // Clean up temporary file if it was not renamed
+    if (tmp) {
+      try {
+        if (fs.existsSync(tmp)) {
+          await fs.promises.unlink(tmp);
+        }
+      } catch (_) {}
+    }
     _isSaving = false;
     if (_saveQueued) {
       _saveQueued = false;
@@ -190,6 +243,9 @@ let _debounceTimer = null;
 const DEBOUNCE_MS = 50;
 
 function save() {
+  if (process.env.NODE_ENV === 'production' && !postgres.isConfigured() && !process.env.ALLOW_JSON_IN_PROD) {
+    throw new Error('FATAL: Production mode strictly forbids JSON persistence. Set DATABASE_URL to connect to PostgreSQL.');
+  }
   if (_debounceTimer) clearTimeout(_debounceTimer);
   _debounceTimer = setTimeout(() => {
     _flushAsync().catch(() => {});
@@ -233,20 +289,34 @@ function transaction(fn) {
   }
 }
 
-/// Asynchronous transaction runner
+let _transactionMutex = Promise.resolve();
+
+/// Asynchronous transaction runner with serialized mutex queue.
+/// Guarantees that concurrent async transactions execute sequentially without
+/// race conditions, and an isolated failure rollback never destroys concurrent commits.
 async function withTransaction(fn) {
-  const current = data();
-  const snapshot = JSON.parse(JSON.stringify(current));
+  let release;
+  const currentLock = new Promise((resolve) => { release = resolve; });
+  const prevLock = _transactionMutex;
+  _transactionMutex = currentLock;
+
+  await prevLock;
   try {
-    const result = await fn(current);
-    validateConstraints(current);
-    indexes.rebuild(current);
-    save();
-    return result;
-  } catch (err) {
-    _data = snapshot;
-    indexes.rebuild(_data);
-    throw err;
+    const current = data();
+    const snapshot = JSON.parse(JSON.stringify(current));
+    try {
+      const result = await fn(current);
+      validateConstraints(current);
+      indexes.rebuild(current);
+      save();
+      return result;
+    } catch (err) {
+      _data = snapshot;
+      indexes.rebuild(_data);
+      throw err;
+    }
+  } finally {
+    release();
   }
 }
 
@@ -257,6 +327,7 @@ module.exports = {
   nextId,
   transaction,
   withTransaction,
+  cleanupOrphanedTmpFiles,
   indexes,
   validateConstraints,
   DATA_DIR,

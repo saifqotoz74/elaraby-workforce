@@ -86,7 +86,8 @@ class _PinLockScreenState extends State<PinLockScreen> {
     // Server is authoritative when reachable; only an unreachable server
     // falls back to the local hash. A server lockout is never bypassed.
     var result = await Backend.instance.verifyPin(_pin);
-    if (result == AuthResult.invalid && !Backend.instance.online.value) {
+    if (result == AuthResult.networkError ||
+        (result == AuthResult.invalid && !Backend.instance.online.value)) {
       final localOk = await LocalStore.instance.verifyPin(_pin);
       result = localOk ? AuthResult.success : AuthResult.invalid;
     }

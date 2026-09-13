@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+.env.*
+!.env.*.example
+*.tmp
+server/data/*.tmp
+data/*.tmp
+test
+firebase-service-account.json
+android
+ios
+lib

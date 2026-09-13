@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/localization/app_locale.dart';
+import '../../../../core/tenant/tenant_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/navigation/app_navigation.dart';
+import '../widgets/company_code_modal.dart';
 
-class GetStartedScreen extends StatelessWidget {
+class GetStartedScreen extends ConsumerWidget {
   const GetStartedScreen({super.key});
 
-  void _showPrivacyPolicy(BuildContext context) {
+  void _showPrivacyPolicy(BuildContext context, String companyName) {
     final isAr = AppLocale.instance.isArabic;
     showDialog(
       context: context,
@@ -16,8 +19,8 @@ class GetStartedScreen extends StatelessWidget {
         content: SingleChildScrollView(
           child: Text(
             isAr
-                ? 'يلتزم تطبيق العربي كونكت بحماية وتأمين بيانات جميع العاملين وفقاً لأحكام قانون حماية البيانات الشخصية رقم 151 لسنة 2020 ولائحة العمل الداخلية لمجموعة العربي. يتم تشفير كافة البيانات والمعلومات الوظيفية والمالية بأعلى معايير الأمان المؤسسية.'
-                : 'Elaraby Connect is committed to protecting employee data in accordance with Egyptian Personal Data Protection Law No. 151 of 2020 and Elaraby Group internal policies. All operational, financial, and employment records are securely encrypted.',
+                ? 'يلتزم تطبيق $companyName بحماية وتأمين بيانات جميع العاملين وفقاً لأحكام قانون حماية البيانات الشخصية رقم 151 لسنة 2020 ولائحة العمل الداخلية. يتم تشفير كافة البيانات والمعلومات الوظيفية والمالية بأعلى معايير الأمان المؤسسية.'
+                : '$companyName Connect is committed to protecting employee data in accordance with Personal Data Protection Law No. 151 of 2020 and internal workplace policies. All operational, financial, and employment records are securely encrypted.',
             style: const TextStyle(fontSize: 13, height: 1.5),
           ),
         ),
@@ -32,11 +35,20 @@ class GetStartedScreen extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final brand = ref.watch(tenantBrandProvider);
+
     return ListenableBuilder(
       listenable: AppLocale.instance,
       builder: (context, _) {
         final isAr = AppLocale.instance.isArabic;
+        final connectTitleEn = (brand.companyName == 'Elaraby Group' || brand.companyName == 'Elaraby')
+            ? 'Elaraby Connect'
+            : (brand.companyName.endsWith('Connect') ? brand.companyName : '${brand.companyName} Connect');
+        final connectTitleAr = (brand.companyNameAr == 'مجموعة العربي' || brand.companyNameAr == 'العربي')
+            ? 'العربي كونكت'
+            : (brand.companyNameAr.endsWith('كونكت') ? brand.companyNameAr : '${brand.companyNameAr} كونكت');
+
         return Scaffold(
           backgroundColor: AppColors.surface,
           body: SafeArea(
@@ -49,33 +61,55 @@ class GetStartedScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10),
-                              border:
-                                  Border.all(color: const Color(0xFFE5E7EB)),
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: Image.asset(
-                              'assets/images/app_logo.png',
-                              fit: BoxFit.contain,
-                            ),
+                      InkWell(
+                        onTap: () => CompanyCodeModal.show(context),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: Image.asset(
+                                  'assets/images/app_logo.png',
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        brand.companyName.split(' ').first.toUpperCase(),
+                                        style: AppTypography.fontBase.copyWith(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w900,
+                                          color: brand.primaryColor,
+                                          letterSpacing: 1.2,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Icon(Icons.arrow_drop_down_rounded, size: 20, color: brand.primaryColor),
+                                    ],
+                                  ),
+                                  Text(
+                                    isAr ? 'اضغط لتغيير المؤسسة' : 'Tap to switch code',
+                                    style: TextStyle(fontSize: 10, color: AppColors.textMuted),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 10),
-                          Text(
-                            'ELARABY',
-                            style: AppTypography.fontBase.copyWith(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.primary,
-                              letterSpacing: 1.5,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                       InkWell(
                         borderRadius: BorderRadius.circular(20),
@@ -104,8 +138,8 @@ class GetStartedScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: 4),
-                              const Icon(Icons.language_rounded,
-                                  size: 16, color: AppColors.primary),
+                              Icon(Icons.language_rounded,
+                                  size: 16, color: brand.primaryColor),
                             ],
                           ),
                         ),
@@ -135,11 +169,11 @@ class GetStartedScreen extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    isAr ? 'العربي كونكت' : 'Elaraby Connect',
+                    isAr ? connectTitleAr : connectTitleEn,
                     style: AppTypography.fontBase.copyWith(
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
-                      color: AppColors.primary,
+                      color: brand.primaryColor,
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -153,7 +187,7 @@ class GetStartedScreen extends StatelessWidget {
                       height: 1.4,
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
 
                   // Get Started Button
                   SizedBox(
@@ -164,7 +198,7 @@ class GetStartedScreen extends StatelessWidget {
                         AppNavigation.toNationalId(context);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
+                        backgroundColor: brand.primaryColor,
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
@@ -177,19 +211,36 @@ class GetStartedScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 14),
+
+                  // Switch Organization Code Button
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: () => CompanyCodeModal.show(context),
+                      icon: Icon(Icons.swap_horiz_rounded, size: 16, color: brand.primaryColor),
+                      label: Text(
+                        isAr ? 'تغيير كود المؤسسة / الشركة' : 'Switch Organization Code',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: brand.primaryColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
 
                   // Footer
                   Center(
                     child: InkWell(
-                      onTap: () => _showPrivacyPolicy(context),
+                      onTap: () => _showPrivacyPolicy(context, isAr ? brand.companyNameAr : brand.companyName),
                       child: Text(
                         isAr
                             ? 'سياسة الخصوصية • الشروط والأحكام'
                             : 'Privacy Policy • Terms & Conditions',
                         style: AppTypography.fontBase.copyWith(
                           fontSize: 12,
-                          color: AppColors.primary,
+                          color: brand.primaryColor,
                           decoration: TextDecoration.underline,
                         ),
                       ),

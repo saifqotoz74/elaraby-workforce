@@ -7,6 +7,8 @@ import { renderPagination } from '../components/Pagination.js';
 import { confirmDialog, promptDialog } from '../components/ConfirmDialog.js';
 import { createStatusBadge } from '../components/StatusBadge.js';
 import { toast } from '../components/Toast.js';
+import { ExportService } from '../services/exportService.js';
+import { escapeHtml } from '../utils/sanitize.js';
 
 export class LeaveView {
   constructor(containerOrOpts) {
@@ -40,13 +42,19 @@ export class LeaveView {
     this.element.innerHTML = `
       <div class="toolbar-container">
         <div>
-          <h2 style="font-size: 20px; font-weight: 700; color: var(--navy-900);">Leave & Exception Requests</h2>
+          <h2 style="font-size: 20px; font-weight: 700; color: var(--text-main);">Leave & Exception Requests</h2>
           <p style="font-size: 13px; color: var(--text-muted);">Review, approve, or reject employee annual leaves, sick leaves, and mission requests.</p>
         </div>
-        <button class="btn btn-secondary btn-sm" id="btn-refresh-leave">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-          <span>Refresh</span>
-        </button>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button class="btn btn-secondary btn-sm" id="btn-export-leave">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Export to Excel</span>
+          </button>
+          <button class="btn btn-secondary btn-sm" id="btn-refresh-leave">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <span>Refresh</span>
+          </button>
+        </div>
       </div>
 
       <!-- Filters -->
@@ -79,21 +87,21 @@ export class LeaveView {
           header: 'Employee',
           render: (r) => `
             <div>
-              <b style="color: var(--navy-900); display: block;">${r.employeeName || '—'}</b>
-              <small style="color: var(--text-muted); font-size: 11px;">${r.employeeCode || r.employeeId}</small>
+              <b style="color: var(--navy-900); display: block;">${escapeHtml(r.employeeName || '—')}</b>
+              <small style="color: var(--text-muted); font-size: 11px;">${escapeHtml(r.employeeCode || r.employeeId)}</small>
             </div>
           `,
         },
         {
           header: 'Type',
-          render: (r) => `<span class="badge badge-neutral">${r.type || 'Leave'}</span>`,
+          render: (r) => `<span class="badge badge-neutral">${escapeHtml(r.type || 'Leave')}</span>`,
         },
         {
           header: 'Title / Reason',
           render: (r) => `
             <div>
-              <span style="font-weight: 600;">${r.title || 'Leave Request'}</span>
-              ${r.decisionReason ? `<small style="display: block; color: var(--status-red); font-size: 11px;">Note: ${r.decisionReason}</small>` : ''}
+              <span style="font-weight: 600;">${escapeHtml(r.title || 'Leave Request')}</span>
+              ${r.decisionReason ? `<small style="display: block; color: var(--status-red); font-size: 11px;">Note: ${escapeHtml(r.decisionReason)}</small>` : ''}
             </div>
           `,
         },
@@ -161,6 +169,36 @@ export class LeaveView {
       this.page = 1;
       this.loadRequests();
     };
+
+    const exportBtn = this.element.querySelector('#btn-export-leave');
+    if (exportBtn) {
+      exportBtn.onclick = async () => {
+        try {
+          exportBtn.disabled = true;
+          exportBtn.querySelector('span').textContent = 'Exporting...';
+          const res = await leaveApi.list({ limit: 1000, status: this.statusFilter, type: this.typeFilter });
+          const requests = res.requests || [];
+          ExportService.exportToCsv('Elaraby_Leave_Requests', [
+            { key: 'id', label: 'Request ID / رقم الطلب' },
+            { key: 'employeeName', label: 'Employee Name / اسم الموظف' },
+            { key: 'employeeCode', label: 'Employee Code / كود الموظف' },
+            { key: 'type', label: 'Type / النوع' },
+            { key: 'title', label: 'Title & Details / التفاصيل' },
+            { key: 'requestedDays', label: 'Days / عدد الأيام', formatter: (val, r) => val || r.days || 1 },
+            { key: 'status', label: 'Status / الحالة' },
+            { key: 'decisionReason', label: 'Rejection Reason / سبب الرفض' },
+            { key: 'createdAt', label: 'Created At / تاريخ التقديم', formatter: (val) => val ? new Date(val).toLocaleString('ar-EG') : '—' },
+            { key: 'decidedAt', label: 'Decision Date / تاريخ القرار', formatter: (val) => val ? new Date(val).toLocaleString('ar-EG') : '—' }
+          ], requests);
+          toast.success('Export Completed', `Successfully exported ${requests.length} records.`);
+        } catch (err) {
+          toast.error('Export Failed', err.message);
+        } finally {
+          exportBtn.disabled = false;
+          exportBtn.querySelector('span').textContent = 'Export to Excel';
+        }
+      };
+    }
 
     this.element.querySelector('#btn-refresh-leave').onclick = () => this.loadRequests();
 

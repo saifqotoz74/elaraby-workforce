@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   api:
     build:
@@ -9,18 +11,85 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - SERVICE_NAME=elaraby-workforce-api
+      - PORT=3000
+      - DATABASE_URL=postgresql://elaraby:elaraby_secure_pass_2026@postgres:5432/elaraby_workforce
+      - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       - ADMIN_USER=${ADMIN_USER:-admin}
       - ADMIN_PASS=${ADMIN_PASS:?ADMIN_PASS must be set}
       - CORS_ORIGIN=${CORS_ORIGIN:-*}
-      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
-      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
-      - TWILIO_FROM_PHONE=${TWILIO_FROM_PHONE:-}
+      - SMS_PROVIDER=${SMS_PROVIDER:-mock}
+      - PUSH_PROVIDER=${PUSH_PROVIDER:-mock}
     volumes:
-      - ./data:/app/data
       - ./uploads:/app/uploads
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health', (r) => { if (r.statusCode !== 200) process.exit(1); })"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["node", "worker.js"]
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - SERVICE_NAME=elaraby-workforce-worker
+      - DATABASE_URL=postgresql://elaraby:elaraby_secure_pass_2026@postgres:5432/elaraby_workforce
+      - REDIS_URL=redis://redis:6379
+      - WORKER_CONCURRENCY=${WORKER_CONCURRENCY:-5}
+      - SMS_PROVIDER=${SMS_PROVIDER:-mock}
+      - PUSH_PROVIDER=${PUSH_PROVIDER:-mock}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: elaraby-server-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: elaraby_workforce
+      POSTGRES_USER: elaraby
+      POSTGRES_PASSWORD: elaraby_secure_pass_2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./src/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U elaraby -d elaraby_workforce"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: elaraby-server-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  pg-data:
+    driver: local
+  redis-data:
+    driver: local

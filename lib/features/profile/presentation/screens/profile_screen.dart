@@ -439,7 +439,7 @@ class ProfileScreen extends StatelessWidget {
           ),
         ),
         trailing: isSelected
-            ? const Icon(Icons.check_circle_rounded, color: AppColors.primary)
+            ? Icon(Icons.check_circle_rounded, color: AppColors.primary)
             : null,
       ),
     );

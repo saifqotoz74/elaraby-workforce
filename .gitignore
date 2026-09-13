@@ -58,6 +58,7 @@ android/.gradle/
 server/node_modules/
 server/data/
 server/uploads/
+server/backups/
 node_modules/
 
 # Secrets, Environment & Credentials (CRITICAL per Phase 13)

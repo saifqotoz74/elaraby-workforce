@@ -40,10 +40,14 @@ function publicEmployee(e) {
   };
 }
 
-function myRequests(db, employeeId) {
-  return db.requests
-    .filter((r) => r.employeeId === employeeId)
-    .sort((a, b) => b.createdAt - a.createdAt);
+function myRequests(db, employeeId, query = {}) {
+  let list = db.requests.filter((r) => r.employeeId === employeeId);
+  if (query.status) {
+    list = list.filter((r) => r.status === query.status);
+  } else if (!query.includeCancelled && query.includeCancelled !== 'true') {
+    list = list.filter((r) => r.status !== 'cancelled');
+  }
+  return list.sort((a, b) => b.createdAt - a.createdAt);
 }
 
 // ---------- App Version / Force Update (Public) ----------
@@ -57,7 +61,7 @@ router.get(['/app/version', '/app-version'], (req, res) => {
     titleEn: 'Update Available',
     message: 'يتوفر إصدار جديد من تطبيق العربي كونكت. يرجى التحديث لمتابعة استخدام التطبيق بكفاءة وأمان.',
     messageEn: 'A new version of Elaraby Connect is available. Please update to continue using the application securely.',
-    updateUrl: 'https://server-six-xi-42.vercel.app',
+    updateUrl: process.env.APP_UPDATE_URL || 'https://app.elarabygroup.com',
   };
   res.json(config);
 });
@@ -72,13 +76,16 @@ router.post('/auth/otp', async (req, res) => {
     return res.status(400).json({ error: 'Please enter a valid National ID or Phone Number' });
   }
 
+  const targetTenant = (req.tenantId || 'elaraby').toLowerCase();
   const employee = db().employees.find((e) => {
     if (!e.active) return false;
+    if (e.tenantId && e.tenantId.toLowerCase() !== targetTenant) return false;
     const empNat = String(e.nationalId || '').replace(/\D/g, '');
     const empPhone = String(e.phone || '').replace(/\D/g, '');
+    const empCode = String(e.employeeCode || '').trim();
     const normalizedQuery = digits.replace(/^20/, '0');
     const normalizedEmpPhone = empPhone.replace(/^20/, '0');
-    return empNat === digits || empPhone === digits || (digits.length >= 10 && normalizedEmpPhone === normalizedQuery);
+    return empNat === digits || empPhone === digits || (digits.length >= 10 && normalizedEmpPhone === normalizedQuery) || (empCode && empCode.toLowerCase() === query.toLowerCase());
   });
 
   if (!employee) {
@@ -94,7 +101,7 @@ router.post('/auth/otp', async (req, res) => {
 
   const code = createOtp(db(), effectiveNationalId);
 
-  // Record in audit logs with plaintext OTP for administrative oversight / manual verification
+  // Record in audit logs (redacting plaintext OTP for security and privacy compliance)
   db().auditLogs = db().auditLogs || [];
   db().auditLogs.unshift({
     id: `AUD-${Date.now()}`,
@@ -102,8 +109,8 @@ router.post('/auth/otp', async (req, res) => {
     actor: employee.name,
     nationalId: effectiveNationalId,
     phone: employee.phone,
-    otpCode: code,
-    details: `Verification code [ ${code} ] requested for ${employee.name} (${effectiveNationalId})`,
+    otpCode: '[REDACTED]',
+    details: `Verification code requested for ${employee.name} (${effectiveNationalId})`,
     admin: 'SYSTEM',
     ip: req.ip,
     timestamp: Date.now(),
@@ -111,14 +118,14 @@ router.post('/auth/otp', async (req, res) => {
   if (db().auditLogs.length > 500) db().auditLogs.length = 500;
   save();
 
-  // Broadcast realtime notification to Admin Dashboard
+  // Broadcast realtime notification to Admin Dashboard (redacting plaintext OTP code)
   try {
     const realtimeService = require('../services/realtimeService');
     realtimeService.broadcast('otp.requested', {
       employeeName: employee.name,
       nationalId: effectiveNationalId,
       phone: employee.phone,
-      otpCode: code,
+      otpCode: '[REDACTED]',
       timestamp: Date.now(),
     });
   } catch (_) {}
@@ -418,7 +425,7 @@ router.get('/home', requireAuth, (req, res) => {
 
 // ---------- Requests ----------
 router.get('/requests', requireAuth, (req, res) => {
-  const all = myRequests(db(), req.employeeId);
+  const all = myRequests(db(), req.employeeId, req.query);
   if (req.query.page || req.query.limit) {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.max(1, Math.min(100, parseInt(req.query.limit, 10) || 20));
@@ -453,11 +460,14 @@ router.post('/requests', requireAuth, (req, res) => {
   if (!type || !title) return res.status(400).json({ error: 'type_and_title_required' });
   const requested = Number(days ?? details?.days ?? req.body?.requestedDays) || 0;
   const isLeave = String(type || '').toLowerCase() === 'leave';
+  const leaveTypeStr = String(details?.leaveType || details?.type || '').toLowerCase();
+  const titleStr = String(title || '').toLowerCase();
   const isAnnualLeave = isLeave && (
-    details?.leaveType === 'Annual Leave' ||
-    details?.leaveType === 'annual' ||
-    String(title).toLowerCase().includes('annual leave') ||
-    String(title).toLowerCase().includes('leave')
+    leaveTypeStr === 'annual leave' ||
+    leaveTypeStr === 'annual' ||
+    titleStr.includes('annual leave') ||
+    titleStr.includes('إجازة سنوية') ||
+    titleStr.includes('سنوية')
   );
 
   let responsePayload;
@@ -478,6 +488,7 @@ router.post('/requests', requireAuth, (req, res) => {
 
       const request = {
         id: `req_${ref}`,
+        tenantId: req.tenantId || me?.tenantId || 'elaraby',
         employeeId: req.employeeId,
         type,
         title,
@@ -539,15 +550,19 @@ router.post('/requests/:id/cancel', requireAuth, (req, res) => {
       const isAnnualLeave = request.type === 'Leave' && (
         request.details?.leaveType === 'Annual Leave' ||
         request.details?.leaveType === 'annual' ||
-        String(request.title).toLowerCase().includes('annual leave')
+        String(request.title).toLowerCase().includes('annual leave') ||
+        String(request.title).toLowerCase().includes('إجازة سنوية') ||
+        String(request.title).toLowerCase().includes('سنوية')
       );
       const me = state.employees.find((e) => e.id === req.employeeId);
       if (isAnnualLeave) {
         const days = Number(request.details?.days) || 0;
         if (me && days > 0) me.vacationBalance += days;
       }
-      state.requests = state.requests.filter((r) => r.id !== request.id);
-      return { ok: true, vacationBalance: me ? me.vacationBalance : undefined };
+      request.status = 'cancelled';
+      request.cancelledAt = Date.now();
+      request.updatedAt = Date.now();
+      return { ok: true, vacationBalance: me ? me.vacationBalance : undefined, request };
     });
   } catch (err) {
     if (err.statusCode) {
@@ -681,11 +696,12 @@ router.get('/roster', requireAuth, (req, res) => {
 
 // ---------- Push tokens ----------
 router.post('/fcm-token', requireAuth, (req, res) => {
-  const token = String(req.body?.token || '');
+  const token = String(req.body?.token || '').trim();
   if (!token) return res.status(400).json({ error: 'token_required' });
   const dbd = db();
+  // Unbind token from any previous employee to protect shared devices
   dbd.fcmTokens = (dbd.fcmTokens || []).filter(
-    (t) => !(t.employeeId === req.employeeId && t.token === token),
+    (t) => t.token !== token,
   );
   dbd.fcmTokens.push({ employeeId: req.employeeId, token, updatedAt: Date.now() });
   save();
@@ -765,10 +781,8 @@ router.post('/employee/delete-account', requireAuth, (req, res) => {
   if (!employee) return res.status(404).json({ error: 'employee_not_found' });
 
   const { pin } = req.body || {};
-  if (pin) {
-    if (!employee.pinHash || !verifyHash(String(pin), employee.pinHash)) {
-      return res.status(401).json({ error: 'invalid_pin' });
-    }
+  if (!pin || !employee.pinHash || !verifyHash(String(pin), employee.pinHash)) {
+    return res.status(401).json({ error: 'invalid_pin' });
   }
 
   employee.deletionRequested = true;
@@ -800,9 +814,27 @@ router.post('/employee/delete-account', requireAuth, (req, res) => {
 
 // ---------- Anonymous Concerns (Workplace Health, Safety, & Ethics) ----------
 router.post('/concerns', (req, res) => {
+  if (guard(db(), `concern:${req.ip}`, res)) return;
+
   const { category, details, attachedPhoto } = req.body || {};
   if (!category || !details) {
     return res.status(400).json({ error: 'category_and_details_required' });
+  }
+
+  const cleanCategory = String(category).trim().slice(0, 100);
+  const cleanDetails = String(details).trim().slice(0, 5000);
+  if (!cleanCategory || !cleanDetails) {
+    return res.status(400).json({ error: 'category_and_details_required' });
+  }
+
+  let cleanPhoto = null;
+  if (attachedPhoto) {
+    const rawPhoto = String(attachedPhoto).trim();
+    if (/^(\/uploads\/|https?:\/\/)/i.test(rawPhoto) && rawPhoto.length < 500) {
+      cleanPhoto = rawPhoto;
+    } else {
+      return res.status(400).json({ error: 'invalid_attachment_url' });
+    }
   }
 
   const d = db();
@@ -811,9 +843,9 @@ router.post('/concerns', (req, res) => {
   const entry = {
     id: `con_${nextId('concern')}`,
     refNumber: ref,
-    category: String(category).trim(),
-    details: String(details).trim(),
-    attachedPhoto: attachedPhoto ? String(attachedPhoto).trim() : null,
+    category: cleanCategory,
+    details: cleanDetails,
+    attachedPhoto: cleanPhoto,
     status: 'received',
     createdAt: Date.now(),
   };

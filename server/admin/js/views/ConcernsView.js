@@ -3,6 +3,7 @@
 
 import { concernsApi } from '../api/services.js';
 import { toast } from '../components/Toast.js';
+import { escapeHtml, sanitizeUrl } from '../utils/sanitize.js';
 
 export class ConcernsView {
   constructor(container) {
@@ -137,26 +138,27 @@ export class ConcernsView {
           })
         : 'Unknown date';
 
+      const safePhoto = sanitizeUrl(c.attachedPhoto);
       return `
         <div class="concern-card">
           <div class="concern-header">
             <div style="display: flex; align-items: center; gap: 10px;">
-              <span class="concern-ref">${c.refNumber || c.id}</span>
-              <span class="badge badge-warning">${c.category || 'General'}</span>
+              <span class="concern-ref">${escapeHtml(c.refNumber || c.id)}</span>
+              <span class="badge badge-warning">${escapeHtml(c.category || 'General')}</span>
               <span class="badge badge-info">Anonymous Submission</span>
             </div>
             <div class="concern-meta">
-              🕒 ${dateStr}
+              🕒 ${escapeHtml(dateStr)}
             </div>
           </div>
 
-          <div class="concern-body">${c.details || 'No details provided.'}</div>
+          <div class="concern-body">${escapeHtml(c.details || 'No details provided.')}</div>
 
-          ${c.attachedPhoto ? `
+          ${safePhoto ? `
             <div>
               <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">Attached Photo Evidence:</div>
-              <a href="${c.attachedPhoto}" target="_blank" rel="noopener noreferrer">
-                <img src="${c.attachedPhoto}" class="concern-photo-preview" alt="Concern Attachment" />
+              <a href="${safePhoto}" target="_blank" rel="noopener noreferrer">
+                <img src="${safePhoto}" class="concern-photo-preview" alt="Concern Attachment" />
               </a>
             </div>
           ` : ''}

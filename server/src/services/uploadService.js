@@ -1,9 +1,7 @@
-// Streaming Multipart & Binary Image Upload Service
-// Safely handles image uploads with magic-byte verification, file size limits, and sanitization.
-
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const storage = require('./storage');
 
 const isVercel = !!(process.env.VERCEL || process.env.NOW_REGION);
 const UPLOADS_DIR = isVercel
@@ -36,9 +34,9 @@ function isValidImage(buf, ext) {
 }
 
 /**
- * Saves an image buffer to disk after strict validation.
+ * Saves an image buffer to storage via active StorageProvider after strict validation.
  */
-function saveImageBuffer(buf, originalName) {
+async function saveImageBuffer(buf, originalName, isPrivate = false) {
   if (!buf || buf.length === 0) {
     const err = new Error('empty_file');
     err.statusCode = 400;
@@ -64,17 +62,19 @@ function saveImageBuffer(buf, originalName) {
     throw err;
   }
 
-  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-  const uniqueSuffix = crypto.randomBytes(8).toString('hex');
-  const filename = `img_${Date.now()}_${uniqueSuffix}.${ext}`;
-  const targetPath = path.join(UPLOADS_DIR, filename);
-
-  fs.writeFileSync(targetPath, buf);
+  const result = await storage.saveFile({
+    buffer: buf,
+    originalName,
+    mimeType: ALLOWED_EXT[ext] || 'application/octet-stream',
+    isPrivate,
+  });
 
   return {
-    url: `/uploads/${filename}`,
-    filename,
-    size: buf.length,
+    url: result.url,
+    key: result.key,
+    filename: result.filename,
+    size: result.size,
+    provider: result.provider,
   };
 }
 
@@ -107,7 +107,7 @@ function handleMultipartUpload(req) {
 
     req.on('error', reject);
 
-    req.on('end', () => {
+    req.on('end', async () => {
       const fullBuffer = Buffer.concat(chunks);
       const boundaryBuf = Buffer.from(`--${boundary}`);
       const crlf = Buffer.from('\r\n\r\n');
@@ -154,7 +154,7 @@ function handleMultipartUpload(req) {
       }
 
       try {
-        const result = saveImageBuffer(fileBuffer, filename);
+        const result = await saveImageBuffer(fileBuffer, filename);
         resolve(result);
       } catch (err) {
         reject(err);
@@ -166,7 +166,7 @@ function handleMultipartUpload(req) {
 /**
  * Backward compatible Base64 JSON image upload.
  */
-function handleBase64Upload({ name, dataBase64 }) {
+async function handleBase64Upload({ name, dataBase64 }) {
   if (!name || !dataBase64) {
     const err = new Error('name_and_data_required');
     err.statusCode = 400;
@@ -175,7 +175,7 @@ function handleBase64Upload({ name, dataBase64 }) {
   const dataUrlMatch = /^data:image\/(png|jpe?g|webp);base64,(.+)$/.exec(dataBase64);
   const rawBase64 = dataUrlMatch ? dataUrlMatch[2] : dataBase64;
   const buf = Buffer.from(rawBase64, 'base64');
-  return saveImageBuffer(buf, name);
+  return await saveImageBuffer(buf, name);
 }
 
 module.exports = {
@@ -185,4 +185,5 @@ module.exports = {
   saveImageBuffer,
   handleMultipartUpload,
   handleBase64Upload,
+  storage,
 };

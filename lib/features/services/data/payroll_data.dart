@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -88,15 +89,24 @@ Future<void> shareSalarySlipPdf(SalarySlipData data) async {
   if (regularFont == null &&
       !Platform.environment.containsKey('FLUTTER_TEST')) {
     try {
-      regularFont = await PdfGoogleFonts.cairoRegular()
-          .timeout(const Duration(seconds: 5));
-      boldFont =
-          await PdfGoogleFonts.cairoBold().timeout(const Duration(seconds: 5));
+      final regData = await rootBundle.load('assets/fonts/Cairo-Regular.ttf');
+      final boldData = await rootBundle.load('assets/fonts/Cairo-Bold.ttf');
+      regularFont = pw.Font.ttf(regData);
+      boldFont = pw.Font.ttf(boldData);
       _cachedCairoRegular = regularFont;
       _cachedCairoBold = boldFont;
-    } on Exception catch (e) {
-      // In headless test environments or offline mode, gracefully fall back to base font
-      debugPrint('PdfGoogleFonts fallback to base font: $e');
+    } catch (_) {
+      try {
+        regularFont = await PdfGoogleFonts.cairoRegular()
+            .timeout(const Duration(seconds: 5));
+        boldFont =
+            await PdfGoogleFonts.cairoBold().timeout(const Duration(seconds: 5));
+        _cachedCairoRegular = regularFont;
+        _cachedCairoBold = boldFont;
+      } on Exception catch (e) {
+        // In headless test environments or offline mode, gracefully fall back to base font
+        debugPrint('PdfGoogleFonts fallback to base font: $e');
+      }
     }
   }
 

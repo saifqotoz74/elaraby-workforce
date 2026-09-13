@@ -4,6 +4,7 @@
 import { shiftApi, employeeApi } from '../api/services.js';
 import { store } from '../state/store.js';
 import { toast } from '../components/Toast.js';
+import { ExportService } from '../services/exportService.js';
 
 const SHIFT_OPTIONS = [
   { value: 'morning', label: '🌅 Morning (07:00 - 15:30)' },
@@ -40,15 +41,22 @@ export class ShiftsView {
 
   renderSkeleton() {
     this.container.innerHTML = `
-      <div class="view-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+      <div class="view-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
         <div>
-          <h2 style="font-size: 20px; font-weight: 800; color: var(--navy-900); margin: 0 0 4px 0;">
+          <h2 style="font-size: 20px; font-weight: 800; color: var(--text-main); margin: 0 0 4px 0;">
             Shift & Roster Management
           </h2>
           <p style="color: var(--text-muted); font-size: 13.5px; margin: 0;">
             Assign 7-day weekly shifts, rotate factory operators, and publish rosters.
           </p>
         </div>
+
+        <button type="button" class="btn btn-secondary" id="btn-export-shifts">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          Export Weekly Roster
+        </button>
       </div>
 
       <div class="roster-card">
@@ -78,6 +86,62 @@ export class ShiftsView {
         </div>
       </div>
     `;
+
+    const exportBtn = this.container.querySelector('#btn-export-shifts');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', async () => {
+        try {
+          exportBtn.disabled = true;
+          exportBtn.innerText = 'Exporting...';
+          const res = await employeeApi.list({ limit: 1000 });
+          const employees = res.employees || [];
+          
+          const shiftRows = [];
+          for (const emp of employees) {
+            try {
+              const rRes = await shiftApi.get(emp.id);
+              const days = rRes.days || [];
+              const weekSummary = days.map(d => `${d.day || ''}: ${d.shift || 'off'}`).join(' | ');
+              shiftRows.push({
+                employeeCode: emp.employeeCode || emp.nationalId,
+                name: emp.name,
+                factory: emp.factory || '—',
+                department: emp.department || '—',
+                weekSchedule: weekSummary || 'Default Factory Shift Pattern'
+              });
+            } catch (_) {
+              shiftRows.push({
+                employeeCode: emp.employeeCode || emp.nationalId,
+                name: emp.name,
+                factory: emp.factory || '—',
+                department: emp.department || '—',
+                weekSchedule: 'Standard 3-Shift Pattern'
+              });
+            }
+          }
+
+          ExportService.exportToCsv('Elaraby_Weekly_Shift_Roster', [
+            { key: 'employeeCode', label: 'Employee Code / كود الموظف' },
+            { key: 'name', label: 'Full Name / الاسم' },
+            { key: 'factory', label: 'Factory / المصنع' },
+            { key: 'department', label: 'Department / القسم' },
+            { key: 'weekSchedule', label: '7-Day Weekly Schedule / جدول الورديات الأسبوعي' }
+          ], shiftRows);
+
+          toast.success('Export Completed', `Successfully exported shift schedule for ${shiftRows.length} employees.`);
+        } catch (err) {
+          toast.error('Export Failed', err.message);
+        } finally {
+          exportBtn.disabled = false;
+          exportBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Export Weekly Roster
+          `;
+        }
+      });
+    }
 
     const select = this.container.querySelector('#shift-employee-select');
     select.addEventListener('change', (e) => {

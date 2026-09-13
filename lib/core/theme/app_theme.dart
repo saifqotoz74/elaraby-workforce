@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../localization/app_locale.dart';
 import '../storage/local_store.dart';
+import '../tenant/tenant_brand.dart';
 import 'app_colors.dart';
 
 class AppTheme {
@@ -11,7 +13,14 @@ class AppTheme {
   static final ValueNotifier<ThemeMode> themeModeNotifier =
       ValueNotifier<ThemeMode>(ThemeMode.system);
 
-  /// Initializes the theme mode from persistent storage
+  /// Reactive notifier for active TenantBrand
+  static final ValueNotifier<TenantBrand> tenantBrandNotifier =
+      ValueNotifier<TenantBrand>(TenantBrand.elarabyDefault());
+
+  /// Quick accessor for the current active brand
+  static TenantBrand get currentBrand => tenantBrandNotifier.value;
+
+  /// Initializes the theme mode and tenant branding from persistent storage
   static void init() {
     final saved = LocalStore.instance.themeMode;
     switch (saved) {
@@ -25,6 +34,19 @@ class AppTheme {
         themeModeNotifier.value = ThemeMode.system;
         break;
     }
+
+    try {
+      final savedBrand = LocalStore.instance.activeTenantBrandJson;
+      if (savedBrand != null && savedBrand.isNotEmpty) {
+        final map = jsonDecode(savedBrand) as Map<String, dynamic>;
+        tenantBrandNotifier.value = TenantBrand.fromJson(map);
+      }
+    } catch (_) {}
+  }
+
+  /// Sets the active tenant branding dynamically
+  static void setTenantBrand(TenantBrand brand) {
+    tenantBrandNotifier.value = brand;
   }
 
   /// Changes the theme mode and persists it to LocalStore
@@ -47,6 +69,7 @@ class AppTheme {
     // Runtime fetching is strictly disabled so app works completely offline without network.
     GoogleFonts.config.allowRuntimeFetching = false;
 
+    final brand = tenantBrandNotifier.value;
     final primaryFont = isArabic ? 'Cairo' : 'Inter';
     final fallbackFonts = isArabic ? const ['Inter'] : const ['Cairo'];
 
@@ -67,7 +90,7 @@ class AppTheme {
       return base.copyWith(
         scaffoldBackgroundColor: const Color(0xFF0B132B), // Deep night slate
         colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
+          seedColor: brand.primaryColor,
           brightness: Brightness.dark,
           primary: const Color(0xFF38BDF8),
           surface: const Color(0xFF1C2541),
@@ -85,15 +108,15 @@ class AppTheme {
       );
     } else {
       return base.copyWith(
-        scaffoldBackgroundColor: AppColors.scaffoldBackground,
+        scaffoldBackgroundColor: brand.scaffoldBgColor,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.primary,
-          primary: AppColors.primary,
-          surface: AppColors.surface,
+          seedColor: brand.primaryColor,
+          primary: brand.primaryColor,
+          surface: brand.surfaceColor,
         ),
         textTheme: localizedTextTheme,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: AppColors.surface,
+        appBarTheme: AppBarTheme(
+          backgroundColor: brand.surfaceColor,
           elevation: 0,
           scrolledUnderElevation: 0,
         ),

@@ -1,23 +1,68 @@
 // Elaraby Connect — Enterprise API server + Admin dashboard host.
 const path = require('path');
 const express = require('express');
-require('./src/config').load();
+const config = require('./src/config');
+config.load();
 const { data, save, flushSync } = require('./src/db');
 const { seed } = require('./src/seed');
 const { errorHandler } = require('./src/errors');
 const employeeRoutes = require('./src/routes/employee');
 const adminRoutes = require('./src/routes/admin');
+const tenantRoutes = require('./src/routes/tenant');
+const { tenantResolver } = require('./src/tenantResolver');
+
+const correlationMiddleware = require('./src/observability/correlationMiddleware');
+const { livenessProbe, readinessProbe } = require('./src/observability/healthCheck');
+const metrics = require('./src/observability/metrics');
+const postgres = require('./src/db/postgres');
+const { closeRedis } = require('./src/queue/redis');
+const { closeAllQueues } = require('./src/queue/queues');
 
 const PORT = process.env.PORT || 3000;
 const isVercel = !!(process.env.VERCEL || process.env.NOW_REGION);
+const isProd = process.env.NODE_ENV === 'production';
 const d = data();
-if (!isVercel && d.employees.length === 0) {
+if (!isVercel && !isProd && d.employees.length === 0) {
   seed(d);
   save();
 }
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
+
+// Enterprise Request Correlation & Tracing
+app.use(correlationMiddleware);
+
+// Multi-Tenant Institutional Resolver
+app.use(tenantResolver);
+
+// Initialize Realtime Multi-Instance SSE Bridge via Redis Pub/Sub
+try {
+  const realtimeService = require('./src/services/realtimeService');
+  const { isConfigured, getRedisClient, getRedisSubscriber } = require('./src/queue/redis');
+  if (isConfigured()) {
+    const INSTANCE_ID = `inst_${process.pid}_${Math.random().toString(36).slice(2, 8)}`;
+    const redisPub = getRedisClient();
+    const redisSub = getRedisSubscriber();
+    if (redisSub && typeof redisSub.subscribe === 'function') {
+      redisSub.subscribe('elaraby:realtime:events').catch?.(() => {});
+      redisSub.on('message', (channel, message) => {
+        if (channel === 'elaraby:realtime:events') {
+          try {
+            const { event, payload, filter, instanceId } = JSON.parse(message);
+            if (instanceId === INSTANCE_ID) return; // Drop echo to self
+            realtimeService.broadcast(event, payload, { ...(filter || {}), _fromCluster: true });
+          } catch (_) {}
+        }
+      });
+      realtimeService.setClusterPublisher((event, payload, filter) => {
+        try {
+          redisPub.publish('elaraby:realtime:events', JSON.stringify({ event, payload, filter, instanceId: INSTANCE_ID })).catch?.(() => {});
+        } catch (_) {}
+      });
+    }
+  }
+} catch (_) {}
 
 // Enterprise Security Headers
 app.use((req, res, next) => {
@@ -35,13 +80,16 @@ app.use((req, res, next) => {
   next();
 });
 
-// Lightweight request log
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api')) {
-    console.log(`[api] ${req.method} ${req.path} (${req.ip})`);
-  }
-  next();
+// Prometheus Metrics Endpoint
+app.get('/metrics', (req, res) => {
+  res.setHeader('Content-Type', 'text/plain; version=0.0.4');
+  res.send(metrics.toPrometheusText());
 });
+
+// Standard Kubernetes Liveness & Readiness Probes
+app.get('/health', livenessProbe);
+app.get('/liveness', livenessProbe);
+app.get('/readiness', readinessProbe);
 
 // Production-aware CORS: whitelist-enforced in production or configured domain
 app.use((req, res, next) => {
@@ -57,7 +105,7 @@ app.use((req, res, next) => {
   } else {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
   }
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token, X-Idempotency-Key, X-Tenant-ID');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
@@ -104,12 +152,32 @@ app.get('/api/version', (req, res) => {
   }
 });
 
+app.use('/api', tenantRoutes);
 app.use('/api', employeeRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Uploaded images + admin dashboard (single-file SPA).
+const storage = require('./src/services/storage');
 const uploadsDir = isVercel ? path.join('/tmp', 'uploads') : path.join(__dirname, 'uploads');
 app.use('/uploads', express.static(uploadsDir));
+
+// Universal Storage Provider asset retrieval bridge (local + S3/MinIO)
+app.get('/api/uploads/*', async (req, res) => {
+  try {
+    const key = req.params[0];
+    const file = await storage.getFile(key);
+    res.setHeader('Content-Type', file.contentType);
+    res.setHeader('Content-Length', file.contentLength);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.send(file.buffer);
+  } catch (err) {
+    if (err.statusCode === 404 || err.message === 'file_not_found') {
+      return res.status(404).json({ error: 'file_not_found' });
+    }
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
 app.use('/admin', express.static(path.join(__dirname, 'admin')));
 app.get('/admin', (req, res) => {
   res.redirect(301, '/admin/');
@@ -125,11 +193,24 @@ app.get('/', (req, res) => {
 app.use(errorHandler);
 
 if (!isVercel && require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`✔ Elaraby Connect API:      http://localhost:${PORT}/api/health`);
-    console.log(`✔ Admin dashboard:          http://localhost:${PORT}/admin/`);
-    console.log(`  Admin login: admin / ${process.env.ADMIN_PASS || 'elaraby2026'} (change via ADMIN_PASS env)`);
-  });
+  (async () => {
+    config.printStartupBanner();
+    if (postgres.isConfigured()) {
+      if (isProd) {
+        const pgHealth = await postgres.checkHealth();
+        if (!pgHealth.ok) {
+          console.error('❌ [FATAL] PostgreSQL health check failed in production:', pgHealth.error);
+          process.exit(1);
+        }
+      }
+      await postgres.initializeSchema();
+    }
+    app.listen(PORT, () => {
+      console.log(`✔ Elaraby Connect API:      http://localhost:${PORT}/api/health`);
+      console.log(`✔ Admin dashboard:          http://localhost:${PORT}/admin/`);
+      console.log(`  Admin login: ${process.env.ADMIN_USER || 'admin'} / [CONFIGURED VIA ADMIN_PASS]`);
+    });
+  })();
 }
 
 // Global Process Resilience Guards: Prevent server death from external async rejections (Twilio/Firebase/Vercel)
@@ -141,14 +222,17 @@ process.on('uncaughtException', (err) => {
   console.error('⚠️ [PROCESS GUARD] Uncaught Exception:', err.message, err.stack);
 });
 
-// Graceful Process Termination: Flush pending in-memory database writes before exit
+// Graceful Process Termination: Flush pending writes and close connections cleanly
 const gracefulShutdown = async (signal) => {
-  console.log(`[PROCESS] Received ${signal}. Flushing pending DB writes before shutdown...`);
+  console.log(`[PROCESS] Received ${signal}. Starting graceful shutdown...`);
   try {
     await flushSync();
-    console.log('[PROCESS] Database flushed cleanly to disk. Exiting.');
+    await closeAllQueues();
+    await closeRedis();
+    await postgres.closePool();
+    console.log('[PROCESS] All connections and database flushed cleanly. Exiting.');
   } catch (err) {
-    console.error('[PROCESS] Error flushing DB during shutdown:', err.message);
+    console.error('[PROCESS] Error during graceful shutdown:', err.message);
   }
   process.exit(0);
 };

@@ -4,6 +4,7 @@
 import { payrollApi, employeeApi } from '../api/services.js';
 import { Modal } from '../components/Modal.js';
 import { toast } from '../components/Toast.js';
+import { ExportService } from '../services/exportService.js';
 
 export class PayrollView {
   constructor(containerOrOpts) {
@@ -15,6 +16,7 @@ export class PayrollView {
     this.element = null;
     this.selectedEmployee = null;
     this.currentPayroll = null;
+    this.cachedEmployees = [];
   }
 
   async mount() {
@@ -33,9 +35,13 @@ export class PayrollView {
     this.element.innerHTML = `
       <div class="toolbar-container">
         <div>
-          <h2 style="font-size: 20px; font-weight: 700; color: var(--navy-900);">Payroll Administration</h2>
+          <h2 style="font-size: 20px; font-weight: 700; color: var(--text-main);">Payroll Administration</h2>
           <p style="font-size: 13px; color: var(--text-muted);">Manage official monthly compensation statements, allowances, and statutory deductions.</p>
         </div>
+        <button class="btn btn-secondary btn-sm" id="btn-export-payroll">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Export Payroll Report</span>
+        </button>
       </div>
 
       <!-- Employee Selector -->
@@ -65,6 +71,64 @@ export class PayrollView {
 
     this.loadEmployeesList();
 
+    const exportBtn = this.element.querySelector('#btn-export-payroll');
+    if (exportBtn) {
+      exportBtn.onclick = async () => {
+        try {
+          exportBtn.disabled = true;
+          exportBtn.querySelector('span').textContent = 'Exporting...';
+          const res = await employeeApi.list({ limit: 1000 });
+          const employees = res.employees || [];
+          
+          const payrollRows = [];
+          for (const emp of employees) {
+            try {
+              const pRes = await payrollApi.get(emp.id);
+              const p = pRes.payroll || {};
+              const basic = p.basicSalary || 0;
+              const allow = p.allowances || 0;
+              const deduct = p.deductions || 0;
+              const net = p.netSalary !== undefined ? p.netSalary : (basic + allow - deduct);
+              payrollRows.push({
+                employeeCode: emp.employeeCode || emp.nationalId,
+                name: emp.name,
+                factory: emp.factory || '—',
+                department: emp.department || '—',
+                period: p.period || '2026-03',
+                basicSalary: basic,
+                allowances: allow,
+                deductions: deduct,
+                netSalary: net,
+                paymentMethod: p.paymentMethod || 'Bank Transfer'
+              });
+            } catch (_) {
+              // skip or default
+            }
+          }
+
+          ExportService.exportToCsv('Elaraby_Workforce_Payroll_Report', [
+            { key: 'employeeCode', label: 'Employee Code / كود الموظف' },
+            { key: 'name', label: 'Full Name / الاسم' },
+            { key: 'factory', label: 'Factory / المصنع' },
+            { key: 'department', label: 'Department / القسم' },
+            { key: 'period', label: 'Pay Period / شهر الراتب' },
+            { key: 'basicSalary', label: 'Basic Salary (EGP) / الراتب الأساسي' },
+            { key: 'allowances', label: 'Allowances (EGP) / البدلات' },
+            { key: 'deductions', label: 'Deductions (EGP) / الاستقطاعات' },
+            { key: 'netSalary', label: 'Net Payable (EGP) / صافي الراتب' },
+            { key: 'paymentMethod', label: 'Payment Method / طريقة الصرف' }
+          ], payrollRows);
+
+          toast.success('Export Completed', `Successfully exported payroll for ${payrollRows.length} employees.`);
+        } catch (err) {
+          toast.error('Export Failed', err.message);
+        } finally {
+          exportBtn.disabled = false;
+          exportBtn.querySelector('span').textContent = 'Export Payroll Report';
+        }
+      };
+    }
+
     this.element.querySelector('#btn-load-payroll').onclick = () => {
       const select = this.element.querySelector('#payroll-employee-select');
       const empId = select.value;
@@ -78,11 +142,12 @@ export class PayrollView {
 
   async loadEmployeesList() {
     try {
-      const res = await employeeApi.list({ limit: 100 });
+      const res = await employeeApi.list({ limit: 500 });
+      this.cachedEmployees = res.employees || [];
       const select = this.element.querySelector('#payroll-employee-select');
       select.innerHTML = '<option value="">-- Choose an Employee --</option>';
 
-      for (const e of res.employees || []) {
+      for (const e of this.cachedEmployees) {
         const opt = document.createElement('option');
         opt.value = e.id;
         opt.textContent = `${e.name} (${e.employeeCode || e.nationalId}) — ${e.factory || ''}`;

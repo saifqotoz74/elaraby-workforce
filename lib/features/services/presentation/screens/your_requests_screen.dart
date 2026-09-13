@@ -410,7 +410,7 @@ class _YourRequestsScreenState extends ConsumerState<YourRequestsScreen> {
             const SizedBox(height: 16),
             ListTile(
               leading:
-                  const Icon(Icons.timeline_rounded, color: AppColors.primary),
+                  Icon(Icons.timeline_rounded, color: AppColors.primary),
               title: const Text('View Approval Timeline',
                   style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
               subtitle: Text('Reviewer: ${req.reviewer ?? 'HR'}',

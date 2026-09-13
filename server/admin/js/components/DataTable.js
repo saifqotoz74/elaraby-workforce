@@ -73,8 +73,15 @@ export class DataTable {
             const rendered = col.render(item);
             if (rendered instanceof HTMLElement) {
               td.appendChild(rendered);
+            } else if (rendered !== undefined && rendered !== null) {
+              const str = String(rendered);
+              if (col.html === false || (!col.html && !str.includes('<'))) {
+                td.textContent = str;
+              } else {
+                td.innerHTML = str;
+              }
             } else {
-              td.innerHTML = rendered !== undefined && rendered !== null ? String(rendered) : '—';
+              td.textContent = '—';
             }
           } else if (col.field) {
             const val = item[col.field];

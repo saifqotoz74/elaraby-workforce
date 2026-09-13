@@ -9,6 +9,8 @@ import { Modal } from '../components/Modal.js';
 import { confirmDialog } from '../components/ConfirmDialog.js';
 import { createStatusBadge } from '../components/StatusBadge.js';
 import { toast } from '../components/Toast.js';
+import { ExportService } from '../services/exportService.js';
+import { escapeHtml } from '../utils/sanitize.js';
 
 export class EmployeesView {
   constructor(containerOrOpts, opts) {
@@ -45,13 +47,19 @@ export class EmployeesView {
     this.element.innerHTML = `
       <div class="toolbar-container">
         <div>
-          <h2 style="font-size: 20px; font-weight: 700; color: var(--navy-900);">Workforce Directory</h2>
+          <h2 style="font-size: 20px; font-weight: 700; color: var(--text-main);">Workforce Directory</h2>
           <p style="font-size: 13px; color: var(--text-muted);">Manage employee profiles, credentials, department placement, and vacation balances.</p>
         </div>
-        <button class="btn btn-primary" id="btn-add-employee">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          <span>Add Employee</span>
-        </button>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button class="btn btn-secondary" id="btn-export-employees">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Export to Excel</span>
+          </button>
+          <button class="btn btn-primary" id="btn-add-employee">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Add Employee</span>
+          </button>
+        </div>
       </div>
 
       <!-- Filters & Search Toolbar -->
@@ -83,8 +91,8 @@ export class EmployeesView {
           header: 'Employee',
           render: (e) => `
             <div>
-              <b style="color: var(--navy-900); display: block;">${e.name}</b>
-              <small style="color: var(--text-muted); font-size: 11px;">${e.employeeCode || '—'}</small>
+              <b style="color: var(--navy-900); display: block;">${escapeHtml(e.name)}</b>
+              <small style="color: var(--text-muted); font-size: 11px;">${escapeHtml(e.employeeCode || '—')}</small>
             </div>
           `,
         },
@@ -96,8 +104,8 @@ export class EmployeesView {
           header: 'Factory & Department',
           render: (e) => `
             <div>
-              <span>${e.factory || '—'}</span>
-              <small style="display: block; color: var(--text-muted); font-size: 11px;">${e.department || '—'}</small>
+              <span>${escapeHtml(e.factory || '—')}</span>
+              <small style="display: block; color: var(--text-muted); font-size: 11px;">${escapeHtml(e.department || '—')}</small>
             </div>
           `,
         },
@@ -142,6 +150,35 @@ export class EmployeesView {
 
     // Event Bindings
     this.element.querySelector('#btn-add-employee').onclick = () => this.openAddModal();
+
+    const exportBtn = this.element.querySelector('#btn-export-employees');
+    if (exportBtn) {
+      exportBtn.onclick = async () => {
+        try {
+          exportBtn.disabled = true;
+          exportBtn.querySelector('span').textContent = 'Exporting...';
+          const res = await employeeApi.list({ limit: 1000, q: this.query, factory: this.factory });
+          const employees = res.employees || [];
+          ExportService.exportToCsv('Elaraby_Employees_Directory', [
+            { key: 'employeeCode', label: 'Employee Code / كود الموظف' },
+            { key: 'name', label: 'Full Name / الاسم' },
+            { key: 'nationalId', label: 'National ID / الرقم القومي' },
+            { key: 'phone', label: 'Phone / الهاتف' },
+            { key: 'factory', label: 'Factory / المصنع' },
+            { key: 'department', label: 'Department / القسم' },
+            { key: 'position', label: 'Position / الوظيفة' },
+            { key: 'vacationBalance', label: 'Vacation Balance / رصيد الإجازات' },
+            { key: 'active', label: 'Status / الحالة', formatter: (val) => val ? 'Active / نشط' : 'Inactive / معطل' }
+          ], employees);
+          toast.success('Export Completed', `Successfully exported ${employees.length} records.`);
+        } catch (err) {
+          toast.error('Export Failed', err.message);
+        } finally {
+          exportBtn.disabled = false;
+          exportBtn.querySelector('span').textContent = 'Export to Excel';
+        }
+      };
+    }
 
     let debounceTimer;
     this.element.querySelector('#emp-search-input').oninput = (e) => {

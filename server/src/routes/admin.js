@@ -33,10 +33,7 @@ function hashOnce(pass) {
 router.post('/login', (req, res) => {
   const { username, password, role, scopeFactory, scopeDepartment } = req.body || {};
   const cleanPass = String(password || '').trim();
-  const isMatch = (cleanPass === ADMIN_PASS) || 
-                  (cleanPass === 'elaraby2026') || 
-                  (cleanPass === 'admin123') || 
-                  verifyHash(cleanPass, hashOnce(ADMIN_PASS));
+  const isMatch = (cleanPass === ADMIN_PASS) || verifyHash(cleanPass, hashOnce(ADMIN_PASS));
 
   if (username !== ADMIN_USER || !isMatch) {
     const lockedForSecs = registerFailure(db(), `admin:${req.ip}`);
@@ -57,13 +54,20 @@ router.post('/login', (req, res) => {
 
   clearFailures(db(), `admin:${req.ip}`);
 
-  const userRole = role || ROLES.SUPER_ADMIN;
+  let userRole = ROLES.SUPER_ADMIN;
+  if (role) {
+    if (Object.values(ROLES).includes(role)) {
+      userRole = role;
+    } else {
+      return res.status(400).json({ error: 'invalid_role' });
+    }
+  }
   const payload = {
     sub: username,
     scope: 'admin',
     role: userRole,
-    scopeFactory: scopeFactory || null,
-    scopeDepartment: scopeDepartment || null,
+    scopeFactory: scopeFactory ? String(scopeFactory).trim() : null,
+    scopeDepartment: scopeDepartment ? String(scopeDepartment).trim() : null,
   };
   const token = signToken(payload);
   const csrfToken = crypto.randomBytes(32).toString('hex');
@@ -136,7 +140,7 @@ router.post(['/upload', '/upload-file'], requirePermission(PERMISSIONS.UPLOAD_IM
     if (contentType.includes('multipart/form-data')) {
       result = await uploadService.handleMultipartUpload(req);
     } else {
-      result = uploadService.handleBase64Upload(req.body || {});
+      result = await uploadService.handleBase64Upload(req.body || {});
     }
 
     auditService.recordAuditLog(db(), {
@@ -151,31 +155,6 @@ router.post(['/upload', '/upload-file'], requirePermission(PERMISSIONS.UPLOAD_IM
     });
     save();
 
-    res.json(result);
-  } catch (err) {
-    if (err.statusCode) {
-      return res.status(err.statusCode).json({ error: err.message });
-    }
-    next(err);
-  }
-});
-
-// Dedicated multipart upload route
-router.post('/upload-file', requirePermission(PERMISSIONS.UPLOAD_IMAGE), async (req, res, next) => {
-  try {
-    const result = await uploadService.handleMultipartUpload(req);
-    auditService.recordAuditLog(db(), {
-      actor: req.admin?.sub || 'admin',
-      role: req.admin?.role || 'superadmin',
-      action: 'upload_image',
-      entity: 'file',
-      entityId: result.filename,
-      after: result,
-      details: `Uploaded multipart image ${result.filename} (${result.size} bytes)`,
-      ip: req.ip,
-      userAgent: req.headers['user-agent'],
-    });
-    save();
     res.json(result);
   } catch (err) {
     if (err.statusCode) {
@@ -637,5 +616,39 @@ crudFor('announcements', 'announcements');
 crudFor('news', 'news');
 crudFor('benefits', 'benefits');
 crudFor('trips', 'trips');
+
+// ---------- APM Metrics & System Telemetry ----------
+router.get('/metrics', requirePermission(PERMISSIONS.AUDIT_READ), (req, res) => {
+  const memory = process.memoryUsage();
+  const database = db();
+  res.json({
+    ok: true,
+    timestamp: Date.now(),
+    uptimeSeconds: Math.floor(process.uptime()),
+    memory: {
+      rssMb: Math.round(memory.rss / (1024 * 1024) * 100) / 100,
+      heapTotalMb: Math.round(memory.heapTotal / (1024 * 1024) * 100) / 100,
+      heapUsedMb: Math.round(memory.heapUsed / (1024 * 1024) * 100) / 100,
+      externalMb: Math.round(memory.external / (1024 * 1024) * 100) / 100,
+    },
+    cluster: {
+      mode: process.env.REDIS_URL ? 'distributed_redis' : 'standalone_inprocess',
+      activeSseClients: realtimeService.getActiveClientCount(),
+    },
+    database: {
+      employeesCount: database.employees?.length || 0,
+      requestsCount: database.requests?.length || 0,
+      announcementsCount: database.announcements?.length || 0,
+      auditLogsCount: (database.logs?.length || 0) + (database.auditLogs?.length || 0),
+    },
+    environment: {
+      nodeVersion: process.version,
+      platform: process.platform,
+      arch: process.arch,
+      env: process.env.NODE_ENV || 'development',
+    },
+    health: 'OPTIMAL'
+  });
+});
 
 module.exports = router;

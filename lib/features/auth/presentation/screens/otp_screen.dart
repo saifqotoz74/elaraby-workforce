@@ -231,44 +231,52 @@ class _OtpScreenState extends State<OtpScreen> {
               // 6 OTP Boxes (tapping focuses the hidden input below)
               GestureDetector(
                 onTap: () => _focusNode.requestFocus(),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: List.generate(_codeLength, (index) {
-                    final isActive = index == code.length && !_verifying;
-                    final digit = index < code.length ? code[index] : '';
-                    return Container(
-                      width: 48,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF9FAFB),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isActive
-                              ? AppColors.primary
-                              : const Color(0xFFE5E7EB),
-                          width: isActive ? 2 : 1,
-                        ),
-                      ),
-                      alignment: Alignment.center,
-                      child: _verifying && index == 0
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: AppColors.primary,
-                              ),
-                            )
-                          : Text(
-                              digit,
-                              style: AppTypography.fontBase.copyWith(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
-                              ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final boxWidth =
+                        ((constraints.maxWidth - (_codeLength - 1) * 8) /
+                                _codeLength)
+                            .clamp(36.0, 48.0);
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: List.generate(_codeLength, (index) {
+                        final isActive = index == code.length && !_verifying;
+                        final digit = index < code.length ? code[index] : '';
+                        return Container(
+                          width: boxWidth,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF9FAFB),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isActive
+                                  ? AppColors.primary
+                                  : const Color(0xFFE5E7EB),
+                              width: isActive ? 2 : 1,
                             ),
+                          ),
+                          alignment: Alignment.center,
+                          child: _verifying && index == 0
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: AppColors.primary,
+                                  ),
+                                )
+                              : Text(
+                                  digit,
+                                  style: AppTypography.fontBase.copyWith(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                        );
+                      }),
                     );
-                  }),
+                  },
                 ),
               ),
               const SizedBox(height: 16),

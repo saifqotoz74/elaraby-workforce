@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+import '../network/api_client.dart';
 import '../theme/app_colors.dart';
 
 /// High-performance, disk-cached image loader with bounded bitmap decoding.
@@ -98,7 +99,8 @@ class _AppNetworkImageState extends State<AppNetworkImage> {
   }
 
   Future<void> _loadImage() async {
-    final url = widget.imageUrl.trim();
+    final raw = widget.imageUrl.trim();
+    final url = ApiClient.instance.resolveUrl(raw);
     if (url.isEmpty ||
         (!url.startsWith('http://') && !url.startsWith('https://'))) {
       if (mounted) {

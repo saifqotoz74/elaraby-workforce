@@ -78,7 +78,17 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
   bool _isBooked = false;
   bool _loading = false;
   late final String _tripId =
-      'trip_${widget.title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_')}';
+      (widget.tripId != null && widget.tripId!.isNotEmpty)
+          ? widget.tripId!
+          : () {
+              final slug = widget.title
+                  .toLowerCase()
+                  .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+                  .replaceAll(RegExp(r'^_+|_+$'), '');
+              return slug.isNotEmpty
+                  ? 'trip_$slug'
+                  : 'trip_${widget.title.hashCode.abs()}';
+            }();
 
   @override
   void initState() {

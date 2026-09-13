@@ -1,20 +1,20 @@
-name: Production CI Pipeline
+name: Production CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, release/* ]
   pull_request:
     branches: [ main, master ]
 
 jobs:
-  backend-test:
-    name: Backend API & Security Tests
+  backend-quality-gate:
+    name: Backend Lint, Security & Automated Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Setup Node.js
+      - name: Setup Node.js 18
         uses: actions/setup-node@v3
         with:
           node-version: 18.x
@@ -25,21 +25,38 @@ jobs:
         working-directory: server
         run: npm ci
 
-      - name: Run Comprehensive Backend Tests
+      - name: Static Code Syntax Validation
         working-directory: server
-        run: node test/comprehensive_api.test.js
+        run: |
+          find . -name "*.js" -not -path "*/node_modules/*" -exec node -c {} +
+
+      - name: Enterprise Secret Audit
+        working-directory: server
+        run: node scripts/audit-secrets.js
+
+      - name: Relational Schema & Migration Validation
+        working-directory: server
+        run: node scripts/migrate-json-to-postgres.js --validate
+
+      - name: Enterprise Production Configuration & Infrastructure Audit
+        working-directory: server
+        run: node scripts/validate-production.js
+
+      - name: Execute Full Backend Test Suite (All 23 Suites)
+        working-directory: server
+        run: npm test
         env:
           NODE_ENV: test
           PORT: 3001
 
-  mobile-test:
-    name: Flutter Lint & Automated Test Suite
+  mobile-quality-gate:
+    name: Flutter Lint, Analyze & Test Suite
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Setup Flutter
+      - name: Setup Flutter 3.29.x
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.29.x'
@@ -49,8 +66,11 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
+      - name: Verify Code Formatting
+        run: dart format --set-exit-if-changed lib test
+
       - name: Static Code Analysis (0 Issues Enforced)
         run: flutter analyze
 
-      - name: Run Flutter Tests
+      - name: Run Complete Mobile Test Suite (221 Tests)
         run: flutter test --coverage

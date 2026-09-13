@@ -3,41 +3,49 @@ import '../../../../core/localization/app_locale.dart';
 import '../../../../core/navigation/app_navigation.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
+import '../../../../core/theme/tenant_theme_extension.dart';
 
 class QuickActionsGrid extends StatelessWidget {
   const QuickActionsGrid({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final features = context.tenantFeatures;
+
     return ListenableBuilder(
       listenable: AppLocale.instance,
       builder: (context, _) {
-        final items = [
-          _QuickActionItem(
-            title: AppLocale.tr('qa_salary'),
-            icon: Icons.account_balance_wallet_rounded,
-            onTap: () => AppNavigation.toSalarySlip(context),
-          ),
-          _QuickActionItem(
-            title: AppLocale.tr('qa_vacation'),
-            icon: Icons.beach_access_rounded,
-            onTap: () => AppNavigation.toVacationBalance(context),
-          ),
-          _QuickActionItem(
-            title: AppLocale.tr('qa_shift'),
-            icon: Icons.calendar_today_rounded,
-            onTap: () => AppNavigation.toShiftSchedule(context),
-          ),
-          _QuickActionItem(
-            title: AppLocale.tr('qa_benefits'),
-            icon: Icons.card_giftcard_rounded,
-            onTap: () => AppNavigation.toBenefits(context, initialTab: 0),
-          ),
-          _QuickActionItem(
-            title: AppLocale.tr('qa_trips'),
-            icon: Icons.flight_rounded,
-            onTap: () => AppNavigation.toBenefits(context, initialTab: 1),
-          ),
+        final items = <_QuickActionItem>[
+          if (features.hasPayroll)
+            _QuickActionItem(
+              title: AppLocale.tr('qa_salary'),
+              icon: Icons.account_balance_wallet_rounded,
+              onTap: () => AppNavigation.toSalarySlip(context),
+            ),
+          if (features.hasVacations)
+            _QuickActionItem(
+              title: AppLocale.tr('qa_vacation'),
+              icon: Icons.beach_access_rounded,
+              onTap: () => AppNavigation.toVacationBalance(context),
+            ),
+          if (features.hasShifts)
+            _QuickActionItem(
+              title: AppLocale.tr('qa_shift'),
+              icon: Icons.calendar_today_rounded,
+              onTap: () => AppNavigation.toShiftSchedule(context),
+            ),
+          if (features.hasBenefits)
+            _QuickActionItem(
+              title: AppLocale.tr('qa_benefits'),
+              icon: Icons.card_giftcard_rounded,
+              onTap: () => AppNavigation.toBenefits(context, initialTab: 0),
+            ),
+          if (features.hasSummerTrips)
+            _QuickActionItem(
+              title: AppLocale.tr('qa_trips'),
+              icon: Icons.flight_rounded,
+              onTap: () => AppNavigation.toBenefits(context, initialTab: 1),
+            ),
           _QuickActionItem(
             title: AppLocale.tr('qa_support'),
             icon: Icons.headphones_rounded,

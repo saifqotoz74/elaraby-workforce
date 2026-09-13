@@ -19,6 +19,22 @@ function initHeartbeat() {
   if (heartbeatTimer.unref) heartbeatTimer.unref();
 }
 
+function _scrubPayload(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  const scrubbed = Array.isArray(obj) ? [] : {};
+  for (const [k, v] of Object.entries(obj)) {
+    const lowerKey = k.toLowerCase();
+    if (lowerKey === 'pin' || lowerKey === 'pinhash' || lowerKey === 'password' || lowerKey === 'token' || lowerKey === 'otpcode' || lowerKey === 'otp') {
+      scrubbed[k] = '[REDACTED]';
+    } else if (v && typeof v === 'object') {
+      scrubbed[k] = _scrubPayload(v);
+    } else {
+      scrubbed[k] = v;
+    }
+  }
+  return scrubbed;
+}
+
 /**
  * Subscribes an HTTP response to the SSE stream.
  * @param {import('express').Request} req
@@ -50,11 +66,25 @@ function subscribe(req, res, user) {
     timestamp: Date.now(),
   })}\n\n`);
 
-  req.on('close', () => {
+  const cleanup = () => {
     clients.delete(client);
-  });
+  };
+  if (req && typeof req.on === 'function') {
+    req.on('close', cleanup);
+    req.on('error', cleanup);
+  }
+  if (res && typeof res.on === 'function') {
+    res.on('close', cleanup);
+    res.on('error', cleanup);
+  }
 
   return client;
+}
+
+let clusterPublisher = null;
+
+function setClusterPublisher(fn) {
+  clusterPublisher = fn;
 }
 
 /**
@@ -62,13 +92,23 @@ function subscribe(req, res, user) {
  * Optionally filtered by target scope (e.g. factory).
  * @param {string} eventName
  * @param {Object} payload
- * @param {Object} [filter] - Optional { factory, employeeId }
+ * @param {Object} [filter] - Optional { factory, employeeId, _fromCluster }
  */
 function broadcast(eventName, payload = {}, filter = null) {
+  const safePayload = _scrubPayload(payload);
+
+  if (clusterPublisher && !filter?._fromCluster) {
+    try {
+      clusterPublisher(eventName, safePayload, filter);
+    } catch (_) {
+      // Graceful fallback to local broadcast
+    }
+  }
+
   const dataString = JSON.stringify({
     event: eventName,
     timestamp: Date.now(),
-    ...payload,
+    ...safePayload,
   });
 
   const message = `event: ${eventName}\ndata: ${dataString}\n\n`;
@@ -104,4 +144,6 @@ module.exports = {
   subscribe,
   broadcast,
   getActiveClientCount,
+  setClusterPublisher,
 };
+

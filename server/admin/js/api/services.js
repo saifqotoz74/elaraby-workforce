@@ -70,3 +70,15 @@ export const uploadApi = {
     });
   },
 };
+
+export const metricsApi = {
+  get: () => api.get('/api/admin/metrics'),
+};
+
+export const superAdminApi = {
+  listTenants: () => api.get('/api/super-admin/tenants'),
+  createTenant: (data) => api.post('/api/super-admin/tenants', data),
+  updateTenant: (id, data) => api.put(`/api/super-admin/tenants/${id}`, data),
+  deactivateTenant: (id) => api.delete(`/api/super-admin/tenants/${id}`),
+};
+

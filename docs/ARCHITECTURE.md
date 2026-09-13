@@ -13,48 +13,54 @@ Elaraby Connect employs an **offline-first Clean Architecture** pattern tailored
 
 ```mermaid
 graph TD
-    subgraph "Flutter Mobile Client (lib/)"
-        subgraph "Presentation Layer"
-            UI[Screen Widgets & Forms]
-            Controllers[Riverpod StateNotifier Controllers]
-        end
-        subgraph "Domain & Repository Layer"
-            RepoInterfaces[Repository Interfaces]
-            RepoImpl[Repository Implementations]
-            StateMachines[UiState & Domain Models]
-        end
-        subgraph "Data & Infrastructure Layer"
-            LocalDS[LocalStorageDataSource]
-            LocalStore[LocalStore & FlutterSecureStorage]
-            ApiClient[ApiClient - KeepAlive HTTP Client]
-            ConnSvc[ConnectivityService - connectivity_plus]
-        end
+    subgraph "Clients"
+        Mobile[Flutter Mobile Client - Android & iOS]
+        Web[Admin Dashboard SPA]
     end
 
-    subgraph "Backend Infrastructure (server/)"
-        Express[Express 4.21 API Gateway]
-        SecurityMW[Security Headers & IP Rate Limiting]
-        AuthMW[JWT HMAC & Token Version Validator]
-        Services[Employee & Admin Route Handlers]
-        DBEngine[Atomic Persistent Engine & Schema Migrations]
-        FirestoreSync[Cloud Firestore / Google Cloud Storage]
+    subgraph "API / Backend: Modular Monolith"
+        Express[Express API Gateway & Controllers]
+        AuthMW[Auth, RBAC & Scope Guard]
+        Services[Application Services]
+        RepoLayer[Repository Layer & Interfaces]
     end
 
-    UI --> Controllers
-    Controllers --> StateMachines
-    Controllers --> RepoInterfaces
-    RepoImpl -.-> RepoInterfaces
-    RepoImpl --> LocalDS
-    RepoImpl --> ApiClient
-    LocalDS --> LocalStore
-    ApiClient --> ConnSvc
+    subgraph "Primary Storage"
+        PG[(PostgreSQL Primary DB - ACID, Pooled)]
+    end
 
-    ApiClient == REST / JSON ==> Express
-    Express --> SecurityMW
-    SecurityMW --> AuthMW
+    subgraph "Distributed State & Queuing"
+        Redis[(Redis 7 - Caching, Distributed Locks, RateLimit, PubSub)]
+        BullWorker[BullMQ Background Workers]
+    end
+
+    subgraph "Integration Adapters"
+        SMSAdapter[SMS Gateway Adapter: Twilio / Cequens / Vodafone / Mock]
+        PushAdapter[FCM Push Adapter: Firebase HTTP v1 / Mock]
+        ERPAdapter[ERP Adapter: SAP / Oracle / REST / Mock]
+        BioAdapter[Biometric Time-Clock Adapter: REST / CSV-SFTP / Mock]
+    end
+
+    subgraph "Observability Layer"
+        APM[Structured JSON Logger, Request IDs, Metrics, Health Probes]
+    end
+
+    Mobile --> Express
+    Web --> Express
+    Express --> AuthMW
     AuthMW --> Services
-    Services --> DBEngine
-    DBEngine -. Optional Cloud Sync .-> FirestoreSync
+    Services --> RepoLayer
+    RepoLayer --> PG
+    Services --> Redis
+    Services --> BullWorker
+    BullWorker --> Redis
+    BullWorker --> PG
+    BullWorker --> SMSAdapter
+    BullWorker --> PushAdapter
+    BullWorker --> ERPAdapter
+    BullWorker --> BioAdapter
+    Express --> APM
+    BullWorker --> APM
 ```
 
 ---
@@ -158,3 +164,27 @@ Rather than misinterpreting transient HTTP timeouts as offline mode, the client 
 * **Hardware Keystore:** Critical security data (PIN hashes, session JWTs) are managed via `FlutterSecureStorage` backed by Android KeyStore (AES-256 GCM) and iOS Keychain (`kSecAccessControlBiometryAny` / `first_unlock`).
 * **Plaintext Exclusion:** Plaintext PINs and raw tokens are never written to `SharedPreferences` or logged to disk.
 * **Session Teardown:** Unified logout (`Backend.instance.clearAllUserData()`) clears all storage caches, resets vacation balance, wipes in-memory stores, and unregisters push tokens.
+ 
+---
+ 
++## 7. Enterprise Backend & Distributed Architecture
++
++### 7.1 Modular Monolith + BullMQ Workers Design
++To eliminate operational complexity while scaling to tens of thousands of employees:
++* **Modular Monolith Core:** Domain modules (Employee, Leave, Shift, Payroll, Benefits, Content, Audit) are organized with clear boundaries. Controllers delegate to application services, which interact with clean repository interfaces.
++* **Authoritative Persistence:** PostgreSQL acts as the single authoritative source of truth. Connection pooling is managed via `pg.Pool` with parameterized queries, statement timeouts, and transactional integrity.
++* **Distributed Cache & State:** Redis 7 provides non-permanent state management:
++  * Ephemeral OTP storage (`SETEX`) with TTL
++  * Distributed rate-limiting and lockout enforcement
++  * Idempotency key tracking
++  * Cluster Pub/Sub bridging Server-Sent Events across multiple API instances
++* **Background Job Processing:** Long-running, external, and batch operations are decoupled from HTTP request loops into **BullMQ** workers:
++  * `sms`: Critical OTP and transactional SMS with exponential backoff
++  * `push`: Firebase Cloud Messaging delivery and invalid token cleanup
++  * `notifications`: Bulk announcement dispatches
++  * `payroll`: Statement preparation and heavy calculations
++  * `erp-sync`: Asynchronous SAP / Oracle / REST synchronization
++  * `attendance-sync`: Biometric ingestion, normalization, and reconciliation
++* **Integration Boundary:** Pluggable adapter architecture isolating third-party vendors (SMS gateways, push providers, ERPs, biometric clocks) behind strict contracts, enabling Mock implementations in test/dev and zero hardcoded credentials.
++* **Comprehensive Observability:** Uniform correlation IDs (`x-request-id`), structured JSON logging with automated PII/credential scrubbing, pluggable error reporting, Prometheus metrics, and Kubernetes-grade health/readiness/liveness probes.
+

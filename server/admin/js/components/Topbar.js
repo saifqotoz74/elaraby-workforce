@@ -17,6 +17,14 @@ export class Topbar {
     const role = (user.role || 'superadmin').toUpperCase().replace('_', ' ');
     const factory = user.scopeFactory ? ` • ${user.scopeFactory}` : '';
 
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 
+      localStorage.getItem('admin_theme') || 
+      (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+
+    if (currentTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+
     this.element.innerHTML = `
       <div class="topbar-left">
         <button class="topbar-menu-btn" aria-label="Toggle Navigation">
@@ -26,6 +34,11 @@ export class Topbar {
       </div>
 
       <div class="topbar-right">
+        <button class="btn btn-secondary btn-icon" id="topbar-theme-toggle" title="Toggle Theme (Light/Dark)" style="border-radius: var(--radius-pill); padding: 7px 12px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+          <span id="theme-toggle-icon">${currentTheme === 'dark' ? '☀️' : '🌙'}</span>
+          <span id="theme-toggle-text" style="font-size: 12px; font-weight: 600;">${currentTheme === 'dark' ? 'Light' : 'Dark'}</span>
+        </button>
+
         <div class="realtime-indicator" id="topbar-realtime-badge">
           <span class="realtime-dot"></span>
           <span>Live Sync</span>
@@ -40,6 +53,24 @@ export class Topbar {
         </div>
       </div>
     `;
+
+    const themeToggleBtn = this.element.querySelector('#topbar-theme-toggle');
+    if (themeToggleBtn) {
+      themeToggleBtn.onclick = () => {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const newTheme = isDark ? 'light' : 'dark';
+        if (newTheme === 'dark') {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+        }
+        localStorage.setItem('admin_theme', newTheme);
+        const iconEl = this.element.querySelector('#theme-toggle-icon');
+        const textEl = this.element.querySelector('#theme-toggle-text');
+        if (iconEl) iconEl.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        if (textEl) textEl.textContent = newTheme === 'dark' ? 'Light' : 'Dark';
+      };
+    }
 
     const menuBtn = this.element.querySelector('.topbar-menu-btn');
     if (menuBtn) {

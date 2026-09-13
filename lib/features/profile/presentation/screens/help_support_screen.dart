@@ -4,6 +4,7 @@ import '../../../../core/localization/app_locale.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/navigation/app_navigation.dart';
+import '../../../../core/theme/tenant_theme_extension.dart';
 
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});
@@ -25,6 +26,9 @@ class HelpSupportScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final brand = context.tenantBrand;
+    final hotline = brand.supportHotline.isNotEmpty ? brand.supportHotline : '19319';
+
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
       appBar: AppBar(
@@ -122,13 +126,13 @@ class HelpSupportScreen extends StatelessWidget {
               context,
               icon: Icons.phone_in_talk_rounded,
               title: AppLocale.tr('help_hotline'),
-              subtitle: '19319 (Direct Ext. 2)',
+              subtitle: '$hotline (Direct Ext. 2)',
               timing: 'Sun – Thu • 8:00 AM – 4:30 PM',
               actionLabel: AppLocale.tr('help_call_now'),
               actionIcon: Icons.call,
               onTap: () => _launchOrToast(
                 context,
-                Uri(scheme: 'tel', path: '19319'),
+                Uri(scheme: 'tel', path: hotline),
               ),
             ),
             const SizedBox(height: 12),

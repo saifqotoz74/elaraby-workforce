@@ -69,56 +69,70 @@ class _PinScreenState extends State<PinScreen> {
         ),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Progress Bar (Step 4)
-              const AuthProgressBar(currentStep: 4),
-              const SizedBox(height: 24),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Progress Bar (Step 4)
+                        const AuthProgressBar(currentStep: 4),
+                        const SizedBox(height: 24),
 
-              // Title & Subtitle
-              Text(
-                AppLocale.tr('auth_create_pin_title'),
-                style: AppTypography.welcomeTitle.copyWith(fontSize: 22),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                AppLocale.tr('auth_create_pin_subtitle'),
-                style: AppTypography.dateSubtitle
-                    .copyWith(fontSize: 14, height: 1.4),
-              ),
-              const SizedBox(height: 48),
+                        // Title & Subtitle
+                        Text(
+                          AppLocale.tr('auth_create_pin_title'),
+                          style:
+                              AppTypography.welcomeTitle.copyWith(fontSize: 22),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          AppLocale.tr('auth_create_pin_subtitle'),
+                          style: AppTypography.dateSubtitle
+                              .copyWith(fontSize: 14, height: 1.4),
+                        ),
+                        const SizedBox(height: 48),
 
-              // 4 PIN Dots
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(4, (index) {
-                  final isFilled = index < _pin.length;
-                  return Container(
-                    width: 14,
-                    height: 14,
-                    margin: const EdgeInsets.symmetric(horizontal: 10),
-                    decoration: BoxDecoration(
-                      color: isFilled
-                          ? AppColors.primary
-                          : const Color(0xFFD1D5DB),
-                      shape: BoxShape.circle,
+                        // 4 PIN Dots
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(4, (index) {
+                            final isFilled = index < _pin.length;
+                            return Container(
+                              width: 14,
+                              height: 14,
+                              margin:
+                                  const EdgeInsets.symmetric(horizontal: 10),
+                              decoration: BoxDecoration(
+                                color: isFilled
+                                    ? AppColors.primary
+                                    : const Color(0xFFD1D5DB),
+                                shape: BoxShape.circle,
+                              ),
+                            );
+                          }),
+                        ),
+                        const Spacer(),
+
+                        // Numeric Keypad
+                        NumericKeypad(
+                          onNumberPressed: _onNumberPressed,
+                          onDeletePressed: _onDeletePressed,
+                        ),
+                        const SizedBox(height: 24),
+                      ],
                     ),
-                  );
-                }),
+                  ),
+                ),
               ),
-              const Spacer(),
-
-              // Numeric Keypad
-              NumericKeypad(
-                onNumberPressed: _onNumberPressed,
-                onDeletePressed: _onDeletePressed,
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

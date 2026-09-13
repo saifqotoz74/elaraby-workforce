@@ -21,36 +21,31 @@ class AppLocalizationsAr extends AppLocalizations {
   String get ann_detail_guidelines_title => 'أهم الإرشادات والتغييرات';
 
   @override
-  String get ann_detail_overview_body =>
-      'لتعزيز الكفاءة التشغيلية ورفاهية العاملين في مصانعنا بالعاشر من رمضان وبنها، تنتقل مجموعة العرابي إلى سياسة ورديات متناوبة محدّثة بدءاً من يوم الاثنين 10 أغسطس 2026.';
+  String get ann_detail_overview_body => 'لتعزيز الكفاءة التشغيلية ورفاهية العاملين في مصانعنا بالعاشر من رمضان وبنها، تنتقل مجموعة العرابي إلى سياسة ورديات متناوبة محدّثة بدءاً من يوم الاثنين 10 أغسطس 2026.';
 
   @override
   String get ann_detail_overview_title => 'نظرة عامة على السياسة';
 
   @override
-  String get ann_detail_published =>
-      'نُشر في 01 أغسطس 2026 • عمليات الموارد البشرية';
+  String get ann_detail_published => 'نُشر في 01 أغسطس 2026 • عمليات الموارد البشرية';
 
   @override
   String get ann_detail_schedules_title => 'جداول الورديات المحدّثة';
 
   @override
-  String get ann_guide_break_d =>
-      'استراحة غداء 45 دقيقة واستراحة راحة 15 دقيقة لكل وردية.';
+  String get ann_guide_break_d => 'استراحة غداء 45 دقيقة واستراحة راحة 15 دقيقة لكل وردية.';
 
   @override
   String get ann_guide_break_t => 'أوقات الراحة';
 
   @override
-  String get ann_guide_bus_d =>
-      'جميع خطوط ومواعيد أتوبيسات الشركة ستتزامن قبل بدء الورديات بـ 30 دقيقة.';
+  String get ann_guide_bus_d => 'جميع خطوط ومواعيد أتوبيسات الشركة ستتزامن قبل بدء الورديات بـ 30 دقيقة.';
 
   @override
   String get ann_guide_bus_t => 'أتوبيسات النقل';
 
   @override
-  String get ann_guide_ot_d =>
-      'ستزيد بدلات الوردية الليلية بنسبة 15% اعتباراً من أول دورة رواتب.';
+  String get ann_guide_ot_d => 'ستزيد بدلات الوردية الليلية بنسبة 15% اعتباراً من أول دورة رواتب.';
 
   @override
   String get ann_guide_ot_t => 'الإضافي والبدلات';
@@ -59,8 +54,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get announcement_badge => 'إعلان هام';
 
   @override
-  String get announcement_title =>
-      'سياسة الورديات الجديدة\nبدءاً من 10 أغسطس 2026';
+  String get announcement_title => 'سياسة الورديات الجديدة\nبدءاً من 10 أغسطس 2026';
 
   @override
   String get auth_auto_verify => 'يتم التحقق تلقائياً عند الاكتمال';
@@ -78,8 +72,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_continue => 'متابعة';
 
   @override
-  String get auth_create_pin_subtitle =>
-      'ستستخدمه لتسجيل الدخول وفتح مفردات المرتب';
+  String get auth_create_pin_subtitle => 'ستستخدمه لتسجيل الدخول وفتح مفردات المرتب';
 
   @override
   String get auth_create_pin_title => 'أنشئ الرمز السري';
@@ -88,8 +81,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_dev_code => 'رمز التجربة:';
 
   @override
-  String get auth_forgot_body =>
-      'إعادة تعيين الرمز ستخرجك من التطبيق وتمسح البيانات المحلية على هذا الجهاز. ستحتاج للتحقق من رقمك القومي مرة أخرى.';
+  String get auth_forgot_body => 'إعادة تعيين الرمز ستخرجك من التطبيق وتمسح البيانات المحلية على هذا الجهاز. ستحتاج للتحقق من رقمك القومي مرة أخرى.';
 
   @override
   String get auth_forgot_pin => 'نسيت الرمز السري؟';
@@ -101,16 +93,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_get_started => 'ابدأ الآن';
 
   @override
-  String get auth_get_started_subtitle =>
-      'تطبيقك الواحد للورديات والمرتبات والطلبات ومزايا الشركة.';
+  String get auth_get_started_subtitle => 'تطبيقك الواحد للورديات والمرتبات والطلبات ومزايا الشركة.';
 
   @override
-  String get auth_id_help_body =>
-      'رقمك القومي مطبوع على بطاقة الرقم القومي. إذا لم تجده، تفضل بزيارة مكتب الموارد البشرية (مبنى 2) أو اتصل بالخط الساخن 19319.';
+  String get auth_id_help_body => 'رقمك القومي مطبوع على بطاقة الرقم القومي. إذا لم تجده، تفضل بزيارة مكتب الموارد البشرية (مبنى 2) أو اتصل بالخط الساخن 19319.';
 
   @override
-  String get auth_id_not_found =>
-      'الرقم القومي غير مسجل في قاعدة بيانات العاملين. يرجى مراجعة إدارة الموارد البشرية.';
+  String get auth_id_not_found => 'الرقم القومي غير مسجل في قاعدة بيانات العاملين. يرجى مراجعة إدارة الموارد البشرية.';
 
   @override
   String auth_locked(String minutes) {
@@ -121,6 +110,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String auth_locked_minutes(num minutes) {
     final intl.NumberFormat minutesNumberFormat = intl.NumberFormat.compact(
       locale: localeName,
+      
     );
     final String minutesString = minutesNumberFormat.format(minutes);
 
@@ -137,8 +127,7 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
-  String get auth_national_id_subtitle =>
-      'أدخل رقمك القومي المكوّن من 14 رقماً للعثور على ملفك الشخصي';
+  String get auth_national_id_subtitle => 'أدخل رقمك القومي المكوّن من 14 رقماً للعثور على ملفك الشخصي';
 
   @override
   String get auth_national_id_title => 'أدخل الرقم القومي';
@@ -150,8 +139,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_of => 'من';
 
   @override
-  String get auth_otp_help_body =>
-      'تأكد من توفر الشبكة وحاول إعادة إرسال الرمز. إذا لم يصل، اتصل بخدمة الدعم الفني على تحويلة 4022.';
+  String get auth_otp_help_body => 'تأكد من توفر الشبكة وحاول إعادة إرسال الرمز. إذا لم يصل، اتصل بخدمة الدعم الفني على تحويلة 4022.';
 
   @override
   String get auth_otp_sent_to => 'أرسلنا رمزاً من 6 أرقام إلى';
@@ -175,12 +163,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get auth_switch_employee => 'تسجيل الدخول بموظف آخر';
 
   @override
-  String get auth_switch_employee_confirm =>
-      'هل أنت متأكد من تسجيل الدخول بموظف آخر؟ سيتم مسح الجلسة النشطة والبيانات المحلية على هذا الجهاز.';
+  String get auth_switch_employee_confirm => 'هل أنت متأكد من تسجيل الدخول بموظف آخر؟ سيتم مسح الجلسة النشطة والبيانات المحلية على هذا الجهاز.';
 
   @override
-  String get auth_unlock_subtitle =>
-      'أدخل رمزك السري المكوّن من 4 أرقام لفتح التطبيق';
+  String get auth_unlock_subtitle => 'أدخل رمزك السري المكوّن من 4 أرقام لفتح التطبيق';
 
   @override
   String get auth_unlock_title => 'مرحباً بعودتك';
@@ -204,19 +190,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get ben_cat_supermarkets => 'السوبر ماركت';
 
   @override
-  String get ben_default_desc =>
-      'سلسلة متاجر رائدة تقدم تشكيلة واسعة من الخضروات الطازجة والبقالة والأدوات المنزلية بأسعار تنافسية لموظفي العرابي.';
+  String get ben_default_desc => 'سلسلة متاجر رائدة تقدم تشكيلة واسعة من الخضروات الطازجة والبقالة والأدوات المنزلية بأسعار تنافسية لموظفي العرابي.';
 
   @override
   String get ben_employee_id => 'بطاقة الموظف';
 
   @override
-  String get ben_id_note =>
-      'اعرض هذه البطاقة في المتجر المشارك للحصول على الخصم.';
+  String get ben_id_note => 'اعرض هذه البطاقة في المتجر المشارك للحصول على الخصم.';
 
   @override
-  String get ben_redeem_body =>
-      'ما عليك سوى إظهار بطاقة الموظف أو الرقم القومي عند الدفع للاستمتاع بالخصم.';
+  String get ben_redeem_body => 'ما عليك سوى إظهار بطاقة الموظف أو الرقم القومي عند الدفع للاستمتاع بالخصم.';
 
   @override
   String get ben_redeem_title => 'طريقة الاستخدام';
@@ -261,8 +244,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get biometric_failed => 'فشل التحقق بالبصمة — استخدم رمزك السري.';
 
   @override
-  String get biometric_not_setup =>
-      'البصمة غير مُعدّة على هذا الجهاز. استخدم الرمز السري.';
+  String get biometric_not_setup => 'البصمة غير مُعدّة على هذا الجهاز. استخدم الرمز السري.';
 
   @override
   String get biometric_prompt => 'افتح Elaraby Connect';
@@ -274,15 +256,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get change_pin_step_confirm_title => 'أكد الرمز الجديد';
 
   @override
-  String get change_pin_step_current_subtitle =>
-      'أدخل رمزك السري الحالي المكوّن من 4 أرقام';
+  String get change_pin_step_current_subtitle => 'أدخل رمزك السري الحالي المكوّن من 4 أرقام';
 
   @override
   String get change_pin_step_current_title => 'أدخل الرمز الحالي';
 
   @override
-  String get change_pin_step_new_subtitle =>
-      'اختر رمزاً سرياً جديداً من 4 أرقام لحسابك';
+  String get change_pin_step_new_subtitle => 'اختر رمزاً سرياً جديداً من 4 أرقام لحسابك';
 
   @override
   String get change_pin_step_new_title => 'أنشئ رمزاً جديداً';
@@ -366,8 +346,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get emp_data_title => 'بيانات الموظف';
 
   @override
-  String get emp_edit_note =>
-      'سيتم إرسال تعديلات البيانات الشخصية إلى الموارد البشرية للمراجعة.';
+  String get emp_edit_note => 'سيتم إرسال تعديلات البيانات الشخصية إلى الموارد البشرية للمراجعة.';
 
   @override
   String get emp_edit_title => 'تعديل البيانات';
@@ -376,8 +355,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get emp_emergency => 'جهة اتصال للطوارئ';
 
   @override
-  String get emp_hr_only =>
-      'بعض البيانات لا يمكن تعديلها إلا من قبل الموارد البشرية.';
+  String get emp_hr_only => 'بعض البيانات لا يمكن تعديلها إلا من قبل الموارد البشرية.';
 
   @override
   String get emp_name => 'الاسم الكامل';
@@ -398,8 +376,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get emp_saved => 'تم تحديث البيانات بنجاح.';
 
   @override
-  String get emp_saved_offline =>
-      'تم الحفظ محلياً (سيتم المزامنة عند الاتصال بالإنترنت)';
+  String get emp_saved_offline => 'تم الحفظ محلياً (سيتم المزامنة عند الاتصال بالإنترنت)';
 
   @override
   String get emp_supervisor => 'المشرف المباشر';
@@ -465,8 +442,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get help_title => 'تحتاج مساعدة؟';
 
   @override
-  String get help_track_request =>
-      'أرسل طلب HR مباشرة من التطبيق وتابع حالة الموافقة لحظة بلحظة.';
+  String get help_track_request => 'أرسل طلب HR مباشرة من التطبيق وتابع حالة الموافقة لحظة بلحظة.';
 
   @override
   String get help_whatsapp => 'واتساب الموارد البشرية';
@@ -514,8 +490,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get leave_discard_confirm => 'تجاهل والخروج';
 
   @override
-  String get leave_discard_message =>
-      'لديك بيانات غير محفوظة في طلب الإجازة. هل أنت متأكد من الخروج وتجاهل البيانات؟';
+  String get leave_discard_message => 'لديك بيانات غير محفوظة في طلب الإجازة. هل أنت متأكد من الخروج وتجاهل البيانات؟';
 
   @override
   String get leave_discard_stay => 'البقاء';
@@ -542,8 +517,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get leave_notes_hint => 'أضف أي تفاصيل لمديرك...';
 
   @override
-  String get leave_request_failed =>
-      'تعذر إرسال طلب الإجازة. يرجى المحاولة مرة أخرى.';
+  String get leave_request_failed => 'تعذر إرسال طلب الإجازة. يرجى المحاولة مرة أخرى.';
 
   @override
   String get leave_request_submitted => 'تم تقديم طلب الإجازة بنجاح';
@@ -606,15 +580,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get nav_services => 'الخدمات';
 
   @override
-  String get network_offline_warning =>
-      'أنت الآن في وضع عدم الاتصال. ستتم المزامنة تلقائياً.';
+  String get network_offline_warning => 'أنت الآن في وضع عدم الاتصال. ستتم المزامنة تلقائياً.';
 
   @override
   String get new_announcement => 'إعلان جديد';
 
   @override
-  String get news_demo1_body =>
-      'تعلن مجموعة العرابي عن افتتاح خطي إنتاج حديثين في المنطقة الصناعية بالعاشر من رمضان، بما يوفر أكثر من 600 وظيفة فنية متخصصة ويعزز القدرة التصديرية في منطقة الشرق الأوسط وشمال أفريقيا.';
+  String get news_demo1_body => 'تعلن مجموعة العرابي عن افتتاح خطي إنتاج حديثين في المنطقة الصناعية بالعاشر من رمضان، بما يوفر أكثر من 600 وظيفة فنية متخصصة ويعزز القدرة التصديرية في منطقة الشرق الأوسط وشمال أفريقيا.';
 
   @override
   String get news_demo1_cat => 'توسع';
@@ -623,19 +595,16 @@ class AppLocalizationsAr extends AppLocalizations {
   String get news_demo1_title => 'منشآت تصنيعية جديدة لزيادة الطاقة الإنتاجية';
 
   @override
-  String get news_demo2_body =>
-      'حقق خط الإنتاج أ في بنها 180 يوم عمل متواصلاً دون حوادث. وتثمن الإدارة التفاني والالتزام الصارم بإرشادات السلامة في بيئة العمل.';
+  String get news_demo2_body => 'حقق خط الإنتاج أ في بنها 180 يوم عمل متواصلاً دون حوادث. وتثمن الإدارة التفاني والالتزام الصارم بإرشادات السلامة في بيئة العمل.';
 
   @override
   String get news_demo2_cat => 'السلامة والجودة';
 
   @override
-  String get news_demo2_title =>
-      'إعلان الفائزين بجائزة التميز في السلامة للربع الثاني';
+  String get news_demo2_title => 'إعلان الفائزين بجائزة التميز في السلامة للربع الثاني';
 
   @override
-  String get news_demo3_body =>
-      'الفحوصات الطبية الشاملة المجانية وفحوصات النظر والاستشارات الغذائية متاحة لجميع عمال المصانع في المراكز الطبية من 9 صباحاً حتى 4 عصراً.';
+  String get news_demo3_body => 'الفحوصات الطبية الشاملة المجانية وفحوصات النظر والاستشارات الغذائية متاحة لجميع عمال المصانع في المراكز الطبية من 9 صباحاً حتى 4 عصراً.';
 
   @override
   String get news_demo3_cat => 'رفاهية الموظفين';
@@ -644,8 +613,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get news_demo3_title => 'الأسبوع الصحي والبدني يبدأ هذا الأحد';
 
   @override
-  String get news_demo4_body =>
-      'استعرضت قيادة مجموعة العرابي أبرز الإنجازات التشغيلية وشاركت خارطة الطريق الاستراتيجية للتصنيع المستدام وخفض الطاقة والتحول الرقمي.';
+  String get news_demo4_body => 'استعرضت قيادة مجموعة العرابي أبرز الإنجازات التشغيلية وشاركت خارطة الطريق الاستراتيجية للتصنيع المستدام وخفض الطاقة والتحول الرقمي.';
 
   @override
   String get news_demo4_cat => 'القيادة';
@@ -747,8 +715,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get settings_salary_protection => 'حماية مفردات المرتب';
 
   @override
-  String get settings_salary_protection_sub =>
-      'طلب الرمز السري لفتح مستندات المرتب';
+  String get settings_salary_protection_sub => 'طلب الرمز السري لفتح مستندات المرتب';
 
   @override
   String get settings_security => 'الأمان والوصول السريع';
@@ -820,8 +787,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get slip_total => 'إجمالي الصافي';
 
   @override
-  String get survey_question =>
-      'هل كان من السهل العثور على ما تحتاجه في التطبيق؟';
+  String get survey_question => 'هل كان من السهل العثور على ما تحتاجه في التطبيق؟';
 
   @override
   String get svc_concern_subtitle => 'مجهول الهوية';
@@ -860,8 +826,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get trip_cancelled => 'تم إلغاء حجز الرحلة.';
 
   @override
-  String get trip_confirmed =>
-      'تم تأكيد مقعدك! تابع صندوق الوارد لتعليمات الرحلة.';
+  String get trip_confirmed => 'تم تأكيد مقعدك! تابع صندوق الوارد لتعليمات الرحلة.';
 
   @override
   String get trip_details => 'تفاصيل رحلة الشركة';
@@ -897,6 +862,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String trip_seats_left_count(num count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,
+      
     );
     final String countString = countNumberFormat.format(count);
 
@@ -983,6 +949,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String vacation_days_count(num count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,
+      
     );
     final String countString = countNumberFormat.format(count);
 
@@ -1003,6 +970,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String vacation_days_remaining_count(num count) {
     final intl.NumberFormat countNumberFormat = intl.NumberFormat.compact(
       locale: localeName,
+      
     );
     final String countString = countNumberFormat.format(count);
 

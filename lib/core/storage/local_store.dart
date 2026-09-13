@@ -406,9 +406,11 @@ class LocalStore extends ChangeNotifier {
       _p.setBool('$_kTripPrefix$tripId', value);
 
   // ---- Request reference numbers ----
-  /// Monotonic per-install counter so generated refs never collide.
+  /// Monotonic per-install counter seeded uniquely to prevent cross-device collisions.
   int nextRefNumber() {
-    final next = (_prefs?.getInt(_kRefCounter) ?? 200) + 1;
+    int? current = _prefs?.getInt(_kRefCounter);
+    current ??= ((DateTime.now().millisecondsSinceEpoch ~/ 1000) % 899999) + 100000;
+    final next = current + 1;
     _p.setInt(_kRefCounter, next);
     return next;
   }
@@ -452,5 +454,44 @@ class LocalStore extends ChangeNotifier {
   Future<void> resetSalaryGateLockout() async {
     await _p.remove('salary_gate_fails');
     await _p.remove('salary_gate_lockout_until');
+  }
+
+  // ---- Multi-Tenant & White-Label Config ----
+  String? get activeTenantBrandJson => _prefs?.getString('active_tenant_brand');
+  Future<void> setActiveTenantBrandJson(String? jsonStr) async {
+    if (jsonStr == null) {
+      await _p.remove('active_tenant_brand');
+    } else {
+      await _p.setString('active_tenant_brand', jsonStr);
+    }
+    notifyListeners();
+  }
+
+  String? get activeTenantFeaturesJson => _prefs?.getString('active_tenant_features');
+  Future<void> setActiveTenantFeaturesJson(String? jsonStr) async {
+    if (jsonStr == null) {
+      await _p.remove('active_tenant_features');
+    } else {
+      await _p.setString('active_tenant_features', jsonStr);
+    }
+    notifyListeners();
+  }
+
+  String get activeTenantSlug => _prefs?.getString('active_tenant_slug') ?? 'elaraby';
+  bool get hasExplicitTenant => _prefs?.containsKey('active_tenant_slug') ?? false;
+  Future<void> setActiveTenantSlug(String slug) async {
+    await _p.setString('active_tenant_slug', slug);
+    notifyListeners();
+  }
+
+  String? get activeIdentityMode => _prefs?.getString('active_identity_mode');
+  String get identityMode => activeIdentityMode ?? 'egyptian_national_id';
+  Future<void> setActiveIdentityMode(String? mode) async {
+    if (mode == null) {
+      await _p.remove('active_identity_mode');
+    } else {
+      await _p.setString('active_identity_mode', mode);
+    }
+    notifyListeners();
   }
 }

@@ -9,6 +9,10 @@ class AppColors {
   static const Color primaryLight = Color(0xFF1668B8);
   static const Color primarySoft = Color(0xFFE8F1FA);
 
+  /// Dynamic primary color resolving to the current theme's primary
+  static Color dynamicPrimary(BuildContext context) =>
+      Theme.of(context).colorScheme.primary;
+
   // Background & Surface Colors
   static const Color scaffoldBackground = Color(0xFFF3F5F7);
   static const Color surface = Colors.white;

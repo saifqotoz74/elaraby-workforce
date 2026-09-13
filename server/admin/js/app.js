@@ -19,6 +19,7 @@ import { AnnouncementsView } from './views/AnnouncementsView.js';
 import { ConcernsView } from './views/ConcernsView.js';
 import { AuditView } from './views/AuditView.js';
 import { SettingsView } from './views/SettingsView.js';
+import { TenantsView } from './views/TenantsView.js';
 
 class App {
   constructor() {
@@ -156,6 +157,11 @@ class App {
     // 10. Settings
     this.router.addRoute('/settings', () => {
       this.renderView(SettingsView, 'Administration & Settings', 'settings');
+    });
+
+    // 11. Platform Super-Admin Tenants Management
+    this.router.addRoute('/tenants', () => {
+      this.renderView(TenantsView, 'Tenant Organizations & White-Label Management', 'tenants');
     });
   }
 }

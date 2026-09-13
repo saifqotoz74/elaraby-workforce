@@ -1,6 +1,6 @@
 // Dashboard View Component — Executive Workforce Analytics & Control Center
 
-import { statsApi } from '../api/services.js';
+import { statsApi, metricsApi } from '../api/services.js';
 import { store } from '../state/store.js';
 import { createStatusBadge } from '../components/StatusBadge.js';
 import { toast } from '../components/Toast.js';
@@ -17,6 +17,7 @@ export class DashboardView {
     this.element = null;
     this.refreshHandler = null;
     this.otpHandler = null;
+    this.metricsTimer = null;
   }
 
   async mount() {
@@ -314,6 +315,35 @@ export class DashboardView {
           <div style="color: var(--text-muted); font-size: 13px;">Loading recent operational events...</div>
         </div>
       </div>
+
+      <!-- Section 5: Enterprise APM & System Health Diagnostics -->
+      <div class="analytics-card" style="margin-top: 24px; border-left: 4px solid var(--status-green);">
+        <div class="analytics-card-header">
+          <h3 class="analytics-card-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+            <span>Enterprise System Diagnostics & APM Health</span>
+          </h3>
+          <span class="badge badge-success" id="apm-health-badge">🟢 HEALTHY (Optimal)</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;" id="apm-metrics-grid">
+          <div style="background: var(--surface-subtle); padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+            <small style="color: var(--text-muted); display: block; font-size: 11px;">Server Uptime</small>
+            <b id="apm-uptime" style="font-size: 14px; color: var(--text-main);">Loading...</b>
+          </div>
+          <div style="background: var(--surface-subtle); padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+            <small style="color: var(--text-muted); display: block; font-size: 11px;">Node.js Heap Memory</small>
+            <b id="apm-memory" style="font-size: 14px; color: var(--text-main);">Loading...</b>
+          </div>
+          <div style="background: var(--surface-subtle); padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+            <small style="color: var(--text-muted); display: block; font-size: 11px;">Active Realtime SSE Clients</small>
+            <b id="apm-sse" style="font-size: 14px; color: var(--primary);">Loading...</b>
+          </div>
+          <div style="background: var(--surface-subtle); padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+            <small style="color: var(--text-muted); display: block; font-size: 11px;">Cluster Architecture Mode</small>
+            <b id="apm-cluster" style="font-size: 14px; color: var(--text-main);">Standalone</b>
+          </div>
+        </div>
+      </div>
     `;
 
     // Event handlers
@@ -332,7 +362,7 @@ export class DashboardView {
     this.refreshHandler = () => this.loadStats();
     this.otpHandler = (e) => {
       const data = e.detail || {};
-      toast.info('🔐 New OTP Requested', `Code for ${data.employeeName || 'Employee'}: ${data.otpCode || ''}`);
+      toast.info('🔐 Verification Requested', `Authentication code requested for ${data.employeeName || 'Employee'}`);
       this.loadStats();
     };
 
@@ -350,6 +380,28 @@ export class DashboardView {
       const stats = await statsApi.get();
       store.setStats(stats);
       this.populateStats(stats);
+
+      // Fetch and populate APM diagnostics
+      try {
+        const m = await metricsApi.get();
+        if (m && m.ok) {
+          const uptimeHrs = Math.floor(m.uptimeSeconds / 3600);
+          const uptimeMins = Math.floor((m.uptimeSeconds % 3600) / 60);
+          const uptimeStr = uptimeHrs > 0 ? `${uptimeHrs}h ${uptimeMins}m` : `${uptimeMins}m`;
+
+          const uptimeEl = this.element.querySelector('#apm-uptime');
+          const memEl = this.element.querySelector('#apm-memory');
+          const sseEl = this.element.querySelector('#apm-sse');
+          const clusterEl = this.element.querySelector('#apm-cluster');
+
+          if (uptimeEl) uptimeEl.textContent = `${uptimeStr} (${m.uptimeSeconds}s)`;
+          if (memEl) memEl.textContent = `${m.memory.heapUsedMb} MB / ${m.memory.heapTotalMb} MB`;
+          if (sseEl) sseEl.textContent = `${m.cluster.activeSseClients} Connected`;
+          if (clusterEl) clusterEl.textContent = m.cluster.mode === 'distributed_redis' ? 'Distributed (Redis)' : 'Standalone (In-Process)';
+        }
+      } catch (_) {
+        // Fallback for non-superadmin roles without audit permissions
+      }
     } catch (err) {
       console.error('Failed to load stats:', err);
     }

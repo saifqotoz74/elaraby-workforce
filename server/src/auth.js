@@ -1,10 +1,29 @@
-// Auth utilities: OTP codes, PIN hashing (scrypt), and HMAC-signed tokens.
-// Zero external dependencies — everything from node:crypto.
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const { data: db, DATA_DIR } = require('./db');
 
 const isProd = process.env.NODE_ENV === 'production';
 const _generatedSecret = crypto.randomBytes(32).toString('hex');
-const JWT_SECRET = process.env.JWT_SECRET || (isProd ? _generatedSecret : 'dev-secret-change-me-in-production');
+
+function getOrGenerateJwtSecret() {
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+  try {
+    const secretPath = path.join(DATA_DIR, '.jwt_secret');
+    if (fs.existsSync(secretPath)) {
+      const stored = fs.readFileSync(secretPath, 'utf8').trim();
+      if (stored && stored.length >= 32) return stored;
+    }
+    const generated = crypto.randomBytes(32).toString('hex');
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(secretPath, generated, { mode: 0o600 });
+    return generated;
+  } catch (_) {
+    return isProd ? _generatedSecret : 'dev-secret-change-me-in-production';
+  }
+}
+
+const JWT_SECRET = getOrGenerateJwtSecret();
 
 const OTP_TTL_MS = 5 * 60 * 1000;
 const MAX_OTP_ATTEMPTS = 3;
@@ -26,10 +45,55 @@ function verifyHash(secret, stored) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-// ---- OTP (In-Memory Ephemeral Store with Auto-Expiring TTL & Attempt Caps) ----
+// ---- OTP (Distributed Cluster Ephemeral Store with Auto-Expiring TTL & Attempt Caps) ----
 const _otpStore = new Map();
+let _redisPub = null;
+let _redisSub = null;
+let _clusterInitialized = false;
+
+function _initClusterSync() {
+  if (_clusterInitialized) return;
+  _clusterInitialized = true;
+  try {
+    const { isConfigured, getRedisClient, getRedisSubscriber } = require('./queue/redis');
+    if (!isConfigured()) return;
+    const INSTANCE_ID = `inst_${process.pid}_${Math.random().toString(36).slice(2, 8)}`;
+    _redisPub = getRedisClient();
+    _redisSub = getRedisSubscriber();
+    if (_redisSub && typeof _redisSub.subscribe === 'function') {
+      _redisSub.subscribe('elaraby:cluster:otp').catch?.(() => {});
+      _redisSub.on('message', (channel, msg) => {
+        if (channel === 'elaraby:cluster:otp') {
+          try {
+            const data = JSON.parse(msg);
+            if (data.instanceId === INSTANCE_ID) return;
+            if (data.type === 'create') {
+              const remaining = data.expiresAt - Date.now();
+              if (remaining > 0) {
+                const timer = setTimeout(() => _otpStore.delete(data.nationalId), remaining);
+                if (timer.unref) timer.unref();
+                _otpStore.set(data.nationalId, {
+                  nationalId: data.nationalId,
+                  codeHash: data.codeHash,
+                  expiresAt: data.expiresAt,
+                  attempts: data.attempts || 0,
+                  timer,
+                });
+              }
+            } else if (data.type === 'delete') {
+              const existing = _otpStore.get(data.nationalId);
+              if (existing?.timer) clearTimeout(existing.timer);
+              _otpStore.delete(data.nationalId);
+            }
+          } catch (_) {}
+        }
+      });
+    }
+  } catch (_) {}
+}
 
 function createOtp(dbInstance, nationalId) {
+  _initClusterSync();
   const code = String(crypto.randomInt(100000, 999999));
   const existing = _otpStore.get(nationalId);
   if (existing && existing.timer) {
@@ -40,13 +104,26 @@ function createOtp(dbInstance, nationalId) {
   }, OTP_TTL_MS);
   if (timer.unref) timer.unref();
 
+  const codeHash = hash(code);
+  const expiresAt = Date.now() + OTP_TTL_MS;
+
   _otpStore.set(nationalId, {
     nationalId,
-    codeHash: hash(code),
-    expiresAt: Date.now() + OTP_TTL_MS,
+    codeHash,
+    expiresAt,
     attempts: 0,
     timer,
   });
+
+  if (_redisPub && typeof _redisPub.publish === 'function') {
+    _redisPub.publish('elaraby:cluster:otp', JSON.stringify({
+      type: 'create',
+      nationalId,
+      codeHash,
+      expiresAt,
+      attempts: 0,
+    })).catch?.(() => {});
+  }
 
   // Ensure db.otpCodes is empty so it never writes ephemeral codes to disk
   if (dbInstance && dbInstance.otpCodes && dbInstance.otpCodes.length > 0) {
@@ -56,11 +133,15 @@ function createOtp(dbInstance, nationalId) {
 }
 
 function verifyOtp(dbInstance, nationalId, code) {
+  _initClusterSync();
   const rec = _otpStore.get(nationalId);
   if (!rec) return { ok: false, reason: 'not_found' };
   if (Date.now() > rec.expiresAt) {
     if (rec.timer) clearTimeout(rec.timer);
     _otpStore.delete(nationalId);
+    if (_redisPub && typeof _redisPub.publish === 'function') {
+      _redisPub.publish('elaraby:cluster:otp', JSON.stringify({ type: 'delete', nationalId })).catch?.(() => {});
+    }
     return { ok: false, reason: 'expired' };
   }
   rec.attempts = (rec.attempts || 0) + 1;
@@ -68,11 +149,17 @@ function verifyOtp(dbInstance, nationalId, code) {
   if (ok) {
     if (rec.timer) clearTimeout(rec.timer);
     _otpStore.delete(nationalId);
+    if (_redisPub && typeof _redisPub.publish === 'function') {
+      _redisPub.publish('elaraby:cluster:otp', JSON.stringify({ type: 'delete', nationalId })).catch?.(() => {});
+    }
     return { ok: true };
   }
   if (rec.attempts >= MAX_OTP_ATTEMPTS) {
     if (rec.timer) clearTimeout(rec.timer);
     _otpStore.delete(nationalId);
+    if (_redisPub && typeof _redisPub.publish === 'function') {
+      _redisPub.publish('elaraby:cluster:otp', JSON.stringify({ type: 'delete', nationalId })).catch?.(() => {});
+    }
     return { ok: false, reason: 'max_attempts_exceeded', attempts: rec.attempts };
   }
   return { ok: false, reason: 'invalid_code', remainingAttempts: MAX_OTP_ATTEMPTS - rec.attempts };
@@ -112,8 +199,6 @@ function verifyToken(token) {
     return null;
   }
 }
-
-const { data: db } = require('./db');
 
 // ---- O(1) Employee Indexed Lookup Cache ----
 let _cachedEmployeesRef = null;

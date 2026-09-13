@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/backend.dart';
+import '../../../../core/theme/tenant_theme_extension.dart';
 import '../../data/home_content.dart';
 import '../widgets/announcement_card.dart';
 import '../widgets/company_news_card.dart';
@@ -60,6 +61,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final features = context.tenantFeatures;
+
     return Scaffold(
       backgroundColor: AppColors.scaffoldBackground,
       body: Column(
@@ -80,20 +83,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     sliver: SliverList.list(
-                      children: const [
-                        SizedBox(height: 16),
-                        AnnouncementCard(),
-                        SizedBox(height: 14),
-                        TodayShiftCard(),
-                        SizedBox(height: 14),
-                        MetricCardsRow(),
-                        SizedBox(height: 20),
-                        QuickActionsGrid(),
-                        SizedBox(height: 20),
-                        CompanyNewsCard(),
-                        SizedBox(height: 20),
-                        QuickSurveyCard(),
-                        SizedBox(height: 32),
+                      children: [
+                        const SizedBox(height: 16),
+                        const AnnouncementCard(),
+                        if (features.hasShifts) ...[
+                          const SizedBox(height: 14),
+                          const TodayShiftCard(),
+                        ],
+                        const SizedBox(height: 14),
+                        const MetricCardsRow(),
+                        const SizedBox(height: 20),
+                        const QuickActionsGrid(),
+                        const SizedBox(height: 20),
+                        const CompanyNewsCard(),
+                        if (features.hasSurveys) ...[
+                          const SizedBox(height: 20),
+                          const QuickSurveyCard(),
+                        ],
+                        const SizedBox(height: 32),
                       ],
                     ),
                   ),

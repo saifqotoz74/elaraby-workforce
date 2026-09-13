@@ -5,6 +5,8 @@ import { auditApi } from '../api/services.js';
 import { toast } from '../components/Toast.js';
 import { Modal } from '../components/Modal.js';
 import { Pagination } from '../components/Pagination.js';
+import { ExportService } from '../services/exportService.js';
+import { escapeHtml } from '../utils/sanitize.js';
 
 export class AuditView {
   constructor(container) {
@@ -25,9 +27,9 @@ export class AuditView {
 
   renderSkeleton() {
     this.container.innerHTML = `
-      <div class="view-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+      <div class="view-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
         <div>
-          <h2 style="font-size: 20px; font-weight: 800; color: var(--navy-900); margin: 0 0 4px 0;">
+          <h2 style="font-size: 20px; font-weight: 800; color: var(--text-main); margin: 0 0 4px 0;">
             Security Audit Trail & Compliance
           </h2>
           <p style="color: var(--text-muted); font-size: 13.5px; margin: 0;">
@@ -35,13 +37,21 @@ export class AuditView {
           </p>
         </div>
 
-        <button type="button" class="btn btn-secondary" id="btn-refresh-audit">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="23 4 23 10 17 10"></polyline>
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-          </svg>
-          Refresh Log
-        </button>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button type="button" class="btn btn-secondary" id="btn-export-audit">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Export Log
+          </button>
+          <button type="button" class="btn btn-secondary" id="btn-refresh-audit">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+            Refresh Log
+          </button>
+        </div>
       </div>
 
       <div class="toolbar-container">
@@ -95,6 +105,44 @@ export class AuditView {
       this.currentPage = 1;
       this.loadLogs();
     });
+
+    const exportBtn = this.container.querySelector('#btn-export-audit');
+    if (exportBtn) {
+      exportBtn.addEventListener('click', async () => {
+        try {
+          exportBtn.disabled = true;
+          exportBtn.innerText = 'Exporting...';
+          const params = { page: 1, limit: 1000 };
+          if (this.filterAction) params.action = this.filterAction;
+          if (this.filterActor) params.actor = this.filterActor;
+          const res = await auditApi.list(params);
+          const logs = res.logs || res.auditLogs || [];
+
+          ExportService.exportToCsv('Elaraby_Security_Audit_Trail', [
+            { key: 'timestamp', label: 'Timestamp / الوقت', formatter: (val) => new Date(val).toISOString() },
+            { key: 'actor', label: 'Actor / المستخدم' },
+            { key: 'role', label: 'Role / الصلاحية' },
+            { key: 'action', label: 'Action / الإجراء' },
+            { key: 'target', label: 'Target / الهدف', formatter: (val, r) => val || r.entityId || '—' },
+            { key: 'details', label: 'Details / التفاصيل' },
+            { key: 'ip', label: 'IP Address' },
+            { key: 'userAgent', label: 'User Agent' }
+          ], logs);
+
+          toast.success('Export Completed', `Successfully exported ${logs.length} audit records.`);
+        } catch (err) {
+          toast.error('Export Failed', err.message);
+        } finally {
+          exportBtn.disabled = false;
+          exportBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Export Log
+          `;
+        }
+      });
+    }
 
     this.container.querySelector('#audit-actor-input').addEventListener('change', (e) => {
       this.filterActor = e.target.value.trim();
@@ -184,25 +232,25 @@ export class AuditView {
       return `
         <tr>
           <td style="font-family: monospace; font-size: 11.5px; color: var(--text-muted);">
-            ${dateStr}
+            ${escapeHtml(dateStr)}
           </td>
           <td>
-            <b>${log.actor || 'system'}</b>
+            <b>${escapeHtml(log.actor || 'system')}</b>
           </td>
           <td>
-            <span class="badge badge-neutral" style="font-size: 11px;">${log.role || '—'}</span>
+            <span class="badge badge-neutral" style="font-size: 11px;">${escapeHtml(log.role || '—')}</span>
           </td>
           <td>
-            <span class="badge ${actionBadgeClass}">${log.action}</span>
+            <span class="badge ${actionBadgeClass}">${escapeHtml(log.action)}</span>
           </td>
           <td style="font-family: monospace; font-size: 12px;">
-            ${log.entity || '—'} ${log.entityId ? `#${log.entityId}` : ''}
+            ${escapeHtml(log.entity || '—')} ${log.entityId ? `#${escapeHtml(log.entityId)}` : ''}
           </td>
           <td style="font-size: 12.5px; max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-            ${log.details || '—'}
+            ${escapeHtml(log.details || '—')}
           </td>
           <td style="text-align: right;">
-            <button type="button" class="btn btn-secondary btn-sm btn-inspect-log" data-log-id="${log.id}">
+            <button type="button" class="btn btn-secondary btn-sm btn-inspect-log" data-log-id="${escapeHtml(log.id)}">
               Inspect
             </button>
           </td>
@@ -238,28 +286,28 @@ export class AuditView {
 
   openDetailModal(entry) {
     const modal = new Modal({
-      title: `Audit Entry: ${entry.action} (${entry.id})`,
+      title: `Audit Entry: ${escapeHtml(entry.action)} (${escapeHtml(entry.id)})`,
       wide: true,
       content: `
         <div style="margin-bottom: 16px; display: flex; gap: 20px; font-size: 13px; flex-wrap: wrap;">
-          <div><b>Actor:</b> ${entry.actor} (${entry.role || 'Unknown'})</div>
-          <div><b>Timestamp:</b> ${new Date(entry.timestamp).toISOString()}</div>
-          <div><b>IP Address:</b> <code>${entry.ip || '—'}</code></div>
-          <div><b>User Agent:</b> <span style="font-size: 11.5px; color: var(--text-muted);">${entry.userAgent || '—'}</span></div>
+          <div><b>Actor:</b> ${escapeHtml(entry.actor)} (${escapeHtml(entry.role || 'Unknown')})</div>
+          <div><b>Timestamp:</b> ${escapeHtml(new Date(entry.timestamp).toISOString())}</div>
+          <div><b>IP Address:</b> <code>${escapeHtml(entry.ip || '—')}</code></div>
+          <div><b>User Agent:</b> <span style="font-size: 11.5px; color: var(--text-muted);">${escapeHtml(entry.userAgent || '—')}</span></div>
         </div>
 
         <div style="margin-bottom: 14px; font-size: 13.5px;">
-          <b>Audit Description:</b> <span>${entry.details || 'No description recorded.'}</span>
+          <b>Audit Description:</b> <span>${escapeHtml(entry.details || 'No description recorded.')}</span>
         </div>
 
         <div class="audit-diff-grid">
           <div>
             <div style="font-size: 12px; font-weight: 700; color: var(--status-amber); margin-bottom: 6px;">BEFORE STATE:</div>
-            <pre class="audit-details-code">${entry.before ? JSON.stringify(entry.before, null, 2) : 'null (None / Initial Creation)'}</pre>
+            <pre class="audit-details-code">${escapeHtml(entry.before ? JSON.stringify(entry.before, null, 2) : 'null (None / Initial Creation)')}</pre>
           </div>
           <div>
             <div style="font-size: 12px; font-weight: 700; color: var(--status-green); margin-bottom: 6px;">AFTER STATE:</div>
-            <pre class="audit-details-code">${entry.after ? JSON.stringify(entry.after, null, 2) : 'null (Deleted)'}</pre>
+            <pre class="audit-details-code">${escapeHtml(entry.after ? JSON.stringify(entry.after, null, 2) : 'null (Deleted)')}</pre>
           </div>
         </div>
       `,

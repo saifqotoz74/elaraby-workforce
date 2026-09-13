@@ -130,7 +130,9 @@ class _InboxScreenState extends State<InboxScreen> {
                       child: _buildFilterBar(),
                     ),
                   ),
-                  if (_serverNotes.isNotEmpty) ...[
+                  if (_serverNotes.isNotEmpty &&
+                      (_selectedFilter == 'inbox_filter_all' ||
+                          _selectedFilter == 'inbox_filter_announcements')) ...[
                     SliverPadding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       sliver: SliverToBoxAdapter(
@@ -148,16 +150,15 @@ class _InboxScreenState extends State<InboxScreen> {
                         ),
                       ),
                     ),
-                  ] else ...[
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
-                      sliver: SliverList(
-                        delegate: SliverChildListDelegate(
-                          _buildDemoTimeline(),
-                        ),
+                  ],
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate(
+                        _buildDemoTimeline(),
                       ),
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),
@@ -206,14 +207,18 @@ class _InboxScreenState extends State<InboxScreen> {
 
   List<Widget> _buildDemoTimeline() {
     final widgets = <Widget>[];
-    if (_selectedFilter == 'inbox_filter_all' ||
-        _selectedFilter == 'Announcements' ||
-        _selectedFilter == 'Approvals') {
+    final showAnnouncements = _selectedFilter == 'inbox_filter_all' ||
+        _selectedFilter == 'inbox_filter_announcements';
+    final showApprovals = _selectedFilter == 'inbox_filter_all' ||
+        _selectedFilter == 'inbox_filter_approvals';
+    final showBenefits = _selectedFilter == 'inbox_filter_all' ||
+        _selectedFilter == 'inbox_filter_benefits';
+
+    if (showAnnouncements || showApprovals) {
       widgets.add(
           _buildSectionLabel(AppLocale.instance.isArabic ? 'اليوم' : 'Today'));
       widgets.add(const SizedBox(height: 10));
-      if (_selectedFilter == 'inbox_filter_all' ||
-          _selectedFilter == 'Announcements') {
+      if (showAnnouncements) {
         widgets.add(_buildNotificationCard(
           icon: Icons.campaign_rounded,
           iconBg: const Color(0xFFFEECEC),
@@ -233,8 +238,7 @@ class _InboxScreenState extends State<InboxScreen> {
         ));
         widgets.add(const SizedBox(height: 10));
       }
-      if (_selectedFilter == 'inbox_filter_all' ||
-          _selectedFilter == 'inbox_filter_approvals') {
+      if (showApprovals) {
         widgets.add(_buildNotificationCard(
           icon: Icons.check_circle_rounded,
           iconBg: AppColors.shiftBg,
@@ -257,14 +261,11 @@ class _InboxScreenState extends State<InboxScreen> {
       widgets.add(const SizedBox(height: 14));
     }
 
-    if (_selectedFilter == 'inbox_filter_all' ||
-        _selectedFilter == 'Benefits' ||
-        _selectedFilter == 'Approvals') {
+    if (showBenefits || showApprovals) {
       widgets.add(_buildSectionLabel(
           AppLocale.instance.isArabic ? 'أمس' : 'Yesterday'));
       widgets.add(const SizedBox(height: 10));
-      if (_selectedFilter == 'inbox_filter_all' ||
-          _selectedFilter == 'inbox_filter_benefits') {
+      if (showBenefits) {
         widgets.add(_buildNotificationCard(
           icon: Icons.local_offer_rounded,
           iconBg: const Color(0xFFFEF3E2),
@@ -289,8 +290,7 @@ class _InboxScreenState extends State<InboxScreen> {
         ));
         widgets.add(const SizedBox(height: 10));
       }
-      if (_selectedFilter == 'inbox_filter_all' ||
-          _selectedFilter == 'inbox_filter_approvals') {
+      if (showApprovals) {
         widgets.add(_buildNotificationCard(
           icon: Icons.payments_rounded,
           iconBg: const Color(0xFFEAF8F0),

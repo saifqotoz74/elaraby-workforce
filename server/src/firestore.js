@@ -75,6 +75,17 @@ async function checkAvailability() {
   }
 }
 
+const crypto = require('crypto');
+
+// In-memory cache of last synced document hashes to enable differential sync
+const _syncedDocHashes = new Map();
+let _syncDebounceTimer = null;
+const SYNC_DEBOUNCE_MS = 2000;
+
+function _hashObject(obj) {
+  return crypto.createHash('md5').update(JSON.stringify(obj || {})).digest('hex');
+}
+
 /// Commits an array of write operations using batched writes (max 400 per batch).
 async function commitBatches(db, operations) {
   const BATCH_SIZE = 400;
@@ -92,8 +103,9 @@ async function commitBatches(db, operations) {
   }
 }
 
-/// Syncs all collections as independent documents into Cloud Firestore.
-async function syncToFirestore(allData) {
+/// Internal differential sync engine.
+/// Calculates hashes for documents and skips any document whose content has not changed.
+async function _executeDifferentialSync(allData) {
   const db = getFirestoreInstance();
   if (!db) return;
   if (!_isAvailable) {
@@ -104,16 +116,21 @@ async function syncToFirestore(allData) {
   try {
     const operations = [];
 
-    // 1. Sync metadata / counters
+    // 1. Sync metadata / counters if changed
     if (allData.counters) {
-      operations.push({
-        type: 'set',
-        ref: db.collection('metadata').doc('counters'),
-        data: allData.counters,
-      });
+      const counterHash = _hashObject(allData.counters);
+      if (_syncedDocHashes.get('metadata:counters') !== counterHash) {
+        operations.push({
+          type: 'set',
+          ref: db.collection('metadata').doc('counters'),
+          data: allData.counters,
+        });
+        _syncedDocHashes.set('metadata:counters', counterHash);
+      }
     }
 
-    // 2. Sync individual collections
+    // 2. Sync individual collections differentially
+    let modifiedDocsCount = 0;
     for (const colName of COLLECTIONS) {
       const items = allData[colName];
       if (Array.isArray(items)) {
@@ -124,25 +141,41 @@ async function syncToFirestore(allData) {
             (item.employeeId && item.weekStart ? `${item.employeeId}_${item.weekStart}` : item.employeeId) ||
             (item.token ? Buffer.from(item.token).toString('hex').slice(0, 20) : `item_${i}`)
           );
-          operations.push({
-            type: 'set',
-            ref: db.collection(colName).doc(docId),
-            data: item,
-          });
+          const cacheKey = `${colName}:${docId}`;
+          const currentHash = _hashObject(item);
+
+          if (_syncedDocHashes.get(cacheKey) !== currentHash) {
+            operations.push({
+              type: 'set',
+              ref: db.collection(colName).doc(docId),
+              data: item,
+            });
+            _syncedDocHashes.set(cacheKey, currentHash);
+            modifiedDocsCount++;
+          }
         }
       }
     }
 
-    // 3. Persist app version config in metadata
+    // 3. Persist app version config in metadata if changed
     if (allData.appVersionConfig) {
-      operations.push({
-        type: 'set',
-        ref: db.collection('metadata').doc('appVersion'),
-        data: allData.appVersionConfig,
-      });
+      const verHash = _hashObject(allData.appVersionConfig);
+      if (_syncedDocHashes.get('metadata:appVersion') !== verHash) {
+        operations.push({
+          type: 'set',
+          ref: db.collection('metadata').doc('appVersion'),
+          data: allData.appVersionConfig,
+        });
+        _syncedDocHashes.set('metadata:appVersion', verHash);
+      }
     }
 
-    // 4. Keep backward-compatible pointer
+    // If nothing changed, skip network write entirely
+    if (operations.length === 0) {
+      return;
+    }
+
+    // 4. Update state summary pointer
     operations.push({
       type: 'set',
       ref: db.collection('app_state').doc('summary'),
@@ -155,10 +188,30 @@ async function syncToFirestore(allData) {
     });
 
     await commitBatches(db, operations);
-    console.log('[firestore] Enterprise multi-collection sync completed successfully.');
+    console.log(`[firestore] Differential sync completed: ${modifiedDocsCount} changed document(s) synced.`);
   } catch (err) {
-    console.warn('[firestore] multi-collection sync error:', err.message);
+    console.warn('[firestore] differential sync error:', err.message);
   }
+}
+
+/// Syncs collections into Cloud Firestore using debouncing and differential caching.
+/// Prevents write amplification by omitting unchanged records.
+function syncToFirestore(allData, options = {}) {
+  if (options && options.immediate) {
+    if (_syncDebounceTimer) {
+      clearTimeout(_syncDebounceTimer);
+      _syncDebounceTimer = null;
+    }
+    return _executeDifferentialSync(allData);
+  }
+
+  return new Promise((resolve) => {
+    if (_syncDebounceTimer) clearTimeout(_syncDebounceTimer);
+    _syncDebounceTimer = setTimeout(() => {
+      _executeDifferentialSync(allData).then(resolve).catch(resolve);
+    }, SYNC_DEBOUNCE_MS);
+    if (_syncDebounceTimer.unref) _syncDebounceTimer.unref();
+  });
 }
 
 /// Loads state from individual Firestore collections.
@@ -261,4 +314,6 @@ module.exports = {
   saveDocument,
   deleteDocument,
   isAvailable: () => _isAvailable,
+  _syncedDocHashes,
+  _hashObject,
 };

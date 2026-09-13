@@ -6,6 +6,7 @@ import { store } from '../state/store.js';
 import { toast } from '../components/Toast.js';
 import { Modal } from '../components/Modal.js';
 import { confirmDialog } from '../components/ConfirmDialog.js';
+import { escapeHtml, sanitizeUrl } from '../utils/sanitize.js';
 
 export class AnnouncementsView {
   constructor(container) {
@@ -169,11 +170,16 @@ export class AnnouncementsView {
               </tr>
             </thead>
             <tbody>
-              ${this.items.map((item) => `
-                <tr data-id="${item.id}">
+              ${this.items.map((item) => {
+                const safeImg = sanitizeUrl(item.imageUrl);
+                const titleStr = item.title || item.name || 'Untitled';
+                const bodyStr = item.body || item.description || item.subtitle || '—';
+                const catStr = item.category || item.tag || 'General';
+                return `
+                <tr data-id="${escapeHtml(item.id)}">
                   <td>
-                    ${item.imageUrl ? `
-                      <img src="${item.imageUrl}" style="width: 48px; height: 38px; border-radius: 4px; object-fit: cover; border: 1px solid var(--border-light);" alt="Preview">
+                    ${safeImg ? `
+                      <img src="${safeImg}" style="width: 48px; height: 38px; border-radius: 4px; object-fit: cover; border: 1px solid var(--border-light);" alt="Preview">
                     ` : `
                       <div style="width: 48px; height: 38px; border-radius: 4px; background-color: var(--surface-subtle); display: flex; align-items: center; justify-content: center; color: var(--text-light); font-size: 11px;">
                         No Pic
@@ -182,16 +188,16 @@ export class AnnouncementsView {
                   </td>
                   <td>
                     <div style="font-weight: 700; color: var(--navy-900); font-size: 14px; margin-bottom: 2px;">
-                      ${item.title || item.name || 'Untitled'}
+                      ${escapeHtml(titleStr)}
                     </div>
                     <div style="font-size: 12.5px; color: var(--text-muted); max-width: 480px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                      ${item.body || item.description || item.subtitle || '—'}
+                      ${escapeHtml(bodyStr)}
                     </div>
                   </td>
                   <td>
                     <div style="font-size: 12px; font-weight: 600; color: #475569;">
                       ${item.important ? '<span class="badge badge-warning" style="margin-right: 6px;">Urgent</span>' : ''}
-                      ${item.category || item.tag || 'General'}
+                      ${escapeHtml(catStr)}
                     </div>
                     <div style="font-size: 11.5px; color: var(--text-light); margin-top: 2px;">
                       ${item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}
@@ -199,14 +205,14 @@ export class AnnouncementsView {
                   </td>
                   ${this.activeTab === 'trips' ? `
                     <td>
-                      <span class="badge badge-info">💺 ${item.bookedSeats || 0} / ${item.totalSeats || 50}</span>
+                      <span class="badge badge-info">💺 ${Number(item.bookedSeats) || 0} / ${Number(item.totalSeats) || 50}</span>
                       <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px;">
-                        ${item.price ? `${item.price} EGP` : 'Free'}
+                        ${item.price ? `${escapeHtml(item.price)} EGP` : 'Free'}
                       </div>
                     </td>
                   ` : ''}
                   <td style="text-align: right;">
-                    <button type="button" class="btn btn-ghost btn-sm btn-delete-item" data-id="${item.id}" data-title="${item.title || item.name || ''}" style="color: var(--status-red);">
+                    <button type="button" class="btn btn-ghost btn-sm btn-delete-item" data-id="${escapeHtml(item.id)}" data-title="${escapeHtml(titleStr)}" style="color: var(--status-red);">
                       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="3 6 5 6 21 6"></polyline>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -215,7 +221,8 @@ export class AnnouncementsView {
                     </button>
                   </td>
                 </tr>
-              `).join('')}
+              `;
+              }).join('')}
             </tbody>
           </table>
         </div>

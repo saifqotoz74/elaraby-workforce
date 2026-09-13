@@ -46,7 +46,7 @@ export async function apiFetch(endpoint, options = {}) {
   const fetchOptions = {
     method,
     headers,
-    credentials: 'same-origin', // Sends HttpOnly admin_session cookie
+    credentials: 'include', // Sends HttpOnly admin_session cookie across origins and subdomains
     ...options,
   };
 

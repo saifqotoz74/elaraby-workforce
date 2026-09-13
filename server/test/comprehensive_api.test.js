@@ -815,10 +815,18 @@ async function runAllTests() {
       assert.strictEqual(idorRes.status, 404, 'IDOR blocked: employee cannot touch other employees requests');
     });
 
-    await test('POST /api/employee/delete-account revokes credentials and session', async () => {
+    await test('POST /api/employee/delete-account rejects request missing PIN', async () => {
       const res = await request('POST', '/api/employee/delete-account', {
         Authorization: `Bearer ${newEmpToken}`,
       }, {});
+      assert.strictEqual(res.status, 401);
+      assert.strictEqual(res.json.error, 'invalid_pin');
+    });
+
+    await test('POST /api/employee/delete-account revokes credentials and session with valid PIN', async () => {
+      const res = await request('POST', '/api/employee/delete-account', {
+        Authorization: `Bearer ${newEmpToken}`,
+      }, { pin: '1234' });
       assert.strictEqual(res.status, 200);
       assert.strictEqual(res.json.ok, true);
 
