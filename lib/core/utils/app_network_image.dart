@@ -188,7 +188,7 @@ class _AppNetworkImageState extends State<AppNetworkImage> {
             height: widget.height,
             color: const Color(0xFFE5E7EB),
             alignment: Alignment.center,
-            child: const SizedBox(
+            child: SizedBox(
               width: 20,
               height: 20,
               child: CircularProgressIndicator(

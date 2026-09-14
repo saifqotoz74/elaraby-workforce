@@ -28,6 +28,8 @@ import '../../features/services/presentation/screens/raise_concern_screen.dart';
 import '../../features/services/presentation/screens/request_leave_screen.dart';
 import '../../features/services/presentation/screens/salary_slip_screen.dart';
 import '../../features/services/presentation/screens/shift_schedule_screen.dart';
+import '../../features/services/presentation/screens/company_transportation_screen.dart';
+import '../../features/services/presentation/screens/driver_console_screen.dart';
 import '../../features/services/presentation/screens/vacation_balance_screen.dart';
 import '../../features/services/presentation/screens/your_requests_screen.dart';
 
@@ -208,6 +210,17 @@ GoRouter createAppRouter({
       GoRoute(
         path: AppRoutes.shiftSchedule,
         builder: (context, state) => const ShiftScheduleScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.transportation,
+        builder: (context, state) => const CompanyTransportationScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.driverConsole,
+        builder: (context, state) {
+          final routeId = state.uri.queryParameters['routeId'] ?? 'route_101';
+          return DriverConsoleScreen(routeId: routeId);
+        },
       ),
       GoRoute(
         path: AppRoutes.salarySlip,

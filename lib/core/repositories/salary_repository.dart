@@ -4,6 +4,8 @@ import '../network/backend.dart';
 abstract class SalaryRepository {
   Future<String?> unlockSalary(String pin);
   Future<Map<String, dynamic>?> fetchPayroll(
+      {String? pin, String? salaryToken, String? period});
+  Future<List<String>?> fetchPayrollHistoryPeriods(
       {String? pin, String? salaryToken});
   int get salaryGateFailedAttempts;
   Future<void> setSalaryGateFailedAttempts(int count);
@@ -29,8 +31,13 @@ class SalaryRepositoryImpl implements SalaryRepository {
 
   @override
   Future<Map<String, dynamic>?> fetchPayroll(
+          {String? pin, String? salaryToken, String? period}) =>
+      _backend.fetchPayroll(pin: pin, salaryToken: salaryToken, period: period);
+
+  @override
+  Future<List<String>?> fetchPayrollHistoryPeriods(
           {String? pin, String? salaryToken}) =>
-      _backend.fetchPayroll(pin: pin, salaryToken: salaryToken);
+      _backend.fetchPayrollHistoryPeriods(pin: pin, salaryToken: salaryToken);
 
   @override
   int get salaryGateFailedAttempts => _storage.getInt(_kFails) ?? 0;

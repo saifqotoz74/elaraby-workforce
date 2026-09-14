@@ -56,7 +56,7 @@ class ProfileConfirmationScreen extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.info_outline,
+                      Icon(Icons.info_outline,
                           size: 18, color: AppColors.primary),
                       const SizedBox(width: 8),
                       Expanded(

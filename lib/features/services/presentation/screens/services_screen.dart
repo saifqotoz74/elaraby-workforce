@@ -70,7 +70,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                       color: Color(0xFFF1F4F8),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.notifications,
                       color: AppColors.primary,
                       size: 20,
@@ -98,6 +98,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                   // Section: Pay & Time
                   if (features.hasPayroll ||
                       features.hasShifts ||
+                      features.hasBuses ||
                       features.hasVacations) ...[
                     _buildSectionTitle(AppLocale.tr('pay_and_time')),
                     const SizedBox(height: 10),
@@ -111,6 +112,15 @@ class _ServicesScreenState extends State<ServicesScreen> {
                         },
                       ),
                       const SizedBox(height: 10),
+                      _buildServiceTile(
+                        icon: Icons.account_balance_wallet_outlined,
+                        title: AppLocale.tr('loans_and_advances'),
+                        subtitle: AppLocale.tr('loans_subtitle'),
+                        onTap: () {
+                          AppNavigation.toLoans(context);
+                        },
+                      ),
+                      const SizedBox(height: 10),
                     ],
                     if (features.hasShifts) ...[
                       _buildServiceTile(
@@ -119,6 +129,17 @@ class _ServicesScreenState extends State<ServicesScreen> {
                         subtitle: AppLocale.tr('svc_shift_subtitle'),
                         onTap: () {
                           AppNavigation.toShiftSchedule(context);
+                        },
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    if (features.hasBuses) ...[
+                      _buildServiceTile(
+                        icon: Icons.directions_bus_rounded,
+                        title: AppLocale.tr('company_transportation'),
+                        subtitle: AppLocale.tr('svc_transport_subtitle'),
+                        onTap: () {
+                          AppNavigation.toTransportation(context);
                         },
                       ),
                       const SizedBox(height: 10),
@@ -324,7 +345,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Icon(Icons.arrow_forward_rounded,
+                        Icon(Icons.arrow_forward_rounded,
                             size: 16, color: AppColors.primary),
                       ],
                     ),

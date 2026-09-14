@@ -49,7 +49,7 @@ class FakeSalaryRepository implements SalaryRepository {
 
   @override
   Future<Map<String, dynamic>?> fetchPayroll(
-      {String? salaryToken, String? pin}) async {
+      {String? salaryToken, String? pin, String? period}) async {
     if (!shouldSucceed) {
       return {'ok': false, 'error': 'Server unavailable'};
     }
@@ -57,7 +57,7 @@ class FakeSalaryRepository implements SalaryRepository {
       return {
         'ok': true,
         'payroll': {
-          'period': 'July 2026',
+          'period': period ?? 'July 2026',
           'basicSalary': 9500,
           'allowances': 1800,
           'deductions': 650,
@@ -67,6 +67,12 @@ class FakeSalaryRepository implements SalaryRepository {
       };
     }
     return {'ok': false, 'error': 'Unauthorized salary access'};
+  }
+
+  @override
+  Future<List<String>?> fetchPayrollHistoryPeriods(
+      {String? pin, String? salaryToken}) async {
+    return ['August 2026', 'July 2026', 'June 2026', 'May 2026'];
   }
 }
 

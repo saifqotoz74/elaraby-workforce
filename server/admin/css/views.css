@@ -1103,4 +1103,196 @@
   transform: scale(1.02);
 }
 
+/* ================= ENTERPRISE BRAND STUDIO & LIVE MOBILE MOCKUP ================= */
+.brand-studio-layout {
+  display: grid;
+  grid-template-columns: 1fr 370px;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 1024px) {
+  .brand-studio-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.brand-studio-form-col {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.brand-studio-preview-col {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.mockup-mode-switcher {
+  display: flex;
+  background: var(--bg-subtle, #F1F5F9);
+  padding: 4px;
+  border-radius: 12px;
+  gap: 4px;
+  margin-bottom: 14px;
+  width: 100%;
+  max-width: 320px;
+  border: 1px solid var(--border-color, #E2E8F0);
+}
+.mockup-mode-btn {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #64748B);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.mockup-mode-btn.active {
+  background: #FFFFFF;
+  color: var(--navy-900, #0F172A);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+/* Realistic Smartphone Bezel */
+.phone-chassis {
+  width: 320px;
+  height: 620px;
+  background: #111827;
+  border-radius: 44px;
+  padding: 10px;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.45), 0 0 0 2px #374151, inset 0 0 0 2px #1F2937;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.phone-screen {
+  flex: 1;
+  background: #F3F5F7;
+  border-radius: 34px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Inter', system-ui, sans-serif;
+  user-select: none;
+}
+.phone-screen::-webkit-scrollbar {
+  width: 3px;
+}
+.phone-screen::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.2);
+  border-radius: 10px;
+}
+
+/* Notch / Dynamic Island */
+.phone-notch {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 96px;
+  height: 20px;
+  background: #111827;
+  border-radius: 20px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 12px;
+}
+.phone-camera-lens {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #1E293B;
+  box-shadow: inset 0 0 2px #3B82F6;
+}
+
+/* Status Bar & Home Indicator */
+.phone-status-bar {
+  height: 38px;
+  padding: 10px 18px 0 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1E293B;
+  z-index: 90;
+}
+.phone-home-indicator {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100px;
+  height: 4px;
+  border-radius: 4px;
+  background: #94A3B8;
+  z-index: 90;
+}
+
+/* Logo Drag & Drop Box */
+.logo-dropzone {
+  border: 2px dashed var(--border-color, #CBD5E1);
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+  background: var(--bg-subtle, #F8FAFC);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.logo-dropzone:hover, .logo-dropzone.dragover {
+  border-color: var(--primary, #0B63B4);
+  background: rgba(11, 99, 180, 0.04);
+}
+
+/* Factory Tags */
+.factory-chip-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.factory-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #FFFFFF;
+  border: 1px solid var(--border-color, #E2E8F0);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--navy-800, #1E293B);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.factory-chip-remove {
+  cursor: pointer;
+  color: #94A3B8;
+  font-size: 14px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.factory-chip-remove:hover {
+  color: #EF4444;
+}
+
+
 

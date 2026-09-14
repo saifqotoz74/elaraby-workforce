@@ -75,7 +75,7 @@ class HelpSupportScreen extends StatelessWidget {
                       color: AppColors.shiftBg,
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.support_agent_rounded,
                       color: AppColors.primary,
                       size: 28,

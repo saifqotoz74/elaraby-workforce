@@ -32,6 +32,56 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders = [
+            appName: "PR Connect"
+        ]
+    }
+
+    flavorDimensions "enterprise"
+
+    productFlavors {
+        generic {
+            dimension "enterprise"
+            applicationId "com.elaraby.workforce.elaraby_workforce"
+            manifestPlaceholders = [
+                appName: "PR Connect"
+            ]
+        }
+        elaraby {
+            dimension "enterprise"
+            applicationId "com.elaraby.workforce"
+            manifestPlaceholders = [
+                appName: "العربي كونكت"
+            ]
+        }
+        elsewedy {
+            dimension "enterprise"
+            applicationId "com.elsewedy.workforce"
+            manifestPlaceholders = [
+                appName: "Elsewedy Connect"
+            ]
+        }
+        ghabbour {
+            dimension "enterprise"
+            applicationId "com.gbcorp.workforce"
+            manifestPlaceholders = [
+                appName: "GB Corp Connect"
+            ]
+        }
+        tmg {
+            dimension "enterprise"
+            applicationId "com.tmg.workforce"
+            manifestPlaceholders = [
+                appName: "TMG Connect"
+            ]
+        }
+        gulf_industrial {
+            dimension "enterprise"
+            applicationId "com.gulfcorp.workforce"
+            manifestPlaceholders = [
+                appName: "Gulf Industrial"
+            ]
+        }
     }
 
     signingConfigs {

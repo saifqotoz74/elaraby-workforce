@@ -337,11 +337,11 @@ class _InboxScreenState extends State<InboxScreen> {
             Container(
               width: 44,
               height: 44,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.shiftBg,
-                borderRadius: BorderRadius.all(Radius.circular(12)),
+                borderRadius: const BorderRadius.all(Radius.circular(12)),
               ),
-              child: const Icon(Icons.badge_outlined,
+              child: Icon(Icons.badge_outlined,
                   color: AppColors.primary, size: 22),
             ),
             const SizedBox(width: 14),

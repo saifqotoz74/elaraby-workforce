@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../controllers/settings_controller.dart';
 import '../../../../core/navigation/app_navigation.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -156,12 +157,16 @@ class SettingsScreen extends ConsumerWidget {
                     subtitle: 'App Version 1.0.0',
                     hasChevron: false,
                     onTap: () {
+                      final brand = AppTheme.currentBrand;
+                      final isAr = AppLocale.instance.isArabic;
                       showAboutDialog(
                         context: context,
-                        applicationName: 'Elaraby Connect',
+                        applicationName: brand.companyName.endsWith('Connect')
+                            ? brand.companyName
+                            : '${brand.companyName} Connect',
                         applicationVersion: '1.0.0 (Build 2026)',
                         applicationLegalese:
-                            '© 2026 Elaraby Group. All rights reserved.',
+                            '© 2026 ${brand.localizedCompanyName(isAr)}. All rights reserved.',
                       );
                     },
                   ),
@@ -337,7 +342,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             if (isSelected)
-              const Icon(
+              Icon(
                 Icons.check_circle_rounded,
                 color: AppColors.primary,
                 size: 20,

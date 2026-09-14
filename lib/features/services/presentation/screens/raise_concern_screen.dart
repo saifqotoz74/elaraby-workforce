@@ -110,7 +110,7 @@ class _RaiseConcernScreenState extends State<RaiseConcernScreen> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.shield_outlined,
                             color: AppColors.primary,
                             size: 24,

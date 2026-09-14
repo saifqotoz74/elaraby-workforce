@@ -40,9 +40,9 @@ class PushService {
 
   static const AndroidNotificationChannel _highImportanceChannel =
       AndroidNotificationChannel(
-    'elaraby_high_importance_channel',
-    'Elaraby Connect Notifications',
-    description: 'Notifications and announcements from Elaraby Workforce.',
+    'workforce_high_importance_channel',
+    'Workforce Notifications',
+    description: 'Notifications and announcements from your workforce organization.',
     importance: Importance.max,
     playSound: true,
     enableVibration: true,

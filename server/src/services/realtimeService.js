@@ -1,6 +1,6 @@
 // Realtime SSE (Server-Sent Events) Service
 // Provides real-time event streaming between Mobile clients and HR Admin Dashboard.
-// autorun heartbeat, reconnect support, and scope-based event routing.
+// Features heartbeat, reconnect support, and strict tenant-scoped event routing.
 
 const clients = new Set();
 let heartbeatTimer = null;
@@ -49,10 +49,13 @@ function subscribe(req, res, user) {
     'X-Accel-Buffering': 'no',
   });
 
+  const tenantId = user?.tenantId || req?.tenantId || 'elaraby';
+
   const client = {
     id: `client_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     res,
     user: user || {},
+    tenantId,
     connectedAt: Date.now(),
   };
 
@@ -63,6 +66,7 @@ function subscribe(req, res, user) {
   res.write(`event: connected\ndata: ${JSON.stringify({
     ok: true,
     clientId: client.id,
+    tenantId,
     timestamp: Date.now(),
   })}\n\n`);
 
@@ -88,11 +92,10 @@ function setClusterPublisher(fn) {
 }
 
 /**
- * Broadcasts an event to all connected SSE clients.
- * Optionally filtered by target scope (e.g. factory).
+ * Broadcasts an event to all connected SSE clients with strict tenant isolation.
  * @param {string} eventName
  * @param {Object} payload
- * @param {Object} [filter] - Optional { factory, employeeId, _fromCluster }
+ * @param {Object} [filter] - Optional { tenantId, factory, employeeId, isGlobal, _fromCluster }
  */
 function broadcast(eventName, payload = {}, filter = null) {
   const safePayload = _scrubPayload(payload);
@@ -112,17 +115,30 @@ function broadcast(eventName, payload = {}, filter = null) {
   });
 
   const message = `event: ${eventName}\ndata: ${dataString}\n\n`;
+  const eventTenantId = filter?.tenantId || payload?.tenantId;
+  const isGlobal = !!payload?.isGlobal || !!filter?.isGlobal;
 
   for (const client of clients) {
     try {
-      // Scope filtering: if event belongs to a factory, only send to superadmin or matching factory admin
+      // 1. Strict Tenant Isolation
+      if (!isGlobal && eventTenantId) {
+        const isSuper = (client.user?.role === 'superadmin' || client.user?.isSuperAdmin) && !client.user?.scopeFactory;
+        if (!isSuper) {
+          const clientTenant = client.tenantId || client.user?.tenantId || 'elaraby';
+          if (clientTenant !== eventTenantId) {
+            continue;
+          }
+        }
+      }
+
+      // 2. Scope filtering: if event belongs to a specific factory
       if (filter && filter.factory && client.user?.role !== 'superadmin' && client.user?.scopeFactory) {
         if (client.user.scopeFactory !== filter.factory) {
           continue;
         }
       }
 
-      // Employee targeting: if event is private to an employee
+      // 3. Employee targeting: if event is private to an employee
       if (filter && filter.employeeId && client.user?.scope === 'employee') {
         if (client.user.sub !== filter.employeeId) {
           continue;
@@ -146,4 +162,3 @@ module.exports = {
   getActiveClientCount,
   setClusterPublisher,
 };
-

@@ -5,6 +5,8 @@ import '../../../../core/tenant/tenant_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/navigation/app_navigation.dart';
+import '../../../../core/tenant/tenant_brand_logo.dart';
+import '../../../profile/presentation/widgets/organization_switcher_sheet.dart';
 import '../widgets/company_code_modal.dart';
 
 class GetStartedScreen extends ConsumerWidget {
@@ -62,24 +64,18 @@ class GetStartedScreen extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       InkWell(
-                        onTap: () => CompanyCodeModal.show(context),
+                        onTap: brand.isFlavorLocked
+                            ? null
+                            : () => OrganizationSwitcherSheet.show(context),
                         borderRadius: BorderRadius.circular(10),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
                           child: Row(
                             children: [
-                              Container(
-                                width: 38,
-                                height: 38,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: const Color(0xFFE5E7EB)),
-                                ),
-                                clipBehavior: Clip.antiAlias,
-                                child: Image.asset(
-                                  'assets/images/app_logo.png',
-                                  fit: BoxFit.contain,
-                                ),
+                              TenantBrandLogo(
+                                brand: brand,
+                                size: 38,
+                                borderRadius: 10,
                               ),
                               const SizedBox(width: 10),
                               Column(
@@ -97,12 +93,16 @@ class GetStartedScreen extends ConsumerWidget {
                                           letterSpacing: 1.2,
                                         ),
                                       ),
-                                      const SizedBox(width: 2),
-                                      Icon(Icons.arrow_drop_down_rounded, size: 20, color: brand.primaryColor),
+                                      if (!brand.isFlavorLocked) ...[
+                                        const SizedBox(width: 2),
+                                        Icon(Icons.arrow_drop_down_rounded, size: 20, color: brand.primaryColor),
+                                      ],
                                     ],
                                   ),
                                   Text(
-                                    isAr ? 'اضغط لتغيير المؤسسة' : 'Tap to switch code',
+                                    brand.isFlavorLocked
+                                        ? (isAr ? 'منصة العمل المؤسسية' : 'Enterprise Portal')
+                                        : (isAr ? 'اضغط لتغيير المؤسسة' : 'Tap to switch code'),
                                     style: TextStyle(fontSize: 10, color: AppColors.textMuted),
                                   ),
                                 ],

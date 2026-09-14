@@ -7,6 +7,10 @@ import '../../../../core/network/backend.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../../core/navigation/app_navigation.dart';
 import '../../../../core/navigation/app_router.dart';
+import '../../../../core/tenant/tenant_brand_logo.dart';
+import '../../../../core/tenant/tenant_brand.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../widgets/organization_switcher_sheet.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -70,7 +74,7 @@ class ProfileScreen extends StatelessWidget {
                             Container(
                               width: 60,
                               height: 60,
-                              decoration: const BoxDecoration(
+                              decoration: BoxDecoration(
                                 color: AppColors.avatarBg,
                                 shape: BoxShape.circle,
                               ),
@@ -160,6 +164,31 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                // Option 0: Organization & Workplace
+                ValueListenableBuilder<TenantBrand>(
+                  valueListenable: AppTheme.tenantBrandNotifier,
+                  builder: (context, brand, _) {
+                    if (brand.isFlavorLocked) {
+                      return const SizedBox.shrink();
+                    }
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _buildMenuCard(
+                          icon: Icons.business_rounded,
+                          customLeading: TenantBrandLogo(brand: brand, size: 40, borderRadius: 10),
+                          title: AppLocale.instance.isArabic
+                              ? 'المؤسسة وجهة العمل'
+                              : 'Organization & Workplace',
+                          subtitle: brand.localizedCompanyName(AppLocale.instance.isArabic),
+                          onTap: () => OrganizationSwitcherSheet.show(context),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                    );
+                  },
+                ),
 
                 // Option 1: Language
                 ListenableBuilder(
@@ -270,6 +299,8 @@ class ProfileScreen extends StatelessWidget {
     required IconData icon,
     required String title,
     String? subtitle,
+    Widget? customLeading,
+    Widget? trailing,
     required VoidCallback onTap,
   }) {
     return Container(
@@ -293,15 +324,16 @@ class ProfileScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppColors.shiftBg,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(icon, color: AppColors.primary, size: 22),
-                ),
+                customLeading ??
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: AppColors.shiftBg,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(icon, color: AppColors.primary, size: 22),
+                    ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -328,11 +360,12 @@ class ProfileScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right,
-                  color: AppColors.textSecondary,
-                  size: 20,
-                ),
+                trailing ??
+                    const Icon(
+                      Icons.chevron_right,
+                      color: AppColors.textSecondary,
+                      size: 20,
+                    ),
               ],
             ),
           ),
@@ -466,7 +499,7 @@ class ProfileScreen extends StatelessWidget {
         content: Text(
           isAr
               ? 'هل أنت متأكد من رغبتك في تسجيل الخروج من حسابك؟'
-              : 'Are you sure you want to log out of Elaraby Connect?',
+              : 'Are you sure you want to log out of ${AppTheme.currentBrand.localizedCompanyName(false)}?',
           style: AppTypography.fontBase
               .copyWith(fontSize: 14, color: AppColors.textPrimary),
         ),
@@ -534,7 +567,7 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  const Icon(Icons.privacy_tip_rounded,
+                  Icon(Icons.privacy_tip_rounded,
                       color: AppColors.primary, size: 24),
                   const SizedBox(width: 8),
                   Expanded(
@@ -558,27 +591,27 @@ class ProfileScreen extends StatelessWidget {
                 child: SingleChildScrollView(
                   child: Text(
                     isAr
-                        ? '''مرحباً بك في تطبيق Elaraby Connect، المنصة الرسمية لخدمات موظفي مجموعة العربي. نحن نلتزم بأعلى معايير حماية الخصوصية وأمن البيانات.
+                        ? '''مرحباً بك في تطبيق ${AppTheme.currentBrand.localizedCompanyName(true)}، المنصة الرسمية لخدمات موظفي المؤسسة. نحن نلتزم بأعلى معايير حماية الخصوصية وأمن البيانات.
 
 1. جمع البيانات واستخدامها:
-• يقوم التطبيق بجمع البيانات الوظيفية الأساسية مثل: الرقم القومي، كود الموظف، المصنع، القسم، وسجلات الإجازات والورديات.
-• تُستخدم هذه البيانات حصرياً لتقديم الخدمات الإدارية، إشعارات الورديات، معالجة طلبات الموارد البشرية، وتسهيل حجز الرحلات.
+• يقوم التطبيق بجمع البيانات الوظيفية الأساسية مثل: الرقم القومي، كود الموظف، المصنع/الفرع، القسم، وسجلات الإجازات والورديات.
+• تُستخدم هذه البيانات حصرياً لتقديم الخدمات الإدارية، إشعارات الورديات، معالجة طلبات الموارد البشرية، وتسهيل حجز الخدمات.
 
 2. أمان وتشفير المعلومات:
 • يتم نقل كافة البيانات عبر اتصالات مشفرة بروتوكول HTTPS المشدد.
 • يتم تأمين رموز الجلسة والمفاتيح الحساسة محلياً عبر تقنيات التشفير Hardware-backed (Android KeyStore و Apple Keychain).
 
 3. مشاركة البيانات:
-• لا يتم بيع أو مشاركة بياناتك الشخصية مع أي طرف ثالث تجاري أو إعلاني مطلقاً. البيانات مقتصرة تماماً على الأنظمة الداخلية لمجموعة العربي.
+• لا يتم بيع أو مشاركة بياناتك الشخصية مع أي طرف ثالث تجاري أو إعلاني مطلقاً. البيانات مقتصرة تماماً على الأنظمة المعتمدة للمؤسسة.
 
 4. حقوق الموظف وحذف البيانات:
 • يحق لك مراجعة بياناتك المسجلة أو طلب حذف/أرشفة حسابك عبر خيار "طلب حذف الحساب" في شاشة الملف الشخصي، وسيتم معالجة الطلب وفقاً للوائح العمل المنظمة.
 
-لأي استفسارات قانونية أو فنية، يرجى التواصل مع إدارة تكنولوجيا المعلومات والموارد البشرية: workforce-support@elarabygroup.com'''
-                        : '''Welcome to Elaraby Connect, the official workforce portal for Elaraby Group employees. We are strictly committed to safeguarding your privacy and personal data.
+لأي استفسارات قانونية أو فنية، يرجى التواصل مع إدارة تكنولوجيا المعلومات والموارد البشرية أو عبر الخط الساخن: ${AppTheme.currentBrand.supportHotline}'''
+                        : '''Welcome to ${AppTheme.currentBrand.localizedCompanyName(false)}, the official workforce portal for our employees. We are strictly committed to safeguarding your privacy and personal data.
 
 1. Data Collection & Usage:
-• The application processes basic occupational data including: National ID, Employee Code, Factory, Department, vacation balances, and shift records.
+• The application processes basic occupational data including: National ID, Employee Code, Factory/Branch, Department, vacation balances, and shift records.
 • Data is strictly utilized for human resources self-service, shift scheduling notifications, and administrative request workflows.
 
 2. Security & Encryption:
@@ -586,12 +619,12 @@ class ProfileScreen extends StatelessWidget {
 • Authentication tokens and sensitive keys are stored using hardware-backed cryptographic keystores (Android KeyStore and Apple Keychain).
 
 3. Data Sharing:
-• Your data is never sold, shared, or monetized with any third-party advertisers. All information stays strictly within authorized Elaraby Group systems.
+• Your data is never sold, shared, or monetized with any third-party advertisers. All information stays strictly within authorized institutional systems.
 
 4. Worker Rights & Account Deletion:
 • You hold the right to review your data and request account deactivation/data deletion at any time via the "Request Account Deletion" option under your profile.
 
-For privacy questions or support, contact HR & IT at workforce-support@elarabygroup.com''',
+For privacy questions or support, contact HR & IT or reach out via hotline: ${AppTheme.currentBrand.supportHotline}''',
                     style: AppTypography.fontBase.copyWith(
                       fontSize: 14,
                       height: 1.6,

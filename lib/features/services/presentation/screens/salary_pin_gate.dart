@@ -219,7 +219,7 @@ class _SalaryPinGateDialogState extends State<SalaryPinGateDialog> {
             ),
             if (_biometricAvailable) ...[
               IconButton(
-                icon: const Icon(Icons.fingerprint_rounded,
+                icon: Icon(Icons.fingerprint_rounded,
                     size: 36, color: AppColors.primary),
                 onPressed: _authenticateBiometric,
                 tooltip: AppLocale.tr('biometric_prompt'),

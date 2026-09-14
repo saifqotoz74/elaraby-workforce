@@ -34,6 +34,12 @@ class QuickActionsGrid extends StatelessWidget {
               icon: Icons.calendar_today_rounded,
               onTap: () => AppNavigation.toShiftSchedule(context),
             ),
+          if (features.hasBuses)
+            _QuickActionItem(
+              title: AppLocale.tr('qa_buses'),
+              icon: Icons.directions_bus_rounded,
+              onTap: () => AppNavigation.toTransportation(context),
+            ),
           if (features.hasBenefits)
             _QuickActionItem(
               title: AppLocale.tr('qa_benefits'),

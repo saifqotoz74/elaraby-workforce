@@ -31,6 +31,7 @@ import 'package:elaraby_workforce/core/providers/repository_providers.dart';
 import 'package:elaraby_workforce/core/state/ui_state.dart';
 import 'package:elaraby_workforce/features/services/presentation/controllers/salary_controller.dart';
 import 'package:elaraby_workforce/l10n/generated/app_localizations.dart';
+import 'package:elaraby_workforce/core/theme/app_theme.dart';
 import 'package:elaraby_workforce/main.dart';
 
 Widget createTestApp(
@@ -87,7 +88,7 @@ void main() {
 
       await tester.pumpWidget(createTestApp(const SplashScreen()));
       await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text('ELARABY'), findsOneWidget);
+      expect(find.text(AppTheme.currentBrand.companyName.split(' ').first.toUpperCase()), findsOneWidget);
       await tester.pump(const Duration(seconds: 3)); // settle splash timer
     });
 
@@ -100,7 +101,11 @@ void main() {
 
       await tester.pumpWidget(createTestApp(const GetStartedScreen()));
       await tester.pumpAndSettle();
-      expect(find.text('Elaraby Connect'), findsOneWidget);
+      final brand = AppTheme.currentBrand;
+      final expectedConnectTitle = (brand.companyName == 'Elaraby Group' || brand.companyName == 'Elaraby')
+          ? 'Elaraby Connect'
+          : (brand.companyName.endsWith('Connect') ? brand.companyName : '${brand.companyName} Connect');
+      expect(find.text(expectedConnectTitle), findsOneWidget);
       expect(find.text('English'), findsOneWidget);
       expect(find.text(AppLocale.tr('auth_get_started')), findsOneWidget);
     });
@@ -231,7 +236,7 @@ void main() {
       await tester.pumpWidget(createTestApp(const VacationBalanceScreen()));
       await tester.pumpAndSettle();
 
-      expect(find.text(AppLocale.tr('vacation_balance')), findsOneWidget);
+      expect(find.text(AppLocale.tr('vacation_balance_hub')), findsOneWidget);
       expect(find.text(AppLocale.tr('request_leave')), findsOneWidget);
     });
 

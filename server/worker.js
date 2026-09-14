@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Elaraby Connect — Dedicated Enterprise Background Worker Process
+// Workforce OS — Dedicated Enterprise Background Worker Process
 // Executes BullMQ queues independently of the API event loop.
 
 require('./src/config').load();
@@ -9,7 +9,7 @@ const { closeRedis } = require('./src/queue/redis');
 const postgres = require('./src/db/postgres');
 
 console.log('=============================================================');
-console.log('  ELARABY WORKFORCE — ENTERPRISE BACKGROUND WORKER DAEMON    ');
+console.log('  WORKFORCE OS — ENTERPRISE BACKGROUND WORKER DAEMON        ');
 console.log(`  Process PID: ${process.pid} | Node: ${process.version} | Env: ${process.env.NODE_ENV || 'development'}`);
 console.log('=============================================================\n');
 

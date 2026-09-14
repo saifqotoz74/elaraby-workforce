@@ -336,7 +336,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              const Icon(Icons.location_on_outlined,
+                              Icon(Icons.location_on_outlined,
                                   size: 16, color: AppColors.primary),
                               const SizedBox(width: 4),
                               Text(
@@ -348,7 +348,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                                 ),
                               ),
                               const SizedBox(width: 14),
-                              const Icon(Icons.calendar_today_outlined,
+                              Icon(Icons.calendar_today_outlined,
                                   size: 15, color: AppColors.primary),
                               const SizedBox(width: 4),
                               Text(
@@ -511,7 +511,7 @@ class _TripDetailScreenState extends State<TripDetailScreen> {
                                     Container(
                                       width: 12,
                                       height: 12,
-                                      decoration: const BoxDecoration(
+                                      decoration: BoxDecoration(
                                         color: AppColors.primary,
                                         shape: BoxShape.circle,
                                       ),

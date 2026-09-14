@@ -73,7 +73,7 @@
   "biometric_button": "الدخول بالبصمة",
   "biometric_failed": "فشل التحقق بالبصمة — استخدم رمزك السري.",
   "biometric_not_setup": "البصمة غير مُعدّة على هذا الجهاز. استخدم الرمز السري.",
-  "biometric_prompt": "افتح Elaraby Connect",
+  "biometric_prompt": "افتح تطبيق منظومة العمل",
   "change_pin_step_confirm_subtitle": "أدخل الرمز الجديد مرة أخرى",
   "change_pin_step_confirm_title": "أكد الرمز الجديد",
   "change_pin_step_current_subtitle": "أدخل رمزك السري الحالي المكوّن من 4 أرقام",

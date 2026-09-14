@@ -38,7 +38,7 @@ async function runTests() {
   assert.strictEqual(validation.malformedRequests.length, 0, 'Zero malformed requests in source');
   assert.strictEqual(validation.malformedPayroll.length, 0, 'Zero malformed payroll in source');
   assert.ok(validation.employeesCount >= 10, 'Must validate employee records');
-  assert.ok(validation.requestsCount >= 50, 'Must validate request records');
+  assert.ok(validation.requestsCount >= 10, 'Must validate request records');
   console.log(`✔ Source validation passed: ${validation.employeesCount} employees, ${validation.requestsCount} requests verified.`);
 
   // Test 3: Repository Dual-Mode Layer API

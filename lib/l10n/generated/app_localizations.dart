@@ -122,7 +122,7 @@ abstract class AppLocalizations {
   /// No description provided for @ann_detail_overview_body.
   ///
   /// In en, this message translates to:
-  /// **'To enhance operational efficiency and workforce well-being across our manufacturing facilities in 10th of Ramadan and Benha, Elaraby Group is transitioning to an updated rotational shift policy starting Monday, August 10, 2026.'**
+  /// **'To enhance operational efficiency and workforce well-being across our facilities, the organization is transitioning to an updated rotational shift policy starting Monday, August 10, 2026.'**
   String get ann_detail_overview_body;
 
   /// No description provided for @ann_detail_overview_title.
@@ -422,7 +422,7 @@ abstract class AppLocalizations {
   /// No description provided for @ben_default_desc.
   ///
   /// In en, this message translates to:
-  /// **'A leading retail chain offering a wide selection of fresh produce, groceries, and household items at competitive prices for Elaraby employees.'**
+  /// **'A leading retail chain offering a wide selection of fresh produce, groceries, and household items at competitive prices for company employees.'**
   String get ben_default_desc;
 
   /// No description provided for @ben_employee_id.
@@ -536,7 +536,7 @@ abstract class AppLocalizations {
   /// No description provided for @biometric_prompt.
   ///
   /// In en, this message translates to:
-  /// **'Unlock Elaraby Connect'**
+  /// **'Unlock Workforce App'**
   String get biometric_prompt;
 
   /// No description provided for @change_pin_step_confirm_subtitle.
@@ -1214,7 +1214,7 @@ abstract class AppLocalizations {
   /// No description provided for @news_demo1_body.
   ///
   /// In en, this message translates to:
-  /// **'Elaraby Group announces the opening of two state-of-the-art production lines in 10th of Ramadan Industrial Zone, creating over 600 new specialized technical jobs and boosting export capabilities across the MENA region.'**
+  /// **'The organization announces the opening of two state-of-the-art production lines, creating over 600 new specialized technical jobs and boosting operational capabilities across the region.'**
   String get news_demo1_body;
 
   /// No description provided for @news_demo1_cat.
@@ -1232,7 +1232,7 @@ abstract class AppLocalizations {
   /// No description provided for @news_demo2_body.
   ///
   /// In en, this message translates to:
-  /// **'Production Line A in Benha has achieved 180 continuous days with zero incidents. Management commends the dedication and strict adherence to workplace safety guidelines.'**
+  /// **'Production Facility A has achieved 180 continuous days with zero incidents. Management commends the dedication and strict adherence to workplace safety guidelines.'**
   String get news_demo2_body;
 
   /// No description provided for @news_demo2_cat.
@@ -1268,7 +1268,7 @@ abstract class AppLocalizations {
   /// No description provided for @news_demo4_body.
   ///
   /// In en, this message translates to:
-  /// **'Elaraby Group leadership reviewed our key operational milestones and shared the strategic roadmap for sustainable manufacturing, energy reduction, and digital transformation.'**
+  /// **'Executive leadership reviewed our key operational milestones and shared the strategic roadmap for sustainable manufacturing, energy reduction, and digital transformation.'**
   String get news_demo4_body;
 
   /// No description provided for @news_demo4_cat.

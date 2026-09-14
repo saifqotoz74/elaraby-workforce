@@ -21,7 +21,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ann_detail_guidelines_title => 'Key Guidelines & Changes';
 
   @override
-  String get ann_detail_overview_body => 'To enhance operational efficiency and workforce well-being across our manufacturing facilities in 10th of Ramadan and Benha, Elaraby Group is transitioning to an updated rotational shift policy starting Monday, August 10, 2026.';
+  String get ann_detail_overview_body => 'To enhance operational efficiency and workforce well-being across our facilities, the organization is transitioning to an updated rotational shift policy starting Monday, August 10, 2026.';
 
   @override
   String get ann_detail_overview_title => 'Policy Overview';
@@ -187,7 +187,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ben_cat_supermarkets => 'Supermarkets';
 
   @override
-  String get ben_default_desc => 'A leading retail chain offering a wide selection of fresh produce, groceries, and household items at competitive prices for Elaraby employees.';
+  String get ben_default_desc => 'A leading retail chain offering a wide selection of fresh produce, groceries, and household items at competitive prices for company employees.';
 
   @override
   String get ben_employee_id => 'Employee ID';
@@ -244,7 +244,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get biometric_not_setup => 'Fingerprint is not set up on this device. Use your PIN.';
 
   @override
-  String get biometric_prompt => 'Unlock Elaraby Connect';
+  String get biometric_prompt => 'Unlock Workforce App';
 
   @override
   String get change_pin_step_confirm_subtitle => 'Enter the new 4-digit PIN once again';
@@ -583,7 +583,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get new_announcement => 'New Announcement';
 
   @override
-  String get news_demo1_body => 'Elaraby Group announces the opening of two state-of-the-art production lines in 10th of Ramadan Industrial Zone, creating over 600 new specialized technical jobs and boosting export capabilities across the MENA region.';
+  String get news_demo1_body => 'The organization announces the opening of two state-of-the-art production lines, creating over 600 new specialized technical jobs and boosting operational capabilities across the region.';
 
   @override
   String get news_demo1_cat => 'Expansion';
@@ -592,7 +592,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get news_demo1_title => 'New Manufacturing Facilities to Increase Production Capacity';
 
   @override
-  String get news_demo2_body => 'Production Line A in Benha has achieved 180 continuous days with zero incidents. Management commends the dedication and strict adherence to workplace safety guidelines.';
+  String get news_demo2_body => 'Production Facility A has achieved 180 continuous days with zero incidents. Management commends the dedication and strict adherence to workplace safety guidelines.';
 
   @override
   String get news_demo2_cat => 'Safety & Quality';
@@ -610,7 +610,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get news_demo3_title => 'Healthcare & Wellness Week Starting This Sunday';
 
   @override
-  String get news_demo4_body => 'Elaraby Group leadership reviewed our key operational milestones and shared the strategic roadmap for sustainable manufacturing, energy reduction, and digital transformation.';
+  String get news_demo4_body => 'Executive leadership reviewed our key operational milestones and shared the strategic roadmap for sustainable manufacturing, energy reduction, and digital transformation.';
 
   @override
   String get news_demo4_cat => 'Leadership';

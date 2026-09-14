@@ -302,12 +302,14 @@ class ApiClient {
   Future<Map<String, dynamic>?> post(
     String path,
     Map<String, dynamic> body, {
+    Map<String, String>? extraHeaders,
     Duration timeout = const Duration(seconds: 6),
   }) async {
     final result = await request(
       'POST',
       path,
       body: body,
+      extraHeaders: extraHeaders,
       timeout: timeout,
     );
     if (result.isSuccess) {

@@ -250,7 +250,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
                 Center(
                   child: TextButton.icon(
                     onPressed: _authenticateBiometric,
-                    icon: const Icon(Icons.fingerprint_rounded,
+                    icon: Icon(Icons.fingerprint_rounded,
                         color: AppColors.primary, size: 22),
                     label: Text(
                       AppLocale.tr('biometric_button'),

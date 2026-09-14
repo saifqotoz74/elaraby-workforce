@@ -8,6 +8,46 @@ import '../../../core/storage/local_store.dart';
 
 enum RequestStatus { inReview, approved, rejected }
 
+class ApprovalStage {
+  final int stage;
+  final String role;
+  final String title;
+  final String status; // 'pending', 'approved', 'rejected'
+  final String? reviewer;
+  final int? decidedAt;
+  final String? reason;
+
+  const ApprovalStage({
+    required this.stage,
+    required this.role,
+    required this.title,
+    required this.status,
+    this.reviewer,
+    this.decidedAt,
+    this.reason,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'stage': stage,
+        'role': role,
+        'title': title,
+        'status': status,
+        'reviewer': reviewer,
+        'decidedAt': decidedAt,
+        'reason': reason,
+      };
+
+  factory ApprovalStage.fromJson(Map<String, dynamic> json) => ApprovalStage(
+        stage: json['stage'] as int? ?? 1,
+        role: json['role'] as String? ?? '',
+        title: json['title'] as String? ?? '',
+        status: json['status'] as String? ?? 'pending',
+        reviewer: json['reviewer'] as String?,
+        decidedAt: json['decidedAt'] as int?,
+        reason: json['reason'] as String?,
+      );
+}
+
 class EmployeeRequest {
   final String id;
   final String title;
@@ -20,6 +60,9 @@ class EmployeeRequest {
   final String? rejectionReason;
   final Map<String, String> details;
   final bool isPendingSync;
+  final List<ApprovalStage>? approvalStages;
+  final String? attachmentUrl;
+  final String? attachmentName;
 
   const EmployeeRequest({
     required this.id,
@@ -33,6 +76,9 @@ class EmployeeRequest {
     this.rejectionReason,
     this.details = const {},
     this.isPendingSync = false,
+    this.approvalStages,
+    this.attachmentUrl,
+    this.attachmentName,
   });
 
   EmployeeRequest copyWith({
@@ -47,6 +93,9 @@ class EmployeeRequest {
     String? rejectionReason,
     Map<String, String>? details,
     bool? isPendingSync,
+    List<ApprovalStage>? approvalStages,
+    String? attachmentUrl,
+    String? attachmentName,
   }) {
     return EmployeeRequest(
       id: id ?? this.id,
@@ -60,6 +109,9 @@ class EmployeeRequest {
       rejectionReason: rejectionReason ?? this.rejectionReason,
       details: details ?? this.details,
       isPendingSync: isPendingSync ?? this.isPendingSync,
+      approvalStages: approvalStages ?? this.approvalStages,
+      attachmentUrl: attachmentUrl ?? this.attachmentUrl,
+      attachmentName: attachmentName ?? this.attachmentName,
     );
   }
 
@@ -86,23 +138,36 @@ class EmployeeRequest {
         'rejectionReason': rejectionReason,
         'details': details,
         'isPendingSync': isPendingSync,
+        if (approvalStages != null)
+          'approvalStages': approvalStages!.map((s) => s.toJson()).toList(),
+        'attachmentUrl': attachmentUrl,
+        'attachmentName': attachmentName,
       };
 
-  factory EmployeeRequest.fromJson(Map<String, dynamic> json) =>
-      EmployeeRequest(
-        id: json['id'] as String,
-        title: json['title'] as String,
-        type: json['type'] as String,
-        refNumber: json['refNumber'] as String,
-        status: RequestStatus.values[json['status'] as int],
-        date: json['date'] as String,
-        summary: json['summary'] as String,
-        reviewer: json['reviewer'] as String?,
-        rejectionReason: json['rejectionReason'] as String?,
-        details: (json['details'] as Map<String, dynamic>? ?? const {})
-            .map((k, v) => MapEntry(k, v as String)),
-        isPendingSync: json['isPendingSync'] as bool? ?? false,
-      );
+  factory EmployeeRequest.fromJson(Map<String, dynamic> json) {
+    final rawStages = json['approvalStages'] as List<dynamic>?;
+    final stages = rawStages
+        ?.map((s) => ApprovalStage.fromJson(s as Map<String, dynamic>))
+        .toList();
+
+    return EmployeeRequest(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      type: json['type'] as String,
+      refNumber: json['refNumber'] as String,
+      status: RequestStatus.values[json['status'] as int],
+      date: json['date'] as String,
+      summary: json['summary'] as String,
+      reviewer: json['reviewer'] as String?,
+      rejectionReason: json['rejectionReason'] as String?,
+      details: (json['details'] as Map<String, dynamic>? ?? const {})
+          .map((k, v) => MapEntry(k, v as String)),
+      isPendingSync: json['isPendingSync'] as bool? ?? false,
+      approvalStages: stages,
+      attachmentUrl: json['attachmentUrl'] as String?,
+      attachmentName: json['attachmentName'] as String?,
+    );
+  }
 }
 
 /// ChangeNotifier store persisted to [SharedPreferences] as JSON, so requests
@@ -162,6 +227,49 @@ class RequestsStore extends ChangeNotifier {
   List<EmployeeRequest> get pendingSyncRequests =>
       _requests.where((r) => r.isPendingSync).toList();
 
+  int get availableAnnualBalance => LocalStore.instance.vacationDaysRemaining;
+
+  int get emergencyDaysUsed {
+    return _requests
+        .where((r) {
+          if (r.status == RequestStatus.rejected) return false;
+          final isEmergency = r.type == 'Leave' &&
+              (r.details['leaveType'] == 'Emergency Leave' ||
+                  r.title.toLowerCase().contains('emergency') ||
+                  r.title.contains('عارضة'));
+          return isEmergency;
+        })
+        .fold(0, (sum, r) => sum + (int.tryParse(r.details['days'] ?? '') ?? 0));
+  }
+
+  int get emergencyDaysRemaining => (6 - emergencyDaysUsed).clamp(0, 6);
+
+  int get sickDaysTaken {
+    return _requests
+        .where((r) {
+          if (r.status == RequestStatus.rejected) return false;
+          final isSick = r.type == 'Leave' &&
+              (r.details['leaveType'] == 'Sick Leave' ||
+                  r.title.toLowerCase().contains('sick') ||
+                  r.title.contains('مرضية'));
+          return isSick;
+        })
+        .fold(0, (sum, r) => sum + (int.tryParse(r.details['days'] ?? '') ?? 0));
+  }
+
+  int get annualVacationDaysUsed {
+    return _requests
+        .where((r) {
+          if (r.status == RequestStatus.rejected) return false;
+          final isAnnual = r.type == 'Leave' &&
+              (r.details['leaveType'] == 'Annual Leave' ||
+                  r.title.toLowerCase().contains('annual') ||
+                  r.title.contains('سنوية'));
+          return isAnnual;
+        })
+        .fold(0, (sum, r) => sum + (int.tryParse(r.details['days'] ?? '') ?? 0));
+  }
+
   /// Server is the source of truth when online — but preserves any local requests
   /// that are still pending upload so they are NEVER erased.
   void replaceAll(List<EmployeeRequest> serverRequests) {
@@ -192,6 +300,8 @@ class RequestsStore extends ChangeNotifier {
         title: req.title,
         details: req.details,
         days: days,
+        attachmentUrl: req.attachmentUrl,
+        attachmentName: req.attachmentName,
         idempotencyKey: req.id,
         onPermanentError: (err) {
           isPermanentRejection = true;
@@ -248,6 +358,8 @@ class RequestsStore extends ChangeNotifier {
         title: request.title,
         details: request.details,
         days: days,
+        attachmentUrl: request.attachmentUrl,
+        attachmentName: request.attachmentName,
         idempotencyKey: request.id,
         onPermanentError: (err) {
           isPermanentRejection = true;
@@ -365,10 +477,16 @@ class RequestsStore extends ChangeNotifier {
           summary: 'Waiting on: Line Manager Approval',
           reviewer: 'Line Manager (Mohamed Hassan)',
           details: {
+            'leaveType': 'Annual Leave',
+            'days': '3',
             'Duration': '3 days',
             'Dates': '12 – 14 Oct 2026',
             'Submitted': '3 days ago',
           },
+          approvalStages: const [
+            ApprovalStage(stage: 1, role: 'line_manager', title: 'Line Manager Review', status: 'pending'),
+            ApprovalStage(stage: 2, role: 'hr_operations', title: 'HR Operations Final Approval', status: 'pending'),
+          ],
         ),
         EmployeeRequest(
           id: '2',

@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import '../../features/benefits/data/benefits_content.dart';
 import '../../features/home/data/home_content.dart';
 import '../../features/services/data/requests_store.dart';
+import '../../features/services/data/shift_model.dart';
+import '../../features/services/data/transport_model.dart';
 import '../storage/local_store.dart';
 import 'api_client.dart';
 import 'connectivity_service.dart';
@@ -405,6 +407,8 @@ class Backend {
     required String title,
     required Map<String, String> details,
     int? days,
+    String? attachmentUrl,
+    String? attachmentName,
     String? idempotencyKey,
     void Function(String error)? onPermanentError,
   }) async {
@@ -413,6 +417,8 @@ class Backend {
       'title': title,
       'details': details,
       'days': days,
+      if (attachmentUrl != null) 'attachmentUrl': attachmentUrl,
+      if (attachmentName != null) 'attachmentName': attachmentName,
       if (idempotencyKey != null) 'idempotencyKey': idempotencyKey,
     });
     if (res != null && res['_status'] != null) {
@@ -427,6 +433,21 @@ class Backend {
     if (balance is num) LocalStore.instance.setVacationBalance(balance.toInt());
     if (res['request'] is Map<String, dynamic>) {
       return _mapRequest(res['request'] as Map<String, dynamic>);
+    }
+    return null;
+  }
+
+  /// Uploads image or document attachment (Base64) to server upload endpoint.
+  Future<Map<String, dynamic>?> uploadAttachment({
+    required String name,
+    required String base64Data,
+  }) async {
+    final res = await _api.post('/upload', {
+      'name': name,
+      'dataBase64': base64Data,
+    });
+    if (res != null && res['url'] != null) {
+      return res;
     }
     return null;
   }
@@ -461,6 +482,12 @@ class Backend {
       default:
         status = RequestStatus.inReview;
     }
+
+    final rawStages = json['approvalStages'] as List<dynamic>?;
+    final approvalStages = rawStages
+        ?.map((s) => ApprovalStage.fromJson(s as Map<String, dynamic>))
+        .toList();
+
     return EmployeeRequest(
       id: json['id'] as String,
       title: json['title'] as String? ?? '',
@@ -473,6 +500,9 @@ class Backend {
       rejectionReason: json['decisionReason'] as String?,
       details: (json['details'] as Map<String, dynamic>? ?? const {})
           .map((k, v) => MapEntry(k, '$v')),
+      approvalStages: approvalStages,
+      attachmentUrl: json['attachmentUrl'] as String?,
+      attachmentName: json['attachmentName'] as String?,
     );
   }
 
@@ -500,6 +530,7 @@ class Backend {
   Future<Map<String, dynamic>?> fetchPayroll({
     String? pin,
     String? salaryToken,
+    String? period,
   }) async {
     final extraHeaders = <String, String>{};
     if (salaryToken != null && salaryToken.isNotEmpty) {
@@ -508,10 +539,62 @@ class Backend {
     if (pin != null && pin.isNotEmpty) {
       extraHeaders['x-salary-pin'] = pin;
     }
-    final res = await _api.get('/payroll', extraHeaders: extraHeaders);
+    final path = period != null
+        ? '/payroll?period=${Uri.encodeComponent(period)}'
+        : '/payroll';
+    final res = await _api.get(path, extraHeaders: extraHeaders);
     if (res?['payroll'] == null) return null;
     online.value = true;
     return res!['payroll'] as Map<String, dynamic>;
+  }
+
+  /// Available historical statement periods (e.g. August 2026, July 2026, June 2026).
+  Future<List<String>?> fetchPayrollHistoryPeriods({
+    String? pin,
+    String? salaryToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    if (salaryToken != null && salaryToken.isNotEmpty) {
+      extraHeaders['x-salary-token'] = salaryToken;
+    }
+    if (pin != null && pin.isNotEmpty) {
+      extraHeaders['x-salary-pin'] = pin;
+    }
+    final res = await _api.get('/payroll/history', extraHeaders: extraHeaders);
+    if (res?['periods'] == null) return null;
+    return (res!['periods'] as List<dynamic>).map((e) => e.toString()).toList();
+  }
+
+  // ---------- Loans & Salary Advances ----------
+  Future<Map<String, dynamic>?> fetchLoanEligibility() async {
+    final res = await _api.get('/loans/eligibility');
+    return res?['eligibility'] as Map<String, dynamic>?;
+  }
+
+  Future<List<Map<String, dynamic>>?> fetchLoans() async {
+    final res = await _api.get('/loans');
+    final list = res?['loans'] as List<dynamic>?;
+    if (list == null) return null;
+    return list
+        .map((e) => Map<String, dynamic>.from(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>?> applyLoan(
+    Map<String, dynamic> data, {
+    String? pin,
+    String? salaryToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    if (salaryToken != null && salaryToken.isNotEmpty) {
+      extraHeaders['x-salary-token'] = salaryToken;
+    }
+    if (pin != null && pin.isNotEmpty) {
+      extraHeaders['x-salary-pin'] = pin;
+    }
+    final res =
+        await _api.post('/loans', data, extraHeaders: extraHeaders);
+    return res?['loan'] as Map<String, dynamic>?;
   }
 
   // ---------- Roster ----------
@@ -525,6 +608,119 @@ class Backend {
     return days
         .map((e) => Map<String, dynamic>.from(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// Extended 4-week factory rotation schedule
+  Future<List<ShiftWeek>?> fetchMultiWeekRoster() async {
+    final res = await _api.get('/shifts/roster');
+    final rawWeeks = res?['weeks'] as List<dynamic>?;
+    if (rawWeeks == null) return null;
+    online.value = true;
+    return rawWeeks
+        .map((w) => ShiftWeek.fromJson(w as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Discover colleagues in same factory/department for shift swap
+  Future<List<ShiftSwapColleague>?> fetchSwapColleagues(String date) async {
+    final res = await _api.get('/shifts/colleagues?date=$date');
+    final raw = res?['colleagues'] as List<dynamic>?;
+    if (raw == null) return null;
+    online.value = true;
+    return raw
+        .map((c) => ShiftSwapColleague.fromJson(c as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Submit a two-tier peer shift swap request
+  Future<ShiftSwapRequest?> submitShiftSwap({
+    required String targetEmployeeId,
+    required String date,
+    String? reason,
+  }) async {
+    final res = await _api.post('/shifts/swap', {
+      'targetEmployeeId': targetEmployeeId,
+      'date': date,
+      'reason': reason,
+    });
+    final raw = res?['swap'] as Map<String, dynamic>?;
+    if (raw == null) return null;
+    online.value = true;
+    return ShiftSwapRequest.fromJson(raw);
+  }
+
+  /// Respond to incoming peer shift swap request (accept or decline)
+  Future<bool> respondShiftSwap(String swapId, String decision) async {
+    final res = await _api.post('/shifts/swap/$swapId/respond', {
+      'decision': decision,
+    });
+    return res != null && res['ok'] == true;
+  }
+
+  /// Fetch incoming and outgoing swap requests
+  Future<List<ShiftSwapRequest>?> fetchShiftSwaps() async {
+    final res = await _api.get('/shifts/swaps');
+    final raw = res?['swaps'] as List<dynamic>?;
+    if (raw == null) return null;
+    online.value = true;
+    return raw
+        .map((s) => ShiftSwapRequest.fromJson(s as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Submit an overtime hours claim
+  Future<OvertimeClaim?> submitOvertimeClaim({
+    required String date,
+    required double hours,
+    required String timePeriod,
+    String? reason,
+  }) async {
+    final res = await _api.post('/overtime/claim', {
+      'date': date,
+      'hours': hours,
+      'timePeriod': timePeriod,
+      'reason': reason,
+    });
+    final raw = res?['claim'] as Map<String, dynamic>?;
+    if (raw == null) return null;
+    online.value = true;
+    return OvertimeClaim.fromJson(raw);
+  }
+
+  /// Fetch all overtime claims
+  Future<List<OvertimeClaim>?> fetchOvertimeClaims() async {
+    final res = await _api.get('/overtime/claims');
+    final raw = res?['claims'] as List<dynamic>?;
+    if (raw == null) return null;
+    online.value = true;
+    return raw
+        .map((c) => OvertimeClaim.fromJson(c as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Fetch today's live punch and attendance status
+  Future<TodayPunchState?> fetchTodayPunchState([String? date]) async {
+    final path = date != null ? '/attendance/today?date=$date' : '/attendance/today';
+    final res = await _api.get(path);
+    if (res == null) return null;
+    online.value = true;
+    return TodayPunchState.fromJson(res);
+  }
+
+  /// Record punch-in or punch-out
+  Future<Map<String, dynamic>?> submitAttendancePunch({
+    required String type,
+    double? lat,
+    double? lng,
+    String? qrToken,
+  }) async {
+    final res = await _api.post('/attendance/punch', {
+      'type': type,
+      if (lat != null) 'lat': lat,
+      if (lng != null) 'lng': lng,
+      if (qrToken != null) 'qrToken': qrToken,
+    });
+    return res;
   }
 
   // ---------- Inbox ----------
@@ -585,4 +781,126 @@ class Backend {
     }
     return false;
   }
+
+  // ---------- Corporate Transportation & Fleet Tracking ----------
+  Future<MyCommuteState?> fetchMyCommute() async {
+    final res = await _api.get('/transport/my-commute');
+    if (res == null) return null;
+    return MyCommuteState.fromJson(res);
+  }
+
+  Future<List<BusRoute>?> fetchBusRoutes({String? factory, String? shift}) async {
+    final params = <String>[];
+    if (factory != null) params.add('factory=${Uri.encodeComponent(factory)}');
+    if (shift != null) params.add('shift=${Uri.encodeComponent(shift)}');
+    final query = params.isNotEmpty ? '?${params.join('&')}' : '';
+
+    final res = await _api.get('/transport/routes$query');
+    if (res?['routes'] == null) return null;
+    return (res!['routes'] as List<dynamic>)
+        .map((r) => BusRoute.fromJson(r as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<bool> selectPickupStop({
+    required String routeId,
+    required String stopId,
+  }) async {
+    final res = await _api.post('/transport/select-stop', {
+      'routeId': routeId,
+      'stopId': stopId,
+    });
+    return res != null && res['success'] == true;
+  }
+
+  Future<bool> requestRouteTransfer({
+    required String targetRouteId,
+    String? targetStopId,
+    String? date,
+    String? reason,
+  }) async {
+    final res = await _api.post('/transport/request-transfer', {
+      'targetRouteId': targetRouteId,
+      if (targetStopId != null) 'targetStopId': targetStopId,
+      if (date != null) 'date': date,
+      if (reason != null) 'reason': reason,
+    });
+    return res != null && res['ok'] == true;
+  }
+
+  Future<BoardingPassData?> fetchBoardingPass() async {
+    final res = await _api.get('/transport/boarding-pass');
+    if (res == null) return null;
+    return BoardingPassData.fromJson(res);
+  }
+
+  Future<bool> reportRouteIncident({
+    required String routeId,
+    required String type,
+    required String message,
+    int delayMinutes = 15,
+  }) async {
+    final res = await _api.post('/transport/report-incident', {
+      'routeId': routeId,
+      'type': type,
+      'message': message,
+      'delayMinutes': delayMinutes,
+    });
+    return res != null && res['ok'] == true;
+  }
+
+  Future<List<RouteAlert>?> fetchRouteAlerts({String? routeId}) async {
+    final query = routeId != null ? '?routeId=${Uri.encodeComponent(routeId)}' : '';
+    final res = await _api.get('/transport/alerts$query');
+    if (res?['alerts'] == null) return null;
+    return (res!['alerts'] as List<dynamic>)
+        .map((a) => RouteAlert.fromJson(a as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<bool> toggleCommuteOptOut({required bool optOut}) async {
+    final res = await _api.post('/transport/opt-out', {
+      'optOut': optOut,
+    });
+    return res != null && res['success'] == true;
+  }
+
+  // ---------- Driver & Supervisor Dedicated Tablet Console ----------
+  Future<RouteManifestData?> fetchRouteManifest({required String routeId}) async {
+    final res = await _api.get('/transport/driver/manifest?routeId=${Uri.encodeComponent(routeId)}');
+    if (res == null || res['data'] == null) return null;
+    return RouteManifestData.fromJson(res['data'] as Map<String, dynamic>);
+  }
+
+  Future<Map<String, dynamic>?> manualBoardPassenger({
+    required String employeeId,
+    required String routeId,
+  }) async {
+    final res = await _api.post('/transport/driver/board-manual', {
+      'employeeId': employeeId,
+      'routeId': routeId,
+    });
+    return res;
+  }
+
+  Future<Map<String, dynamic>?> advanceStopDeparture({
+    required String routeId,
+    required String stopId,
+  }) async {
+    final res = await _api.post('/transport/driver/depart-stop', {
+      'routeId': routeId,
+      'stopId': stopId,
+    });
+    return res;
+  }
+
+  Future<Map<String, dynamic>?> completeRouteRun({
+    required String routeId,
+  }) async {
+    final res = await _api.post('/transport/driver/complete-run', {
+      'routeId': routeId,
+    });
+    return res;
+  }
 }
+

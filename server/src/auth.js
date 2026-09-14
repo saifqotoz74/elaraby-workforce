@@ -237,8 +237,27 @@ function requireAuth(req, res, next) {
   if ((employee.tokenVersion || 0) !== (payload.tokenVersion || 0)) {
     return res.status(401).json({ error: 'token_revoked' });
   }
+
+  // Cross-tenant defense-in-depth: Authoritative tenant enforcement
+  const authoritativeTenant = (payload.tenantId || employee.tenantId || 'elaraby').toString().trim().toLowerCase();
+  const explicitHeader = req.headers?.['x-tenant-id'];
+  if (explicitHeader && typeof explicitHeader === 'string' && explicitHeader.trim()) {
+    const requestedTenant = explicitHeader.trim().toLowerCase();
+    if (requestedTenant !== authoritativeTenant) {
+      return res.status(403).json({
+        error: 'cross_tenant_forbidden',
+        message: `Cross-tenant spoofing detected: Employee belongs to '${authoritativeTenant}' and cannot perform operations on behalf of '${requestedTenant}'.`,
+      });
+    }
+  }
+  req.tenantId = authoritativeTenant;
+  if (res && typeof res.setHeader === 'function') {
+    res.setHeader('X-Tenant-ID', authoritativeTenant);
+  }
+
   req.employeeId = payload.sub;
   req.employee = employee;
+  req.tenantId = authoritativeTenant;
   req.authPayload = payload;
   next();
 }

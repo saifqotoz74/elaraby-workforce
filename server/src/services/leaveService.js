@@ -90,13 +90,41 @@ function decideRequest(admin, id, { status, reason }, { ip, userAgent } = {}) {
     reqItem.summary =
       status === 'approved' ? 'Approved by HR' : `Rejected by HR${reason ? ` — ${reason}` : ''}`;
 
+    if (Array.isArray(reqItem.approvalStages) && reqItem.approvalStages.length > 0) {
+      if (status === 'approved') {
+        reqItem.approvalStages = reqItem.approvalStages.map((st) => ({
+          ...st,
+          status: 'approved',
+          reviewer: st.reviewer || admin?.sub || 'HR Admin',
+          decidedAt: st.decidedAt || Date.now(),
+        }));
+      } else if (status === 'rejected') {
+        let marked = false;
+        reqItem.approvalStages = reqItem.approvalStages.map((st) => {
+          if (!marked && st.status === 'pending') {
+            marked = true;
+            return {
+              ...st,
+              status: 'rejected',
+              reviewer: admin?.sub || 'HR Admin',
+              decidedAt: Date.now(),
+              reason: reason || null,
+            };
+          }
+          return st;
+        });
+      }
+    }
+
     // Transactional Vacation Days Refund on Annual Leave Rejection
     if (status === 'rejected') {
       const isAnnualLeave =
         reqItem.type === 'Leave' &&
         (reqItem.details?.leaveType === 'Annual Leave' ||
           reqItem.details?.leaveType === 'annual' ||
-          String(reqItem.title).toLowerCase().includes('annual leave'));
+          String(reqItem.title).toLowerCase().includes('annual leave') ||
+          String(reqItem.title).toLowerCase().includes('إجازة سنوية') ||
+          String(reqItem.title).toLowerCase().includes('سنوية'));
 
       if (isAnnualLeave) {
         const days = Number(reqItem.details?.days ?? reqItem.days) || 0;
@@ -160,7 +188,141 @@ function decideRequest(admin, id, { status, reason }, { ip, userAgent } = {}) {
   return decidedRequest;
 }
 
+function decideApprovalStage(admin, id, { stage, status, reason }, { ip, userAgent } = {}) {
+  if (!['approved', 'rejected'].includes(status)) {
+    const err = new Error('status_must_be_approved_or_rejected');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  let employeeTarget = null;
+  const decidedRequest = transaction((state) => {
+    const reqItem = state.requests.find((r) => r.id === id);
+    if (!reqItem) {
+      const err = new Error('not_found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const employee = state.employees.find((e) => e.id === reqItem.employeeId);
+    if (employee && !checkScope(admin, employee)) {
+      const err = new Error('forbidden_outside_factory_scope');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    if (reqItem.status !== 'inReview') {
+      const err = new Error('already_decided');
+      err.statusCode = 422;
+      throw err;
+    }
+
+    employeeTarget = employee;
+    const stages = Array.isArray(reqItem.approvalStages) ? reqItem.approvalStages : [];
+    const targetStageIndex = stages.findIndex((s) => s.stage === Number(stage) || s.role === stage);
+    if (targetStageIndex === -1) {
+      const err = new Error('stage_not_found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const targetStage = stages[targetStageIndex];
+    targetStage.status = status;
+    targetStage.reviewer = admin?.sub || 'Approver';
+    targetStage.decidedAt = Date.now();
+    targetStage.reason = reason || null;
+
+    if (status === 'rejected') {
+      reqItem.status = 'rejected';
+      reqItem.decisionReason = reason || `Rejected at ${targetStage.title}`;
+      reqItem.decidedBy = admin?.sub || 'Approver';
+      reqItem.decidedAt = Date.now();
+      reqItem.summary = `Rejected at ${targetStage.title}${reason ? ` — ${reason}` : ''}`;
+
+      // Refund annual leave if applicable
+      const isAnnualLeave =
+        reqItem.type === 'Leave' &&
+        (reqItem.details?.leaveType === 'Annual Leave' ||
+          reqItem.details?.leaveType === 'annual' ||
+          String(reqItem.title).toLowerCase().includes('annual leave') ||
+          String(reqItem.title).toLowerCase().includes('إجازة سنوية') ||
+          String(reqItem.title).toLowerCase().includes('سنوية'));
+
+      if (isAnnualLeave) {
+        const days = Number(reqItem.details?.days ?? reqItem.days) || 0;
+        if (employee && days > 0) {
+          const balBefore = employee.vacationBalance || 0;
+          employee.vacationBalance = balBefore + days;
+          recordAuditLog(state, {
+            actor: admin?.sub || 'admin',
+            role: admin?.role || 'superadmin',
+            action: 'refund_vacation_balance',
+            entity: 'employee',
+            entityId: employee.id,
+            before: { vacationBalance: balBefore },
+            after: { vacationBalance: employee.vacationBalance },
+            details: `Refunded ${days} vacation days due to rejected leave request ${reqItem.id}`,
+            ip,
+            userAgent,
+          });
+        }
+      }
+    } else {
+      const allApproved = stages.every((s) => s.status === 'approved');
+      if (allApproved) {
+        reqItem.status = 'approved';
+        reqItem.decidedBy = admin?.sub || 'Approver';
+        reqItem.decidedAt = Date.now();
+        reqItem.summary = 'Approved through all stages';
+      } else {
+        const nextPending = stages.find((s) => s.status === 'pending');
+        reqItem.summary = nextPending ? `Waiting on: ${nextPending.title}` : 'In Review';
+      }
+    }
+
+    recordAuditLog(state, {
+      actor: admin?.sub || 'admin',
+      role: admin?.role || 'superadmin',
+      action: `request_stage_${status}`,
+      entity: 'request',
+      entityId: reqItem.id,
+      details: `${status === 'approved' ? 'Approved' : 'Rejected'} stage ${targetStage.stage} (${targetStage.title}) for "${reqItem.title}"`,
+      ip,
+      userAgent,
+    });
+
+    return reqItem;
+  });
+
+  const notifTitle =
+    decidedRequest.status === 'approved'
+      ? `Request Approved — ${decidedRequest.title}`
+      : decidedRequest.status === 'rejected'
+      ? `Request Rejected — ${decidedRequest.title}`
+      : `Request Stage Update — ${decidedRequest.title}`;
+  notify({
+    employeeId: decidedRequest.employeeId,
+    title: notifTitle,
+    body: decidedRequest.summary,
+  });
+
+  const eventName =
+    decidedRequest.status === 'approved'
+      ? 'leave.request.approved'
+      : decidedRequest.status === 'rejected'
+      ? 'leave.request.rejected'
+      : 'leave.request.stage_updated';
+  broadcast(
+    eventName,
+    { request: decidedRequest, employee: employeeTarget ? { id: employeeTarget.id, name: employeeTarget.name } : null },
+    { factory: employeeTarget?.factory, employeeId: decidedRequest.employeeId }
+  );
+
+  return decidedRequest;
+}
+
 module.exports = {
   listRequests,
   decideRequest,
+  decideApprovalStage,
 };

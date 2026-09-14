@@ -1,0 +1,77 @@
+name: Multi-Tenant Enterprise Flavor Builds
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Build Target'
+        required: true
+        default: 'apk'
+        type: choice
+        options:
+          - apk
+          - appbundle
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-flavor:
+    name: Build ${{ matrix.tenant.name }} (${{ matrix.tenant.flavor }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tenant:
+          - flavor: generic
+            name: Universal Multi-Tenant
+            entrypoint: lib/main.dart
+          - flavor: elaraby
+            name: Elaraby Group
+            entrypoint: lib/main_elaraby.dart
+          - flavor: elsewedy
+            name: Elsewedy Electric
+            entrypoint: lib/main_elsewedy.dart
+          - flavor: ghabbour
+            name: GB Corp (Ghabbour)
+            entrypoint: lib/main_ghabbour.dart
+          - flavor: tmg
+            name: Talaat Moustafa Group
+            entrypoint: lib/main_tmg.dart
+          - flavor: gulf_industrial
+            name: Gulf Industrial Corp
+            entrypoint: lib/main_gulf.dart
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter 3.29.x
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.x'
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build Branded APK
+        run: |
+          flutter build apk \
+            --flavor ${{ matrix.tenant.flavor }} \
+            -t ${{ matrix.tenant.entrypoint }} \
+            --release
+
+      - name: Upload Flavor APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.tenant.flavor }}-release-apk
+          path: build/app/outputs/flutter-apk/*${{ matrix.tenant.flavor }}*release.apk
+          retention-days: 14

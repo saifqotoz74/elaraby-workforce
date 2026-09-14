@@ -79,6 +79,7 @@ export const superAdminApi = {
   listTenants: () => api.get('/api/super-admin/tenants'),
   createTenant: (data) => api.post('/api/super-admin/tenants', data),
   updateTenant: (id, data) => api.put(`/api/super-admin/tenants/${id}`, data),
+  updateLogo: (id, logoUrl) => api.post(`/api/super-admin/tenants/${id}/logo`, { logoUrl }),
   deactivateTenant: (id) => api.delete(`/api/super-admin/tenants/${id}`),
 };
 

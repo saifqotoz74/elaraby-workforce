@@ -7,20 +7,46 @@ const { recordAuditLog } = require('./auditService');
 const { broadcast } = require('./realtimeService');
 const { validatePayrollUpdate } = require('../validators/adminValidators');
 
-function getPayroll(admin, employeeId) {
+function getPayroll(admin, employeeId, { period } = {}) {
   const employee = db().employees.find((e) => e.id === employeeId);
   if (!employee) {
     const err = new Error('employee_not_found');
     err.statusCode = 404;
     throw err;
   }
-  if (!checkScope(admin, employee)) {
+  if (admin && !checkScope(admin, employee)) {
     const err = new Error('forbidden_outside_factory_scope');
     err.statusCode = 403;
     throw err;
   }
-  const record = db().payroll.find((p) => p.employeeId === employeeId);
-  return record || null;
+
+  const allRecords = (db().payroll || []).filter((p) => p.employeeId === employeeId);
+  if (allRecords.length === 0) return null;
+
+  if (period) {
+    const matched = allRecords.find((p) => p.period && p.period.toLowerCase() === String(period).toLowerCase().trim());
+    return matched || null;
+  }
+
+  // Return most recent record by updatedAt or last in array
+  return allRecords[allRecords.length - 1];
+}
+
+function getPayrollHistory(admin, employeeId) {
+  const employee = db().employees.find((e) => e.id === employeeId);
+  if (!employee) {
+    const err = new Error('employee_not_found');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (admin && !checkScope(admin, employee)) {
+    const err = new Error('forbidden_outside_factory_scope');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const allRecords = (db().payroll || []).filter((p) => p.employeeId === employeeId);
+  return allRecords.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 }
 
 function updatePayroll(admin, employeeId, rawBody, { ip, userAgent } = {}) {
@@ -45,12 +71,21 @@ function updatePayroll(admin, employeeId, rawBody, { ip, userAgent } = {}) {
   const data = validation.data;
 
   const updated = transaction((state) => {
-    let record = state.payroll.find((p) => p.employeeId === employeeId);
+    state.payroll = state.payroll || [];
+    let record = state.payroll.find((p) => p.employeeId === employeeId && p.period === data.period);
+    if (!record) {
+      record = state.payroll.find((p) => p.employeeId === employeeId);
+    }
     const beforeState = record ? { ...record } : null;
 
     if (!record) {
-      record = { employeeId };
+      record = {
+        employeeId,
+        tenantId: employee.tenantId || admin?.tenantId || 'elaraby',
+      };
       state.payroll.push(record);
+    } else if (!record.tenantId) {
+      record.tenantId = employee.tenantId || admin?.tenantId || 'elaraby';
     }
 
     Object.assign(record, {
@@ -91,5 +126,6 @@ function updatePayroll(admin, employeeId, rawBody, { ip, userAgent } = {}) {
 
 module.exports = {
   getPayroll,
+  getPayrollHistory,
   updatePayroll,
 };

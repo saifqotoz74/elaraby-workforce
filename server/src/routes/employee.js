@@ -16,6 +16,14 @@ const twilio = require('../twilio');
 const fcm = require('../fcm');
 const { notify } = require('../notify');
 const { broadcast, subscribe } = require('../services/realtimeService');
+const payrollService = require('../services/payrollService');
+const loanService = require('../services/loanService');
+const uploadService = require('../services/uploadService');
+const shiftService = require('../services/shiftService');
+const overtimeService = require('../services/overtimeService');
+const attendanceService = require('../services/attendanceService');
+const transportService = require('../services/transportService');
+const { calculateWorkingDays } = require('../utils/holidays');
 
 const router = express.Router();
 const isDev = process.env.NODE_ENV !== 'production';
@@ -235,14 +243,24 @@ router.post('/auth/pin', (req, res) => {
   employee.pinHash = hash(pin);
   employee.tokenVersion = (employee.tokenVersion || 0) + 1;
   save();
-  const sessionToken = signToken({ sub: employee.id, scope: 'employee', tokenVersion: employee.tokenVersion });
+  const sessionToken = signToken({
+    sub: employee.id,
+    scope: 'employee',
+    tokenVersion: employee.tokenVersion,
+    tenantId: employee.tenantId || req.tenantId || 'elaraby',
+  });
   res.json({ ok: true, token: sessionToken, employee: publicEmployee(employee) });
 });
 
 router.post('/auth/pin/verify', (req, res) => {
   const { nationalId, pin } = req.body || {};
   if (guard(db(), `pin:${nationalId}`, res)) return;
-  const employee = db().employees.find((e) => e.nationalId === nationalId);
+  const targetTenant = (req.tenantId || 'elaraby').toLowerCase();
+  const employee = db().employees.find((e) => {
+    if (e.nationalId !== nationalId) return false;
+    const empTenant = (e.tenantId || 'elaraby').toLowerCase();
+    return empTenant === targetTenant;
+  });
   if (!employee || !employee.active || !employee.pinHash) {
     return res.status(401).json({ error: 'invalid_pin' });
   }
@@ -254,7 +272,12 @@ router.post('/auth/pin/verify', (req, res) => {
     return res.status(401).json({ error: 'invalid_pin' });
   }
   clearFailures(db(), `pin:${nationalId}`);
-  const token = signToken({ sub: employee.id, scope: 'employee', tokenVersion: employee.tokenVersion || 0 });
+  const token = signToken({
+    sub: employee.id,
+    scope: 'employee',
+    tokenVersion: employee.tokenVersion || 0,
+    tenantId: employee.tenantId || req.tenantId || 'elaraby',
+  });
   res.json({ ok: true, token, employee: publicEmployee(employee) });
 });
 
@@ -279,7 +302,12 @@ router.post('/auth/pin/change', requireAuth, (req, res) => {
   employee.pinHash = hash(newPin);
   employee.tokenVersion = (employee.tokenVersion || 0) + 1;
   save();
-  const token = signToken({ sub: employee.id, scope: 'employee', tokenVersion: employee.tokenVersion });
+  const token = signToken({
+    sub: employee.id,
+    scope: 'employee',
+    tokenVersion: employee.tokenVersion,
+    tenantId: employee.tenantId || req.tenantId || 'elaraby',
+  });
   res.json({ ok: true, token });
 });
 
@@ -439,7 +467,10 @@ function resolveWeekRoster(employee, record) {
 // ---------- Home ----------
 router.get('/home', requireAuth, (req, res) => {
   const me = db().employees.find((e) => e.id === req.employeeId);
-  const announcement = [...db().announcements].sort((a, b) => b.createdAt - a.createdAt)[0] || null;
+  const targetTenant = (req.tenantId || me?.tenantId || 'elaraby').toLowerCase();
+  const announcement = [...(db().announcements || [])]
+    .filter((a) => !a.tenantId || a.tenantId.toLowerCase() === targetTenant || a.isGlobal)
+    .sort((a, b) => b.createdAt - a.createdAt)[0] || null;
   const news = [...db().news].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5);
   const todayShift = resolveTodayShift(me);
   res.json({
@@ -487,14 +518,38 @@ router.post('/requests', requireAuth, (req, res) => {
   if (!type || !title) return res.status(400).json({ error: 'type_and_title_required' });
   const requested = Number(days ?? details?.days ?? req.body?.requestedDays) || 0;
   const isLeave = String(type || '').toLowerCase() === 'leave';
-  const leaveTypeStr = String(details?.leaveType || details?.type || '').toLowerCase();
+  const rawLeaveType = details?.leaveType || details?.type || '';
+  const leaveTypeStr = String(rawLeaveType).toLowerCase();
   const titleStr = String(title || '').toLowerCase();
+
   const isAnnualLeave = isLeave && (
     leaveTypeStr === 'annual leave' ||
     leaveTypeStr === 'annual' ||
     titleStr.includes('annual leave') ||
-    titleStr.includes('إجازة سنوية') ||
-    titleStr.includes('سنوية')
+    titleStr.includes('إجازة سنوية')
+  );
+
+  const isEmergencyLeave = isLeave && (
+    leaveTypeStr === 'emergency leave' ||
+    leaveTypeStr === 'emergency' ||
+    titleStr.includes('emergency leave') ||
+    titleStr.includes('إجازة عارضة') ||
+    titleStr.includes('عارضة')
+  );
+
+  const isSickLeave = isLeave && (
+    leaveTypeStr === 'sick leave' ||
+    leaveTypeStr === 'sick' ||
+    titleStr.includes('sick leave') ||
+    titleStr.includes('إجازة مرضية') ||
+    titleStr.includes('مرضية')
+  );
+
+  const isUnpaidLeave = isLeave && (
+    leaveTypeStr === 'unpaid leave' ||
+    leaveTypeStr === 'unpaid' ||
+    titleStr.includes('unpaid leave') ||
+    titleStr.includes('إجازة بدون مرتب')
   );
 
   let responsePayload;
@@ -503,7 +558,7 @@ router.post('/requests', requireAuth, (req, res) => {
       const me = state.employees.find((e) => e.id === req.employeeId);
       const ref = `REQ-2026-${nextId('request')}`;
 
-      // Annual leave deducts the balance immediately and is rejected if exceeded.
+      // 1. Annual leave deducts the balance immediately and is rejected if exceeded.
       if (isAnnualLeave) {
         if (requested > (me?.vacationBalance ?? 0)) {
           const err = new Error('exceeds_balance');
@@ -511,6 +566,50 @@ router.post('/requests', requireAuth, (req, res) => {
           throw err;
         }
         if (me && requested > 0) me.vacationBalance -= requested;
+      }
+
+      // 2. Emergency leave enforces Egyptian Labor Law: max 2 consecutive days & max 6 days/year
+      if (isEmergencyLeave) {
+        if (requested > 2) {
+          const err = new Error('emergency_leave_max_2_days');
+          err.statusCode = 422;
+          throw err;
+        }
+        const currentYear = new Date().getFullYear();
+        const matching = (state.requests || []).filter((r) => {
+          if (r.employeeId !== req.employeeId || r.status === 'rejected' || r.status === 'cancelled') return false;
+          if (String(r.type).toLowerCase() !== 'leave') return false;
+          const reqYear = new Date(r.createdAt).getFullYear();
+          const rType = String(r.details?.leaveType || r.title || '').toLowerCase();
+          return reqYear === currentYear && (rType.includes('emergency') || rType.includes('عارضة'));
+        });
+        const existingEmergencyDays = matching.reduce((sum, r) => sum + (Number(r.details?.days) || 0), 0);
+        if (existingEmergencyDays + requested > 6) {
+          const err = new Error('emergency_leave_annual_cap_exceeded');
+          err.statusCode = 422;
+          throw err;
+        }
+      }
+
+      // 3. Multi-tier approval stages setup
+      let approvalStages = [];
+      if (isSickLeave) {
+        approvalStages = [
+          { stage: 1, role: 'medical_clinic', title: 'Medical Clinic Verification', status: 'pending', reviewer: null, decidedAt: null },
+          { stage: 2, role: 'line_manager', title: 'Line Manager Review', status: 'pending', reviewer: null, decidedAt: null },
+          { stage: 3, role: 'hr_operations', title: 'HR Operations Final Approval', status: 'pending', reviewer: null, decidedAt: null },
+        ];
+      } else if (isUnpaidLeave) {
+        approvalStages = [
+          { stage: 1, role: 'line_manager', title: 'Line Manager Review', status: 'pending', reviewer: null, decidedAt: null },
+          { stage: 2, role: 'factory_gm', title: 'Factory GM Approval', status: 'pending', reviewer: null, decidedAt: null },
+          { stage: 3, role: 'hr_operations', title: 'HR Operations Final Approval', status: 'pending', reviewer: null, decidedAt: null },
+        ];
+      } else {
+        approvalStages = [
+          { stage: 1, role: 'line_manager', title: 'Line Manager Review', status: 'pending', reviewer: null, decidedAt: null },
+          { stage: 2, role: 'hr_operations', title: 'HR Operations Final Approval', status: 'pending', reviewer: null, decidedAt: null },
+        ];
       }
 
       const request = {
@@ -521,12 +620,18 @@ router.post('/requests', requireAuth, (req, res) => {
         title,
         refNumber: ref,
         status: 'inReview',
-        summary: 'Waiting on: Line Manager Approval',
+        summary: `Waiting on: ${approvalStages[0].title}`,
         details: {
           ...(details || {}),
           ...(requested > 0 ? { days: requested } : {}),
           ...(isAnnualLeave && !details?.leaveType ? { leaveType: 'Annual Leave' } : {}),
+          ...(isEmergencyLeave && !details?.leaveType ? { leaveType: 'Emergency Leave' } : {}),
+          ...(isSickLeave && !details?.leaveType ? { leaveType: 'Sick Leave' } : {}),
+          ...(isUnpaidLeave && !details?.leaveType ? { leaveType: 'Unpaid Leave' } : {}),
         },
+        approvalStages,
+        attachmentUrl: req.body?.attachmentUrl || details?.attachmentUrl || null,
+        attachmentName: req.body?.attachmentName || details?.attachmentName || null,
         decisionReason: null,
         decidedBy: null,
         decidedAt: null,
@@ -536,7 +641,10 @@ router.post('/requests', requireAuth, (req, res) => {
       return { request, vacationBalance: me?.vacationBalance };
     });
   } catch (err) {
-    if (err.statusCode === 422 || err.message === 'exceeds_balance') {
+    if (err.statusCode === 422 && err.message) {
+      return res.status(422).json({ error: err.message });
+    }
+    if (err.message === 'exceeds_balance') {
       return res.status(422).json({ error: 'exceeds_balance' });
     }
     throw err;
@@ -599,6 +707,25 @@ router.post('/requests/:id/cancel', requireAuth, (req, res) => {
   }
   broadcast('leave.request.cancelled', { requestId: req.params.id, employeeId: req.employeeId });
   res.json(result);
+});
+
+// ---------- Uploads: Employee Document & Medical Attachment Upload ----------
+router.post(['/upload', '/upload-file'], requireAuth, async (req, res, next) => {
+  try {
+    const contentType = req.headers['content-type'] || '';
+    let result;
+    if (contentType.includes('multipart/form-data')) {
+      result = await uploadService.handleMultipartUpload(req);
+    } else {
+      result = await uploadService.handleBase64Upload(req.body || {});
+    }
+    res.json(result);
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
+    next(err);
+  }
 });
 
 // ---------- Inbox ----------
@@ -698,7 +825,8 @@ router.get('/payroll', requireAuth, (req, res) => {
     });
   }
 
-  const record = (db().payroll || []).find((p) => p.employeeId === req.employeeId);
+  const requestedPeriod = req.query.period;
+  const record = payrollService.getPayroll(null, req.employeeId, { period: requestedPeriod });
   if (!record) {
     return res.json({
       ok: false,
@@ -707,6 +835,107 @@ router.get('/payroll', requireAuth, (req, res) => {
     });
   }
   res.json({ ok: true, payroll: record });
+});
+
+router.get('/payroll/history', requireAuth, (req, res) => {
+  const employee = db().employees.find((e) => e.id === req.employeeId);
+  if (!employee || !employee.active) return res.status(404).json({ error: 'not_found' });
+
+  const salaryTokenHeader = req.headers['x-salary-token'];
+  const salaryPinHeader = req.headers['x-salary-pin'];
+  let isAuthorized = false;
+
+  if (salaryTokenHeader) {
+    const payload = verifyToken(salaryTokenHeader);
+    if (payload && payload.sub === req.employeeId && payload.scope === 'salary') {
+      isAuthorized = true;
+    }
+  } else if (salaryPinHeader && employee.pinHash) {
+    if (verifyHash(String(salaryPinHeader), employee.pinHash)) {
+      isAuthorized = true;
+    }
+  } else if (req.authPayload && req.authPayload.scope === 'employee') {
+    isAuthorized = true;
+  }
+
+  if (employee.pinHash && !isAuthorized) {
+    return res.status(403).json({
+      error: 'salary_authorization_required',
+      message: 'Server-side PIN verification required to access salary information.',
+    });
+  }
+
+  const history = payrollService.getPayrollHistory(null, req.employeeId);
+  const periods = history.map((p) => p.period);
+  res.json({ ok: true, history, periods });
+});
+
+// ---------- Loans & Salary Advances ----------
+router.get('/loans/eligibility', requireAuth, (req, res) => {
+  try {
+    const eligibility = loanService.getLoanEligibility(req.employeeId);
+    res.json({ ok: true, eligibility });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.get('/loans', requireAuth, (req, res) => {
+  try {
+    const loans = loanService.getEmployeeLoans(req.employeeId);
+    res.json({ ok: true, loans });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.get('/loans/:loanId', requireAuth, (req, res) => {
+  try {
+    const loan = loanService.getLoanDetails(req.employeeId, req.params.loanId);
+    res.json({ ok: true, loan });
+  } catch (err) {
+    res.status(err.statusCode || 404).json({ error: err.message });
+  }
+});
+
+router.post('/loans', requireAuth, (req, res) => {
+  const employee = db().employees.find((e) => e.id === req.employeeId);
+  if (!employee || !employee.active) return res.status(404).json({ error: 'not_found' });
+
+  // Verify PIN or token for financial authorization
+  const salaryTokenHeader = req.headers['x-salary-token'];
+  const salaryPinHeader = req.headers['x-salary-pin'];
+  let isAuthorized = false;
+
+  if (salaryTokenHeader) {
+    const payload = verifyToken(salaryTokenHeader);
+    if (payload && payload.sub === req.employeeId && payload.scope === 'salary') {
+      isAuthorized = true;
+    }
+  } else if (salaryPinHeader && employee.pinHash) {
+    if (verifyHash(String(salaryPinHeader), employee.pinHash)) {
+      isAuthorized = true;
+    }
+  } else if (req.authPayload && req.authPayload.scope === 'employee') {
+    isAuthorized = true;
+  }
+
+  if (employee.pinHash && !isAuthorized) {
+    return res.status(403).json({
+      error: 'salary_authorization_required',
+      message: 'Server-side PIN verification required to submit financial loan requests.',
+    });
+  }
+
+  try {
+    const loan = loanService.applyLoan(req.employeeId, req.body, {
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+    res.status(201).json({ ok: true, loan });
+  } catch (err) {
+    res.status(err.statusCode || 400).json({ error: err.message });
+  }
 });
 
 // ---------- Roster (current week, Sunday-based) ----------
@@ -719,6 +948,87 @@ router.get('/roster', requireAuth, (req, res) => {
   const days = resolveWeekRoster(me, record);
   const todayShift = resolveTodayShift(me);
   res.json({ weekStart, days, todayShift });
+});
+
+// ---------- Extended Multi-Week Roster ----------
+router.get('/shifts/roster', requireAuth, (req, res) => {
+  const me = db().employees.find((e) => e.id === req.employeeId);
+  if (!me) return res.status(404).json({ error: 'employee_not_found' });
+  const weeks = shiftService.getMultiWeekRoster(me);
+  const todayShift = shiftService.resolveShiftForDate(me, new Date());
+  res.json({ weeks, todayShift });
+});
+
+// ---------- Shift Swap Peer Discovery ----------
+router.get('/shifts/colleagues', requireAuth, (req, res) => {
+  const date = req.query.date || shiftService.toDateKey(new Date());
+  const colleagues = shiftService.getEligibleSwapColleagues(req.employeeId, date);
+  res.json({ date, colleagues });
+});
+
+// ---------- Shift Swaps: Create & Peer Response ----------
+router.post('/shifts/swap', requireAuth, (req, res) => {
+  try {
+    const swap = shiftService.createSwapRequest(req.employeeId, req.body);
+    res.status(201).json({ ok: true, swap });
+  } catch (err) {
+    res.status(err.statusCode || 400).json({ error: err.message, code: err.code });
+  }
+});
+
+router.post('/shifts/swap/:id/respond', requireAuth, (req, res) => {
+  try {
+    const swap = shiftService.respondSwapRequest(req.employeeId, req.params.id, req.body.decision);
+    res.json({ ok: true, swap });
+  } catch (err) {
+    res.status(err.statusCode || 400).json({ error: err.message });
+  }
+});
+
+router.get('/shifts/swaps', requireAuth, (req, res) => {
+  const swaps = shiftService.getEmployeeSwaps(req.employeeId);
+  res.json({ swaps });
+});
+
+// ---------- Overtime Engine Endpoints ----------
+router.post('/overtime/claim', requireAuth, (req, res) => {
+  try {
+    const claim = overtimeService.createOvertimeClaim(req.employeeId, req.body);
+    res.status(201).json({ ok: true, claim });
+  } catch (err) {
+    res.status(err.statusCode || 400).json({ error: err.message });
+  }
+});
+
+router.get('/overtime/claims', requireAuth, (req, res) => {
+  const claims = overtimeService.getEmployeeOvertimeClaims(req.employeeId);
+  res.json({ claims });
+});
+
+router.get('/overtime/preview', requireAuth, (req, res) => {
+  const me = db().employees.find((e) => e.id === req.employeeId);
+  const calculation = overtimeService.calculateOvertimePay({
+    hours: req.query.hours || 1,
+    date: req.query.date || shiftService.toDateKey(new Date()),
+    timePeriod: req.query.timePeriod || 'day',
+    hourlyRate: me?.hourlyRate || 40,
+  });
+  res.json({ calculation });
+});
+
+// ---------- Factory Attendance & QR Punch Endpoints ----------
+router.post('/attendance/punch', requireAuth, (req, res) => {
+  try {
+    const punch = attendanceService.recordPunch(req.employeeId, req.body);
+    res.status(201).json({ ok: true, punch });
+  } catch (err) {
+    res.status(err.statusCode || 400).json({ error: err.message });
+  }
+});
+
+router.get('/attendance/today', requireAuth, (req, res) => {
+  const state = attendanceService.getTodayPunchState(req.employeeId, req.query.date);
+  res.json(state);
 });
 
 // ---------- Push tokens ----------
@@ -894,6 +1204,167 @@ router.post('/concerns', (req, res) => {
 
   save();
   res.json({ ok: true, refNumber: ref, message: 'Concern received anonymously' });
+});
+
+// ---------- Corporate Transportation & Fleet Tracking ----------
+
+router.get('/transport/my-commute', requireAuth, (req, res) => {
+  try {
+    const commute = transportService.getEmployeeCommute(req.employeeId);
+    res.json(commute);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.get('/transport/routes', requireAuth, (req, res) => {
+  try {
+    const { factory, shift } = req.query;
+    const routes = transportService.getRoutes({ factory, shift });
+    res.json({ routes });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/transport/select-stop', requireAuth, (req, res) => {
+  try {
+    const { routeId, stopId } = req.body || {};
+    if (!routeId || !stopId) {
+      return res.status(400).json({ error: 'routeId_and_stopId_required' });
+    }
+    const result = transportService.selectPickupStop(req.employeeId, { routeId, stopId });
+    res.json(result);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/transport/request-transfer', requireAuth, (req, res) => {
+  try {
+    const { targetRouteId, targetStopId, date, reason } = req.body || {};
+    if (!targetRouteId) {
+      return res.status(400).json({ error: 'targetRouteId_required' });
+    }
+    const transfer = transportService.requestRouteTransfer(req.employeeId, {
+      targetRouteId,
+      targetStopId,
+      date,
+      reason,
+    });
+    res.json({ ok: true, transfer });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.get('/transport/boarding-pass', requireAuth, (req, res) => {
+  try {
+    const pass = transportService.generateBoardingPass(req.employeeId);
+    res.json(pass);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/transport/report-incident', requireAuth, (req, res) => {
+  try {
+    const { routeId, type, message, delayMinutes } = req.body || {};
+    if (!routeId || !message) {
+      return res.status(400).json({ error: 'routeId_and_message_required' });
+    }
+    const me = (db().employees || []).find((e) => e.id === req.employeeId);
+    const alert = transportService.reportRouteAlert({
+      routeId,
+      type,
+      message,
+      delayMinutes,
+      reportedBy: me?.name || 'Employee Passenger',
+    });
+    res.json({ ok: true, alert });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.get('/transport/alerts', requireAuth, (req, res) => {
+  try {
+    const { routeId } = req.query;
+    const alerts = transportService.getActiveAlerts(routeId);
+    res.json({ alerts });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/transport/opt-out', requireAuth, (req, res) => {
+  try {
+    const { optOut } = req.body || {};
+    const result = transportService.toggleCommuteOptOut(req.employeeId, { optOut });
+    res.json(result);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.get('/transport/proximity-status', requireAuth, (req, res) => {
+  try {
+    const status = transportService.getProximityStatus(req.employeeId);
+    res.json(status);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+// ---------- Driver Cockpit & In-Vehicle Controls ----------
+router.get('/transport/driver/manifest', requireAuth, (req, res) => {
+  try {
+    const { routeId } = req.query;
+    const targetRouteId = routeId || transportService.getEmployeeAssignment(req.employeeId)?.assignedRouteId || 'route_101';
+    const manifest = transportService.getRouteManifest(targetRouteId);
+    res.json(manifest);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/transport/driver/board-manual', requireAuth, (req, res) => {
+  try {
+    const { employeeId, routeId } = req.body || {};
+    if (!employeeId || !routeId) {
+      return res.status(400).json({ error: 'employeeId_and_routeId_required' });
+    }
+    const boarding = transportService.manualBoardPassenger(req.employeeId, { employeeId, routeId });
+    res.json({ ok: true, boarding });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/transport/driver/depart-stop', requireAuth, (req, res) => {
+  try {
+    const { routeId, stopId } = req.body || {};
+    if (!routeId || !stopId) {
+      return res.status(400).json({ error: 'routeId_and_stopId_required' });
+    }
+    const result = transportService.advanceStopDeparture(req.employeeId, { routeId, stopId });
+    res.json(result);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/transport/driver/complete-run', requireAuth, (req, res) => {
+  try {
+    const { routeId } = req.body || {};
+    if (!routeId) {
+      return res.status(400).json({ error: 'routeId_required' });
+    }
+    const result = transportService.completeRouteArrival(req.employeeId, { routeId });
+    res.json(result);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
 });
 
 // ---------- Realtime SSE Event Stream ----------

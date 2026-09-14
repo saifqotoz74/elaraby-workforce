@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../data/requests_store.dart';
 import '../controllers/requests_controller.dart';
+import '../../../profile/presentation/controllers/profile_controller.dart';
 import '../../../../core/navigation/app_navigation.dart';
 
 class YourRequestsScreen extends ConsumerStatefulWidget {
@@ -97,7 +98,7 @@ class _YourRequestsScreenState extends ConsumerState<YourRequestsScreen> {
               child: Builder(
                 builder: (context) {
                   if (requestsState.isLoading && !requestsState.hasData) {
-                    return const Center(
+                    return Center(
                       child:
                           CircularProgressIndicator(color: AppColors.primary),
                     );
@@ -273,6 +274,40 @@ class _YourRequestsScreenState extends ConsumerState<YourRequestsScreen> {
                 child: _buildDetailRow(e.key, e.value),
               )),
 
+          if (req.attachmentName != null) ...[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.attach_file_rounded, size: 15, color: AppColors.primary),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      req.attachmentName!,
+                      style: AppTypography.fontBase.copyWith(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // Multi-tier Approval Stages Stepper
+          if (req.approvalStages != null && req.approvalStages!.isNotEmpty)
+            _buildApprovalStagesStepper(context, req.approvalStages!),
+
           const SizedBox(height: 8),
           Text(
             req.summary,
@@ -358,7 +393,7 @@ class _YourRequestsScreenState extends ConsumerState<YourRequestsScreen> {
                 onPressed: () {
                   AppNavigation.toHrRequest(context);
                 },
-                icon: const Icon(Icons.refresh_rounded,
+                icon: Icon(Icons.refresh_rounded,
                     size: 18, color: AppColors.primary),
                 label: Text(
                   'Resubmit Request',
@@ -437,17 +472,23 @@ class _YourRequestsScreenState extends ConsumerState<YourRequestsScreen> {
                   style: TextStyle(fontSize: 12)),
               onTap: () async {
                 Navigator.of(ctx).pop();
+                final isAnnual = req.type == 'Leave' &&
+                    (req.details['leaveType'] == 'Annual Leave' ||
+                        req.title.toLowerCase().contains('annual'));
+                final days = req.details['days'];
                 final success = await ref
                     .read(requestsStateProvider.notifier)
                     .cancelRequest(req.id);
                 if (context.mounted) {
+                  ref.read(vacationBalanceProvider.notifier).refresh();
+                  final message = success
+                      ? (isAnnual && days != null
+                          ? 'Request cancelled. $days days refunded to your annual balance.'
+                          : 'Request has been cancelled.')
+                      : 'Could not cancel request. It may already be processed or network failed.';
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        success
-                            ? 'Request has been cancelled.'
-                            : 'Could not cancel request. It may already be processed or network failed.',
-                      ),
+                      content: Text(message),
                       backgroundColor:
                           success ? AppColors.statusGreen : AppColors.error,
                     ),
@@ -459,6 +500,159 @@ class _YourRequestsScreenState extends ConsumerState<YourRequestsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildApprovalStagesStepper(
+      BuildContext context, List<ApprovalStage> stages) {
+    final activeIndex = stages.indexWhere((s) => s.status != 'approved');
+
+    return Container(
+      margin: const EdgeInsets.only(top: 10, bottom: 6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.account_tree_outlined,
+                  size: 14, color: AppColors.textSecondary),
+              const SizedBox(width: 6),
+              Text(
+                AppLocale.tr('approval_timeline', context),
+                style: AppTypography.fontBase.copyWith(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int i = 0; i < stages.length; i++) ...[
+                Expanded(
+                  child: _buildStageStepItem(
+                    stages[i],
+                    isCurrent: i == activeIndex,
+                  ),
+                ),
+                if (i < stages.length - 1)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 11),
+                    child: Container(
+                      width: 14,
+                      height: 2,
+                      color: (stages[i].status == 'approved')
+                          ? AppColors.statusGreen
+                          : (stages[i].status == 'rejected'
+                              ? AppColors.error
+                              : const Color(0xFFCBD5E1)),
+                    ),
+                  ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStageStepItem(
+    ApprovalStage stage, {
+    required bool isCurrent,
+  }) {
+    Color iconBg;
+    Color iconColor;
+    IconData icon;
+    String statusText;
+
+    if (stage.status == 'approved') {
+      iconBg = const Color(0xFFDCFCE7);
+      iconColor = AppColors.statusGreen;
+      icon = Icons.check_rounded;
+      statusText = AppLocale.tr('stage_approved');
+    } else if (stage.status == 'rejected') {
+      iconBg = const Color(0xFFFEE2E2);
+      iconColor = AppColors.error;
+      icon = Icons.close_rounded;
+      statusText = AppLocale.tr('stage_rejected');
+    } else if (isCurrent) {
+      iconBg = const Color(0xFFDBEAFE);
+      iconColor = AppColors.primary;
+      icon = Icons.pending_rounded;
+      statusText = AppLocale.tr('stage_pending');
+    } else {
+      iconBg = const Color(0xFFF1F5F9);
+      iconColor = const Color(0xFF94A3B8);
+      icon = Icons.radio_button_unchecked_rounded;
+      statusText = '—';
+    }
+
+    String roleLabel = stage.title;
+    if (stage.role == 'manager') {
+      roleLabel = AppLocale.instance.isArabic ? 'المدير' : 'Manager';
+    } else if (stage.role == 'clinic') {
+      roleLabel = AppLocale.instance.isArabic ? 'العيادة' : 'Clinic';
+    } else if (stage.role == 'gm') {
+      roleLabel = AppLocale.instance.isArabic ? 'المدير العام' : 'GM';
+    } else if (stage.role == 'hr') {
+      roleLabel = AppLocale.instance.isArabic ? 'الموارد' : 'HR';
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: iconBg,
+            shape: BoxShape.circle,
+            border: isCurrent
+                ? Border.all(color: AppColors.primary, width: 1.5)
+                : null,
+          ),
+          child: Icon(icon, size: 13, color: iconColor),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          roleLabel,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTypography.fontBase.copyWith(
+            fontSize: 11,
+            fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w600,
+            color: isCurrent ? AppColors.textPrimary : AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          statusText,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTypography.fontBase.copyWith(
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
+            color: stage.status == 'approved'
+                ? AppColors.statusGreen
+                : (stage.status == 'rejected'
+                    ? AppColors.error
+                    : (isCurrent
+                        ? AppColors.primary
+                        : const Color(0xFF94A3B8))),
+          ),
+        ),
+      ],
     );
   }
 

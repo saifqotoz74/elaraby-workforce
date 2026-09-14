@@ -273,7 +273,7 @@ class BenefitDetailScreen extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            const Icon(Icons.badge_outlined,
+            Icon(Icons.badge_outlined,
                 color: AppColors.primary, size: 24),
             const SizedBox(width: 8),
             Text(AppLocale.tr('ben_employee_id')),
@@ -323,7 +323,7 @@ class BenefitDetailScreen extends StatelessWidget {
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: Text(
               AppLocale.tr('common_ok'),
-              style: const TextStyle(
+              style: TextStyle(
                   color: AppColors.primary, fontWeight: FontWeight.w600),
             ),
           ),

@@ -182,4 +182,23 @@ class AppTypography {
         fontWeight: FontWeight.w500,
         color: AppColors.navInactive,
       );
+
+  // Standard Body & Labels
+  static TextStyle get bodySmall => _font(
+        fontSize: 12,
+        fontWeight: FontWeight.w400,
+        color: AppColors.textSecondary,
+      );
+
+  static TextStyle get bodyMedium => _font(
+        fontSize: 14,
+        fontWeight: FontWeight.w400,
+        color: AppColors.textPrimary,
+      );
+
+  static TextStyle get labelBold => _font(
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        color: AppColors.textPrimary,
+      );
 }

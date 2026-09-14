@@ -14,21 +14,25 @@ const ALLOWED_EXT = {
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
   webp: 'image/webp',
+  pdf: 'application/pdf',
 };
 
 /**
- * Validates image magic bytes to prevent masquerading non-image or executable files.
+ * Validates image and PDF magic bytes to prevent masquerading non-allowed or executable files.
  */
 function isValidImage(buf, ext) {
-  if (!buf || buf.length < 12) return false;
+  if (!buf || buf.length < 4) return false;
   if (ext === 'png') {
-    return buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47;
+    return buf.length >= 8 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47;
   }
   if (ext === 'jpg' || ext === 'jpeg') {
-    return buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF;
+    return buf.length >= 3 && buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF;
   }
   if (ext === 'webp') {
-    return buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP';
+    return buf.length >= 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP';
+  }
+  if (ext === 'pdf') {
+    return buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46;
   }
   return false;
 }
@@ -172,7 +176,7 @@ async function handleBase64Upload({ name, dataBase64 }) {
     err.statusCode = 400;
     throw err;
   }
-  const dataUrlMatch = /^data:image\/(png|jpe?g|webp);base64,(.+)$/.exec(dataBase64);
+  const dataUrlMatch = /^data:(?:image\/(png|jpe?g|webp)|application\/pdf);base64,(.+)$/.exec(dataBase64);
   const rawBase64 = dataUrlMatch ? dataUrlMatch[2] : dataBase64;
   const buf = Buffer.from(rawBase64, 'base64');
   return await saveImageBuffer(buf, name);

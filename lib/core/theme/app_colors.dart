@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
+import 'app_theme.dart';
 
-/// Design tokens for colors extracted directly from Figma designs
+/// Design tokens for colors dynamically bound to the active tenant brand
 class AppColors {
   AppColors._();
 
-  // Brand Colors
-  static const Color primary = Color(0xFF0B63B4);
-  static const Color primaryLight = Color(0xFF1668B8);
-  static const Color primarySoft = Color(0xFFE8F1FA);
+  // Brand Colors - Dynamically resolved from active tenant
+  static Color get primary => AppTheme.currentBrand.primaryColor;
+  static Color get primaryLight => AppTheme.currentBrand.primaryLightColor;
+  static Color get primarySoft => AppTheme.currentBrand.primarySoftColor;
 
   /// Dynamic primary color resolving to the current theme's primary
   static Color dynamicPrimary(BuildContext context) =>
       Theme.of(context).colorScheme.primary;
 
-  // Background & Surface Colors
+  // Background & Surface Colors (Kept const for compile-time widget tree optimization)
   static const Color scaffoldBackground = Color(0xFFF3F5F7);
+  static const Color background = Color(0xFFF3F5F7);
   static const Color surface = Colors.white;
   static const Color cardShadow = Color(0x0A000000);
 
@@ -40,13 +42,13 @@ class AppColors {
   static const Color error = Color(0xFFDC2626);
   static const Color success = Color(0xFF10B981);
   static const Color warning = Color(0xFFF59E0B);
-  static const Color badgeBlue = Color(0xFF0B63B4);
-  static const Color avatarBg = Color(0xFFC7E0F3);
-  static const Color avatarText = Color(0xFF0B63B4);
+  static Color get badgeBlue => AppTheme.currentBrand.primaryColor;
+  static Color get avatarBg => AppTheme.currentBrand.primarySoftColor;
+  static Color get avatarText => AppTheme.currentBrand.primaryColor;
 
   // Quick Actions
-  static const Color quickActionIconBg = Color(0xFFEEF5FC);
-  static const Color quickActionIcon = Color(0xFF0B63B4);
+  static Color get quickActionIconBg => AppTheme.currentBrand.primarySoftColor;
+  static Color get quickActionIcon => AppTheme.currentBrand.primaryColor;
 
   // Quick Survey Card
   static const Color surveyBg = Color(0xFFE6E9FC);
@@ -56,7 +58,7 @@ class AppColors {
   static const Color surveyPillBorder = Color(0xFFC4CDF4);
 
   // Navigation
-  static const Color navActive = Color(0xFF0B63B4);
+  static Color get navActive => AppTheme.currentBrand.primaryColor;
   static const Color navInactive = Color(0xFFA0AEC0);
   static const Color navBorder = Color(0xFFEEF1F4);
 }

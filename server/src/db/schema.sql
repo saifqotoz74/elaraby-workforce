@@ -51,8 +51,8 @@ ON CONFLICT (id) DO NOTHING;
 CREATE TABLE IF NOT EXISTS employees (
     id VARCHAR(64) PRIMARY KEY,
     tenant_id VARCHAR(64) NOT NULL DEFAULT 'elaraby' REFERENCES tenants(id) ON DELETE RESTRICT,
-    national_id VARCHAR(64) UNIQUE,
-    phone VARCHAR(20) UNIQUE,
+    national_id VARCHAR(64),
+    phone VARCHAR(20),
     name VARCHAR(255) NOT NULL,
     name_en VARCHAR(255),
     email VARCHAR(255),
@@ -72,7 +72,9 @@ CREATE TABLE IF NOT EXISTS employees (
     hired_at TIMESTAMPTZ,
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_employees_tenant_national_id UNIQUE (tenant_id, national_id),
+    CONSTRAINT uq_employees_tenant_phone UNIQUE (tenant_id, phone)
 );
 
 -- Employee Requests (Leave, Permission, Mission, Cancellation)
@@ -132,6 +134,7 @@ CREATE TABLE IF NOT EXISTS roster (
 -- Corporate Trips Catalog & Bookings
 CREATE TABLE IF NOT EXISTS trips (
     id VARCHAR(64) PRIMARY KEY,
+    tenant_id VARCHAR(64) NOT NULL DEFAULT 'elaraby' REFERENCES tenants(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
     title_en VARCHAR(255),
     destination VARCHAR(255),
@@ -145,6 +148,7 @@ CREATE TABLE IF NOT EXISTS trips (
 -- Corporate Benefits Catalog
 CREATE TABLE IF NOT EXISTS benefits (
     id VARCHAR(64) PRIMARY KEY,
+    tenant_id VARCHAR(64) NOT NULL DEFAULT 'elaraby' REFERENCES tenants(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
     title_en VARCHAR(255),
     category VARCHAR(100),
@@ -156,6 +160,8 @@ CREATE TABLE IF NOT EXISTS benefits (
 -- Corporate Announcements
 CREATE TABLE IF NOT EXISTS announcements (
     id VARCHAR(64) PRIMARY KEY,
+    tenant_id VARCHAR(64) NOT NULL DEFAULT 'elaraby' REFERENCES tenants(id) ON DELETE CASCADE,
+    is_global BOOLEAN NOT NULL DEFAULT FALSE,
     title VARCHAR(255) NOT NULL,
     title_en VARCHAR(255),
     body TEXT NOT NULL,
@@ -182,6 +188,7 @@ CREATE TABLE IF NOT EXISTS news (
 -- Targeted Employee Notifications
 CREATE TABLE IF NOT EXISTS notifications (
     id VARCHAR(64) PRIMARY KEY,
+    tenant_id VARCHAR(64) NOT NULL DEFAULT 'elaraby' REFERENCES tenants(id) ON DELETE CASCADE,
     employee_id VARCHAR(64) REFERENCES employees(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
     title_en VARCHAR(255),
@@ -287,7 +294,149 @@ CREATE INDEX IF NOT EXISTS idx_fcm_tokens_employee_id ON fcm_tokens(employee_id)
 CREATE INDEX IF NOT EXISTS idx_employees_tenant_id ON employees(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_requests_tenant_id ON requests(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_payroll_tenant_id ON payroll(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_roster_tenant_id ON roster(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_concerns_tenant_id ON concerns(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_tenant_id ON notifications(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_announcements_tenant_id ON announcements(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_trips_tenant_id ON trips(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_benefits_tenant_id ON benefits(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_tenant_id ON audit_logs(tenant_id);
+
+-- ============================================================================
+-- Extended Multi-Tenant Enterprise Tables
+-- ============================================================================
+
+-- Loans & Salary Advances Table
+CREATE TABLE IF NOT EXISTS loans (
+    id VARCHAR(64) PRIMARY KEY,
+    tenant_id VARCHAR(64) NOT NULL DEFAULT 'elaraby' REFERENCES tenants(id) ON DELETE RESTRICT,
+    employee_id VARCHAR(64) NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    reference_number VARCHAR(64) NOT NULL,
+    type VARCHAR(50) NOT NULL CHECK (type IN ('emergency_advance', 'social_loan')),
+    amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
+    remaining_balance NUMERIC(12, 2) NOT NULL CHECK (remaining_balance >= 0),
+    installments_count INTEGER NOT NULL DEFAULT 1 CHECK (installments_count > 0),
+    paid_installments_count INTEGER NOT NULL DEFAULT 0 CHECK (paid_installments_count >= 0),
+    monthly_installment NUMERIC(12, 2) NOT NULL CHECK (monthly_installment > 0),
+    purpose VARCHAR(255) DEFAULT 'general',
+    notes TEXT,
+    currency VARCHAR(10) NOT NULL DEFAULT 'EGP',
+    status VARCHAR(50) NOT NULL DEFAULT 'active' CHECK (status IN ('pending', 'approved', 'active', 'completed', 'rejected', 'cancelled')),
+    idempotency_key VARCHAR(128) UNIQUE,
+    repayment_schedule JSONB NOT NULL DEFAULT '[]'::jsonb,
+    approved_by VARCHAR(64),
+    approved_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_loans_tenant_id ON loans(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_loans_tenant_employee ON loans (tenant_id, employee_id);
+CREATE INDEX IF NOT EXISTS idx_loans_tenant_status ON loans (tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_loans_ref_num ON loans (reference_number);
+
+-- Attendance Punches Table
+CREATE TABLE IF NOT EXISTS attendance_punches (
+    id VARCHAR(64) PRIMARY KEY,
+    tenant_id VARCHAR(64) NOT NULL DEFAULT 'elaraby' REFERENCES tenants(id) ON DELETE RESTRICT,
+    employee_id VARCHAR(64) NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    punch_type VARCHAR(20) NOT NULL CHECK (punch_type IN ('check_in', 'check_out')),
+    punched_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    lat NUMERIC(10, 6),
+    lng NUMERIC(10, 6),
+    geofence_id VARCHAR(100),
+    is_out_of_bounds BOOLEAN NOT NULL DEFAULT FALSE,
+    distance_meters INTEGER DEFAULT 0,
+    verification_mode VARCHAR(50) NOT NULL DEFAULT 'gps' CHECK (verification_mode IN ('gps', 'qr', 'biometric', 'remote', 'manual')),
+    device_id VARCHAR(128),
+    ip_address VARCHAR(45),
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_punches_tenant_id ON attendance_punches(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_punches_tenant_emp_time ON attendance_punches (tenant_id, employee_id, punched_at DESC);
+CREATE INDEX IF NOT EXISTS idx_punches_tenant_time ON attendance_punches (tenant_id, punched_at DESC);
+
+-- Overtime Requests Table
+CREATE TABLE IF NOT EXISTS overtime_requests (
+    id VARCHAR(64) PRIMARY KEY,
+    tenant_id VARCHAR(64) NOT NULL DEFAULT 'elaraby' REFERENCES tenants(id) ON DELETE RESTRICT,
+    employee_id VARCHAR(64) NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    shift_date DATE NOT NULL,
+    hours NUMERIC(4, 2) NOT NULL CHECK (hours > 0),
+    reason VARCHAR(255) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled')),
+    approved_by VARCHAR(64),
+    approved_at TIMESTAMPTZ,
+    rejection_reason TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_overtime_tenant_id ON overtime_requests(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_overtime_tenant_emp ON overtime_requests (tenant_id, employee_id);
+CREATE INDEX IF NOT EXISTS idx_overtime_tenant_status ON overtime_requests (tenant_id, status);
+
+-- Bus Fleet Routes Table
+CREATE TABLE IF NOT EXISTS bus_routes (
+    id VARCHAR(64) PRIMARY KEY,
+    tenant_id VARCHAR(64) NOT NULL DEFAULT 'elaraby' REFERENCES tenants(id) ON DELETE RESTRICT,
+    code VARCHAR(50) NOT NULL,
+    name_ar VARCHAR(255) NOT NULL,
+    name_en VARCHAR(255) NOT NULL,
+    destination_complex VARCHAR(100) NOT NULL,
+    destination_ar VARCHAR(255),
+    vehicle_plate VARCHAR(50),
+    vehicle_plate_en VARCHAR(50),
+    bus_model VARCHAR(100),
+    capacity INTEGER NOT NULL DEFAULT 40 CHECK (capacity > 0),
+    driver_id VARCHAR(64),
+    driver_name VARCHAR(100),
+    driver_phone VARCHAR(20),
+    shift_id VARCHAR(50) DEFAULT 'morning',
+    is_shared BOOLEAN NOT NULL DEFAULT FALSE,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_bus_routes_tenant_id ON bus_routes(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_bus_routes_tenant_active ON bus_routes (tenant_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_bus_routes_code ON bus_routes (tenant_id, code);
+
+-- Bus Stops Table
+CREATE TABLE IF NOT EXISTS bus_stops (
+    id VARCHAR(64) PRIMARY KEY,
+    route_id VARCHAR(64) NOT NULL REFERENCES bus_routes(id) ON DELETE CASCADE,
+    name_ar VARCHAR(255) NOT NULL,
+    name_en VARCHAR(255) NOT NULL,
+    lat NUMERIC(10, 6) NOT NULL,
+    lng NUMERIC(10, 6) NOT NULL,
+    scheduled_time VARCHAR(20) NOT NULL,
+    order_num INTEGER NOT NULL DEFAULT 1 CHECK (order_num > 0)
+);
+
+CREATE INDEX IF NOT EXISTS idx_bus_stops_route_order ON bus_stops (route_id, order_num ASC);
+
+-- Bus Bookings Table
+CREATE TABLE IF NOT EXISTS bus_bookings (
+    id VARCHAR(64) PRIMARY KEY,
+    tenant_id VARCHAR(64) NOT NULL DEFAULT 'elaraby' REFERENCES tenants(id) ON DELETE RESTRICT,
+    employee_id VARCHAR(64) NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    route_id VARCHAR(64) NOT NULL REFERENCES bus_routes(id) ON DELETE CASCADE,
+    stop_id VARCHAR(64) REFERENCES bus_stops(id) ON DELETE SET NULL,
+    direction VARCHAR(20) NOT NULL DEFAULT 'inbound' CHECK (direction IN ('inbound', 'outbound', 'round_trip')),
+    booking_date DATE NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'confirmed' CHECK (status IN ('confirmed', 'cancelled', 'boarded', 'no_show')),
+    scanned_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_bus_bookings_tenant_id ON bus_bookings(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_bus_bookings_tenant_emp ON bus_bookings (tenant_id, employee_id, booking_date);
+CREATE INDEX IF NOT EXISTS idx_bus_bookings_tenant_route ON bus_bookings (tenant_id, route_id, booking_date);
 
 -- ============================================================================
 -- Enterprise Multi-Tenant Row Level Security (RLS) Policies
@@ -297,45 +446,234 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_tenant_id ON audit_logs(tenant_id);
 -- ============================================================================
 
 ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE employees FORCE ROW LEVEL SECURITY;
+
 ALTER TABLE requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE requests FORCE ROW LEVEL SECURITY;
+
 ALTER TABLE payroll ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payroll FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE roster ENABLE ROW LEVEL SECURITY;
+ALTER TABLE roster FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE concerns ENABLE ROW LEVEL SECURITY;
+ALTER TABLE concerns FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE announcements FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE trips ENABLE ROW LEVEL SECURITY;
+ALTER TABLE trips FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE benefits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE benefits FORCE ROW LEVEL SECURITY;
+
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE loans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE loans FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE attendance_punches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE attendance_punches FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE overtime_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE overtime_requests FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE bus_routes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bus_routes FORCE ROW LEVEL SECURITY;
+
+ALTER TABLE bus_bookings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bus_bookings FORCE ROW LEVEL SECURITY;
 
 DO $$
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'tenant_isolation_employees') THEN
-        CREATE POLICY tenant_isolation_employees ON employees
-        FOR ALL USING (
-            tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
-            OR current_setting('app.is_super_admin', true) = 'true'
-            OR current_setting('app.current_tenant_id', true) IS NULL
-        );
-    END IF;
+    -- Drop old policies to re-create strict default-deny policies
+    DROP POLICY IF EXISTS tenant_isolation_employees ON employees;
+    DROP POLICY IF EXISTS tenant_isolation_requests ON requests;
+    DROP POLICY IF EXISTS tenant_isolation_payroll ON payroll;
+    DROP POLICY IF EXISTS tenant_isolation_roster ON roster;
+    DROP POLICY IF EXISTS tenant_isolation_concerns ON concerns;
+    DROP POLICY IF EXISTS tenant_isolation_notifications ON notifications;
+    DROP POLICY IF EXISTS tenant_isolation_announcements ON announcements;
+    DROP POLICY IF EXISTS tenant_isolation_trips ON trips;
+    DROP POLICY IF EXISTS tenant_isolation_benefits ON benefits;
+    DROP POLICY IF EXISTS tenant_isolation_audit_logs ON audit_logs;
+    DROP POLICY IF EXISTS tenant_isolation_loans ON loans;
+    DROP POLICY IF EXISTS tenant_isolation_attendance ON attendance_punches;
+    DROP POLICY IF EXISTS tenant_isolation_overtime ON overtime_requests;
+    DROP POLICY IF EXISTS tenant_isolation_bus_routes ON bus_routes;
+    DROP POLICY IF EXISTS tenant_isolation_bus_bookings ON bus_bookings;
 
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'tenant_isolation_requests') THEN
-        CREATE POLICY tenant_isolation_requests ON requests
-        FOR ALL USING (
-            tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
-            OR current_setting('app.is_super_admin', true) = 'true'
-            OR current_setting('app.current_tenant_id', true) IS NULL
-        );
-    END IF;
+    -- Strict Kernel-Enforced Policies (Deny by default if app.current_tenant_id is unset)
+    CREATE POLICY tenant_isolation_employees ON employees
+    FOR ALL
+    USING (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    )
+    WITH CHECK (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );
 
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'tenant_isolation_payroll') THEN
-        CREATE POLICY tenant_isolation_payroll ON payroll
-        FOR ALL USING (
-            tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
-            OR current_setting('app.is_super_admin', true) = 'true'
-            OR current_setting('app.current_tenant_id', true) IS NULL
-        );
-    END IF;
+    CREATE POLICY tenant_isolation_requests ON requests
+    FOR ALL
+    USING (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    )
+    WITH CHECK (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );
 
-    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'tenant_isolation_audit_logs') THEN
-        CREATE POLICY tenant_isolation_audit_logs ON audit_logs
-        FOR ALL USING (
-            tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
-            OR current_setting('app.is_super_admin', true) = 'true'
-            OR current_setting('app.current_tenant_id', true) IS NULL
-        );
-    END IF;
+    CREATE POLICY tenant_isolation_payroll ON payroll
+    FOR ALL
+    USING (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    )
+    WITH CHECK (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );
+
+    CREATE POLICY tenant_isolation_roster ON roster
+    FOR ALL
+    USING (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    )
+    WITH CHECK (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );
+
+    CREATE POLICY tenant_isolation_concerns ON concerns
+    FOR ALL
+    USING (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    )
+    WITH CHECK (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );
+
+    CREATE POLICY tenant_isolation_notifications ON notifications
+    FOR ALL
+    USING (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    )
+    WITH CHECK (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );
+
+    CREATE POLICY tenant_isolation_announcements ON announcements
+    FOR ALL
+    USING (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+        OR is_global = TRUE
+    )
+    WITH CHECK (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );
+
+    CREATE POLICY tenant_isolation_trips ON trips
+    FOR ALL
+    USING (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    )
+    WITH CHECK (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );
+
+    CREATE POLICY tenant_isolation_benefits ON benefits
+    FOR ALL
+    USING (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    )
+    WITH CHECK (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );
+
+    CREATE POLICY tenant_isolation_audit_logs ON audit_logs
+    FOR ALL
+    USING (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    )
+    WITH CHECK (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );
+
+    CREATE POLICY tenant_isolation_loans ON loans
+    FOR ALL
+    USING (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    )
+    WITH CHECK (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );
+
+    CREATE POLICY tenant_isolation_attendance ON attendance_punches
+    FOR ALL
+    USING (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    )
+    WITH CHECK (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );
+
+    CREATE POLICY tenant_isolation_overtime ON overtime_requests
+    FOR ALL
+    USING (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    )
+    WITH CHECK (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );
+
+    CREATE POLICY tenant_isolation_bus_routes ON bus_routes
+    FOR ALL
+    USING (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR is_shared = TRUE
+        OR current_setting('app.is_super_admin', true) = 'true'
+    )
+    WITH CHECK (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );
+
+    CREATE POLICY tenant_isolation_bus_bookings ON bus_bookings
+    FOR ALL
+    USING (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    )
+    WITH CHECK (
+        tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')
+        OR current_setting('app.is_super_admin', true) = 'true'
+    );
 END $$;

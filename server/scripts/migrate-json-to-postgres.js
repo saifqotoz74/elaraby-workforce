@@ -475,6 +475,105 @@ async function executeMigration(data) {
       50
     );
 
+    // 13. Loans
+    const loanRows = (data.loans || []).map((l) => [
+      l.id,
+      l.tenantId || 'elaraby',
+      l.employeeId,
+      l.referenceNumber || `LN-${Date.now()}`,
+      l.type || 'emergency_advance',
+      cleanNumber(l.amount, 1000),
+      cleanNumber(l.remainingBalance, cleanNumber(l.amount, 1000)),
+      parseInt(cleanNumber(l.installmentsCount, 1), 10),
+      parseInt(cleanNumber(l.paidInstallmentsCount, 0), 10),
+      cleanNumber(l.monthlyInstallment, 1000),
+      l.purpose || 'general',
+      l.notes || null,
+      l.currency || 'EGP',
+      l.status || 'active',
+      l.idempotencyKey || null,
+      JSON.stringify(l.repaymentSchedule || []),
+      l.approvedBy || null,
+      l.approvedAt ? new Date(l.approvedAt) : new Date(),
+      l.createdAt ? new Date(l.createdAt) : new Date(),
+    ]);
+    const loanCols = [
+      'id', 'tenant_id', 'employee_id', 'reference_number', 'type', 'amount', 'remaining_balance',
+      'installments_count', 'paid_installments_count', 'monthly_installment', 'purpose', 'notes',
+      'currency', 'status', 'idempotency_key', 'repayment_schedule', 'approved_by', 'approved_at', 'created_at'
+    ];
+    const insertedLoans = await batchInsert(client, 'loans', loanCols, loanRows, 'ON CONFLICT (id) DO NOTHING', 50);
+
+    // 14. Attendance Punches
+    const punchRows = (data.attendancePunches || []).map((p) => [
+      p.id,
+      p.tenantId || 'elaraby',
+      p.employeeId,
+      p.punchType || 'check_in',
+      p.punchedAt ? new Date(p.punchedAt) : (p.timestamp ? new Date(p.timestamp) : new Date()),
+      p.lat || null,
+      p.lng || null,
+      p.geofenceId || null,
+      p.isOutOfBounds || false,
+      p.distanceMeters || 0,
+      p.verificationMode || 'gps',
+      p.deviceId || null,
+      p.ipAddress || null,
+      p.notes || null,
+    ]);
+    const punchCols = [
+      'id', 'tenant_id', 'employee_id', 'punch_type', 'punched_at', 'lat', 'lng',
+      'geofence_id', 'is_out_of_bounds', 'distance_meters', 'verification_mode', 'device_id', 'ip_address', 'notes'
+    ];
+    const insertedPunches = await batchInsert(client, 'attendance_punches', punchCols, punchRows, 'ON CONFLICT (id) DO NOTHING', 50);
+
+    // 15. Overtime Requests
+    const overtimeRows = (data.overtimeRequests || []).map((o) => [
+      o.id,
+      o.tenantId || 'elaraby',
+      o.employeeId,
+      o.shiftDate || new Date().toISOString().slice(0, 10),
+      cleanNumber(o.hours, 1.0),
+      o.reason || 'Overtime support',
+      o.status || 'pending',
+      o.approvedBy || null,
+      o.approvedAt ? new Date(o.approvedAt) : null,
+      o.rejectionReason || null,
+      o.createdAt ? new Date(o.createdAt) : new Date(),
+    ]);
+    const overtimeCols = [
+      'id', 'tenant_id', 'employee_id', 'shift_date', 'hours', 'reason', 'status',
+      'approved_by', 'approved_at', 'rejection_reason', 'created_at'
+    ];
+    const insertedOvertime = await batchInsert(client, 'overtime_requests', overtimeCols, overtimeRows, 'ON CONFLICT (id) DO NOTHING', 50);
+
+    // 16. Bus Routes
+    const routeRows = (data.busRoutes || []).map((r) => [
+      r.id,
+      r.tenantId || 'elaraby',
+      r.code || `BUS-${r.id}`,
+      r.nameAr || r.name || 'خط أتوبيس',
+      r.nameEn || r.name || 'Bus Line',
+      r.destinationComplex || 'Complex',
+      r.destinationAr || null,
+      r.vehiclePlate || null,
+      r.vehiclePlateEn || null,
+      r.busModel || null,
+      parseInt(cleanNumber(r.capacity, 40), 10),
+      r.driver?.id || r.driverId || null,
+      r.driver?.name || r.driverName || null,
+      r.driver?.phone || r.driverPhone || null,
+      r.shiftId || 'morning',
+      r.isShared || false,
+      r.isActive !== false,
+    ]);
+    const routeCols = [
+      'id', 'tenant_id', 'code', 'name_ar', 'name_en', 'destination_complex', 'destination_ar',
+      'vehicle_plate', 'vehicle_plate_en', 'bus_model', 'capacity', 'driver_id', 'driver_name',
+      'driver_phone', 'shift_id', 'is_shared', 'is_active'
+    ];
+    const insertedRoutes = await batchInsert(client, 'bus_routes', routeCols, routeRows, 'ON CONFLICT (id) DO NOTHING', 50);
+
     return {
       insertedEmployees,
       insertedRequests,
@@ -488,6 +587,10 @@ async function executeMigration(data) {
       insertedConcerns,
       insertedAuditLogs,
       insertedTokens,
+      insertedLoans,
+      insertedPunches,
+      insertedOvertime,
+      insertedRoutes,
     };
   });
 }

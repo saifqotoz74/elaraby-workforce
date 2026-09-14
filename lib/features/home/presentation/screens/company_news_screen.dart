@@ -195,7 +195,7 @@ class CompanyNewsScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 4),
-                            const Icon(Icons.arrow_forward_rounded,
+                            Icon(Icons.arrow_forward_rounded,
                                 size: 14, color: AppColors.primary),
                           ],
                         ),

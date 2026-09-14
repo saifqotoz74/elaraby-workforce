@@ -255,7 +255,7 @@ class _EmployeeDataScreenState extends State<EmployeeDataScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_rounded,
+                  Icon(Icons.info_rounded,
                       color: AppColors.primary, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
@@ -338,7 +338,7 @@ class _EmployeeDataScreenState extends State<EmployeeDataScreen> {
           ),
           if (hasEdit)
             IconButton(
-              icon: const Icon(Icons.edit_note_rounded,
+              icon: Icon(Icons.edit_note_rounded,
                   color: AppColors.primary, size: 24),
               onPressed: onEdit,
               padding: EdgeInsets.zero,

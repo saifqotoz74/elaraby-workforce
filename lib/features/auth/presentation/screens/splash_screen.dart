@@ -5,6 +5,8 @@ import '../../../../core/storage/local_store.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../common/presentation/widgets/update_dialog.dart';
 import '../../../../core/navigation/app_navigation.dart';
+import '../../../../core/tenant/tenant_brand_logo.dart';
+import '../../../../core/theme/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -65,19 +67,24 @@ class _SplashScreenState extends State<SplashScreen> {
           ),
 
           // Gradient Overlay
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withValues(alpha: 0.1),
-                  const Color(0xFF073C74).withValues(alpha: 0.6),
-                  const Color(0xFF063A72),
-                ],
-                stops: const [0.0, 0.45, 0.85],
-              ),
-            ),
+          Builder(
+            builder: (context) {
+              final brand = AppTheme.currentBrand;
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.1),
+                      brand.primaryColor.withValues(alpha: 0.7),
+                      brand.primaryColor,
+                    ],
+                    stops: const [0.0, 0.45, 0.85],
+                  ),
+                ),
+              );
+            },
           ),
 
           // Content
@@ -87,31 +94,16 @@ class _SplashScreenState extends State<SplashScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.2),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Image.asset(
-                      'assets/images/app_logo.png',
-                      fit: BoxFit.contain,
-                    ),
+                  TenantBrandLogo(
+                    brand: AppTheme.currentBrand,
+                    size: 88,
+                    borderRadius: 22,
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    'ELARABY',
+                    AppTheme.currentBrand.companyName.split(' ').first.toUpperCase(),
                     style: AppTypography.fontBase.copyWith(
-                      fontSize: 42,
+                      fontSize: 36,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
                       letterSpacing: 2,
@@ -119,11 +111,11 @@ class _SplashScreenState extends State<SplashScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Better Connected\nEveryday',
+                    'Workforce OS\nBetter Connected Everyday',
                     style: AppTypography.fontBase.copyWith(
-                      fontSize: 22,
+                      fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: Colors.white.withValues(alpha: 0.9),
                       height: 1.3,
                     ),
                     textAlign: TextAlign.center,

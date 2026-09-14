@@ -45,7 +45,7 @@ class UnknownRouteScreen extends StatelessWidget {
                     color: AppColors.primary.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.explore_off_rounded,
                     size: 48,
                     color: AppColors.primary,

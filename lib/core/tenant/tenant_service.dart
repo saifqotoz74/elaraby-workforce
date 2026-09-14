@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
 import '../network/api_client.dart';
 import '../storage/local_store.dart';
 import '../theme/app_theme.dart';
@@ -13,29 +12,11 @@ class TenantService {
 
   /// Built-in enterprise presets available immediately offline
   static final List<TenantBrand> builtInPresets = [
-    TenantBrand.elarabyDefault(),
-    const TenantBrand(
-      tenantId: 'elsewedy',
-      companyName: 'Elsewedy Electric',
-      companyNameAr: 'السويدي إليكتريك',
-      primaryColor: Color(0xFFC8102E),
-      primaryLightColor: Color(0xFFE02B47),
-      primarySoftColor: Color(0xFFFCECEF),
-      scaffoldBgColor: Color(0xFFF8F9FA),
-      surfaceColor: Colors.white,
-      supportHotline: '16244',
-    ),
-    const TenantBrand(
-      tenantId: 'gulf_industrial',
-      companyName: 'Gulf Industrial Corp',
-      companyNameAr: 'الخليج للصناعات',
-      primaryColor: Color(0xFF059669),
-      primaryLightColor: Color(0xFF10B981),
-      primarySoftColor: Color(0xFFECFDF5),
-      scaffoldBgColor: Color(0xFFF3F4F6),
-      surfaceColor: Colors.white,
-      supportHotline: '80012345',
-    ),
+    TenantBrand.elaraby(),
+    TenantBrand.elsewedy(),
+    TenantBrand.ghabbour(),
+    TenantBrand.talaatMoustafa(),
+    TenantBrand.gulfIndustrial(),
   ];
 
   /// Resolves an organization code, fetches remote config if available, or applies offline preset.
@@ -43,15 +24,19 @@ class TenantService {
     final clean = rawCode.trim().toLowerCase().replaceAll(RegExp(r'\s+'), '_');
     if (clean.isEmpty) return null;
 
-    // 1. Check if matching a local built-in preset
+    // 1. Check if matching a local built-in preset or generic
     TenantBrand? brand;
-    for (final preset in builtInPresets) {
-      if (preset.tenantId == clean ||
-          preset.tenantId.contains(clean) ||
-          preset.companyName.toLowerCase().contains(clean) ||
-          preset.companyNameAr.contains(clean)) {
-        brand = preset;
-        break;
+    if (clean == 'generic' || clean == 'pr_connect' || clean == 'prconnect' || clean == 'neutral') {
+      brand = TenantBrand.neutral();
+    } else {
+      for (final preset in builtInPresets) {
+        if (preset.tenantId == clean ||
+            preset.tenantId.contains(clean) ||
+            preset.companyName.toLowerCase().contains(clean) ||
+            preset.companyNameAr.contains(clean)) {
+          brand = preset;
+          break;
+        }
       }
     }
 

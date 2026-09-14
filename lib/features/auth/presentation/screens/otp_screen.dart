@@ -355,7 +355,7 @@ class _OtpScreenState extends State<OtpScreen> {
                           ),
                           alignment: Alignment.center,
                           child: _verifying && index == 0
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 18,
                                   height: 18,
                                   child: CircularProgressIndicator(

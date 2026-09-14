@@ -4,38 +4,58 @@ import '../storage/local_store.dart';
 import 'identity_strategy.dart';
 import 'tenant_brand.dart';
 import 'tenant_features.dart';
+import '../theme/app_theme.dart';
 
 /// StateNotifier that manages the active tenant branding dynamically.
 class TenantBrandNotifier extends StateNotifier<TenantBrand> {
-  TenantBrandNotifier() : super(_loadInitial());
+  TenantBrandNotifier() : super(AppTheme.currentBrand) {
+    AppTheme.tenantBrandNotifier.addListener(_onBrandChanged);
+  }
 
-  static TenantBrand _loadInitial() {
-    try {
-      final raw = LocalStore.instance.activeTenantBrandJson;
-      if (raw != null && raw.isNotEmpty) {
-        final map = jsonDecode(raw) as Map<String, dynamic>;
-        return TenantBrand.fromJson(map);
-      }
-    } catch (_) {
-      // Graceful fallback to default
+  void _onBrandChanged() {
+    if (state != AppTheme.tenantBrandNotifier.value) {
+      state = AppTheme.tenantBrandNotifier.value;
     }
-    return TenantBrand.elarabyDefault();
+  }
+
+  @override
+  void dispose() {
+    AppTheme.tenantBrandNotifier.removeListener(_onBrandChanged);
+    super.dispose();
   }
 
   /// Updates the active brand and persists it locally for offline durability
   Future<void> updateBrand(TenantBrand brand) async {
     state = brand;
+    AppTheme.setTenantBrand(brand);
     try {
       await LocalStore.instance.setActiveTenantBrandJson(jsonEncode(brand.toJson()));
       await LocalStore.instance.setActiveTenantSlug(brand.tenantId);
     } catch (_) {}
   }
 
-  /// Resets to default Elaraby branding
+  /// Resets to default neutral branding
   Future<void> resetToDefault() async {
-    state = TenantBrand.elarabyDefault();
+    final defaultBrand = TenantBrand.prConnectDefault();
+    state = defaultBrand;
+    AppTheme.setTenantBrand(defaultBrand);
     await LocalStore.instance.setActiveTenantBrandJson(null);
-    await LocalStore.instance.setActiveTenantSlug('elaraby');
+    await LocalStore.instance.setActiveTenantSlug('generic');
+  }
+
+  /// Handles an incoming real-time broadcast from the Brand Studio (WebSocket / Push)
+  Future<bool> handleRemoteBroadcast(Map<String, dynamic> data) async {
+    final incomingId = (data['tenantId'] ?? data['slug'] ?? '').toString().toLowerCase();
+    if (incomingId.isEmpty || (incomingId != state.tenantId && incomingId != state.tenantId.toLowerCase())) {
+      return false; // Not targeted to current tenant
+    }
+
+    if (data['brand'] != null && data['brand'] is Map<String, dynamic>) {
+      final updatedBrand = TenantBrand.fromJson(data['brand'] as Map<String, dynamic>);
+      await updateBrand(updatedBrand);
+      return true;
+    }
+    return false;
   }
 }
 
@@ -68,6 +88,16 @@ class TenantFeaturesNotifier extends StateNotifier<TenantFeatures> {
   Future<void> resetToDefault() async {
     state = TenantFeatures.allEnabled();
     await LocalStore.instance.setActiveTenantFeaturesJson(null);
+  }
+
+  /// Handles incoming real-time feature flag broadcast from Brand Studio
+  Future<bool> handleRemoteBroadcast(Map<String, dynamic> data) async {
+    if (data['features'] != null && data['features'] is Map<String, dynamic>) {
+      final updated = TenantFeatures.fromJson(data['features'] as Map<String, dynamic>);
+      await updateFeatures(updated);
+      return true;
+    }
+    return false;
   }
 }
 

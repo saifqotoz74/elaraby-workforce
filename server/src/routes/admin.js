@@ -15,8 +15,11 @@ const employeeService = require('../services/employeeService');
 const leaveService = require('../services/leaveService');
 const payrollService = require('../services/payrollService');
 const shiftService = require('../services/shiftService');
+const overtimeService = require('../services/overtimeService');
+const attendanceService = require('../services/attendanceService');
 const announcementService = require('../services/announcementService');
 const uploadService = require('../services/uploadService');
+const transportService = require('../services/transportService');
 
 const router = express.Router();
 
@@ -521,6 +524,72 @@ router.post('/requests/:id/decide', (req, res, next) => {
   }
 });
 
+router.post('/requests/:id/stages/:stage/decide', async (req, res, next) => {
+  const { status, reason } = req.body || {};
+  if (!['approved', 'rejected'].includes(status)) {
+    return res.status(400).json({ error: 'status_must_be_approved_or_rejected' });
+  }
+  const requiredPerm = status === 'approved' ? PERMISSIONS.LEAVE_APPROVE : PERMISSIONS.LEAVE_REJECT;
+  if (!hasPermission(req.admin?.role, requiredPerm)) {
+    return res.status(403).json({
+      error: 'forbidden_permission_required',
+      requiredPermission: requiredPerm,
+      currentRole: req.admin?.role,
+    });
+  }
+
+  try {
+    const request = leaveService.decideApprovalStage(
+      req.admin,
+      req.params.id,
+      { stage: req.params.stage, status, reason },
+      { ip: req.ip, userAgent: req.headers['user-agent'] }
+    );
+    res.json({ request });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
+    next(err);
+  }
+});
+
+// ---------- Shift Swaps Supervisor Decision ----------
+router.post('/shifts/swaps/:id/decide', (req, res, next) => {
+  const { decision, notes } = req.body || {};
+  try {
+    const swap = shiftService.decideSwapSupervisor(
+      req.admin?.username || 'admin',
+      req.params.id,
+      decision,
+      notes,
+    );
+    res.json({ ok: true, swap });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
+    next(err);
+  }
+});
+
+// ---------- Overtime Supervisor Decision ----------
+router.post('/overtime/:id/decide', (req, res, next) => {
+  const { decision, notes } = req.body || {};
+  try {
+    const claim = overtimeService.decideOvertime(req.params.id, decision, {
+      reviewer: req.admin?.username || 'Supervisor',
+      notes,
+    });
+    res.json({ ok: true, claim });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
+    next(err);
+  }
+});
+
 // ---------- Payroll ----------
 router.get('/payroll/:employeeId', requirePermission(PERMISSIONS.PAYROLL_READ), (req, res, next) => {
   try {
@@ -649,6 +718,55 @@ router.get('/metrics', requirePermission(PERMISSIONS.AUDIT_READ), (req, res) => 
     },
     health: 'OPTIMAL'
   });
+});
+
+// ---------- Fleet & Transport Control Room ----------
+router.get('/transport/fleet', requireAdmin, (req, res) => {
+  try {
+    const routes = transportService.getRoutes();
+    const fleet = routes.map((r) => {
+      const telemetry = transportService.getRouteTelemetry(r.id);
+      return {
+        route: r,
+        telemetry,
+      };
+    });
+    res.json({ ok: true, fleet });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/transport/board', (req, res) => {
+  try {
+    const { qrToken, driverId } = req.body || {};
+    if (!qrToken) {
+      return res.status(400).json({ error: 'qrToken_required' });
+    }
+    const boarding = transportService.verifyBoardingPass(driverId, qrToken);
+    res.json({ ok: true, boarding });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/transport/alerts', requireAdmin, (req, res) => {
+  try {
+    const { routeId, type, message, delayMinutes } = req.body || {};
+    if (!routeId || !message) {
+      return res.status(400).json({ error: 'routeId_and_message_required' });
+    }
+    const alert = transportService.reportRouteAlert({
+      routeId,
+      type,
+      message,
+      delayMinutes,
+      reportedBy: req.admin?.sub || 'Admin Control Room',
+    });
+    res.json({ ok: true, alert });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

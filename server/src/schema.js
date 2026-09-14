@@ -60,20 +60,22 @@ function validateConstraints(state) {
     }
     employeeIds.add(emp.id);
 
-    // Active employees must have unique National IDs
+    // Active employees must have unique National IDs within each enterprise tenant
     if (emp.active && emp.nationalId) {
-      const cleanNat = String(emp.nationalId).trim();
+      const tenantKey = (emp.tenantId || 'elaraby').toLowerCase();
+      const cleanNat = `${tenantKey}:${String(emp.nationalId).trim()}`;
       if (nationalIds.has(cleanNat)) {
-        throw new ConstraintViolationError(`Unique constraint violation: National ID ${cleanNat} is already registered to an active employee`);
+        throw new ConstraintViolationError(`Unique constraint violation: National ID ${emp.nationalId} is already registered to an active employee in tenant ${tenantKey}`);
       }
       nationalIds.add(cleanNat);
     }
 
-    // Active employees must have unique Phone numbers
+    // Active employees must have unique Phone numbers within each enterprise tenant
     if (emp.active && emp.phone) {
-      const cleanPhone = String(emp.phone).trim();
+      const tenantKey = (emp.tenantId || 'elaraby').toLowerCase();
+      const cleanPhone = `${tenantKey}:${String(emp.phone).trim()}`;
       if (phoneNumbers.has(cleanPhone)) {
-        throw new ConstraintViolationError(`Unique constraint violation: Phone number ${cleanPhone} is already registered`);
+        throw new ConstraintViolationError(`Unique constraint violation: Phone number ${emp.phone} is already registered in tenant ${tenantKey}`);
       }
       phoneNumbers.add(cleanPhone);
     }
@@ -158,7 +160,18 @@ function validateConstraints(state) {
     }
   }
 
-  // 6. FCM Tokens Unique Constraint
+  // 6. Loans Constraints & Foreign Keys
+  const loans = state.loans || [];
+  for (const loan of loans) {
+    if (loan.employeeId && !employeeIds.has(loan.employeeId)) {
+      throw new ConstraintViolationError(`Foreign key violation: Loan record references non-existent employee ${loan.employeeId}`);
+    }
+    if (typeof loan.amount === 'number' && loan.amount <= 0) {
+      throw new ConstraintViolationError(`Check constraint violation: Loan amount must be positive (${loan.amount})`);
+    }
+  }
+
+  // 7. FCM Tokens Unique Constraint
   const tokenSet = new Set();
   for (const t of fcmTokens) {
     if (t.token) {

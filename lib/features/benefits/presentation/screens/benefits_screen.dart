@@ -89,7 +89,7 @@ class _BenefitsScreenState extends State<BenefitsScreen> {
                       color: Color(0xFFF1F4F8),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.notifications,
                       color: AppColors.primary,
                       size: 20,

@@ -29,6 +29,8 @@ import '../../features/services/presentation/screens/raise_concern_screen.dart';
 import '../../features/services/presentation/screens/request_leave_screen.dart';
 import '../../features/services/presentation/screens/salary_slip_screen.dart';
 import '../../features/services/presentation/screens/shift_schedule_screen.dart';
+import '../../features/services/presentation/screens/company_transportation_screen.dart';
+import '../../features/services/presentation/screens/driver_console_screen.dart';
 import '../../features/services/presentation/screens/vacation_balance_screen.dart';
 import '../../features/services/presentation/screens/your_requests_screen.dart';
 
@@ -157,9 +159,14 @@ class AppNavigation {
   }
 
   // ---- Services Feature ----
-  static Future<void> toSalarySlip(BuildContext context) async {
+  static Future<void> toSalarySlip(BuildContext context, {int initialTab = 0}) async {
     await _push(context, AppRoutes.salarySlip,
-        fallbackBuilder: () => const SalarySlipScreen());
+        extra: {'initialTab': initialTab},
+        fallbackBuilder: () => SalarySlipScreen(initialTabIndex: initialTab));
+  }
+
+  static Future<void> toLoans(BuildContext context) async {
+    await toSalarySlip(context, initialTab: 1);
   }
 
   static Future<void> toVacationBalance(BuildContext context) async {
@@ -175,6 +182,16 @@ class AppNavigation {
   static Future<void> toShiftSchedule(BuildContext context) async {
     await _push(context, AppRoutes.shiftSchedule,
         fallbackBuilder: () => const ShiftScheduleScreen());
+  }
+
+  static Future<void> toTransportation(BuildContext context) async {
+    await _push(context, AppRoutes.transportation,
+        fallbackBuilder: () => const CompanyTransportationScreen());
+  }
+
+  static Future<void> toDriverConsole(BuildContext context, {String routeId = 'route_101'}) async {
+    await _push(context, '${AppRoutes.driverConsole}?routeId=$routeId',
+        fallbackBuilder: () => DriverConsoleScreen(routeId: routeId));
   }
 
   static Future<void> toHrRequest(BuildContext context) async {

@@ -22,6 +22,8 @@ abstract class AppRoutes {
   static const String vacationBalance = '/vacation-balance';
   static const String requestLeave = '/request-leave';
   static const String shiftSchedule = '/shift-schedule';
+  static const String transportation = '/transportation';
+  static const String driverConsole = '/driver-console';
   static const String salarySlip = '/salary-slip';
   static const String hrRequest = '/hr-request';
   static const String raiseConcern = '/raise-concern';

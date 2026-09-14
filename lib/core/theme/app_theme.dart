@@ -14,7 +14,7 @@ class AppTheme {
 
   /// Reactive notifier for active TenantBrand
   static final ValueNotifier<TenantBrand> tenantBrandNotifier =
-      ValueNotifier<TenantBrand>(TenantBrand.elarabyDefault());
+      ValueNotifier<TenantBrand>(TenantBrand.prConnectDefault());
 
   /// Quick accessor for the current active brand
   static TenantBrand get currentBrand => tenantBrandNotifier.value;

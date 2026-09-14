@@ -247,7 +247,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get biometric_not_setup => 'البصمة غير مُعدّة على هذا الجهاز. استخدم الرمز السري.';
 
   @override
-  String get biometric_prompt => 'افتح Elaraby Connect';
+  String get biometric_prompt => 'افتح تطبيق منظومة العمل';
 
   @override
   String get change_pin_step_confirm_subtitle => 'أدخل الرمز الجديد مرة أخرى';

@@ -55,36 +55,79 @@ function getPool() {
   return _pool;
 }
 
+const { getTenantContext } = require('../tenantContext');
+
 /**
- * Executes a parameterized SQL query on the pool.
+ * Executes a parameterized SQL query on the pool, binding ambient tenant RLS session variables if active.
  * @param {string} text - SQL query text
  * @param {Array} [params] - Query parameters
  */
 async function query(text, params) {
   const pool = getPool();
+  const tenantCtx = getTenantContext();
   const start = Date.now();
+
+  // If no tenant context is bound (e.g. system probes, migrations), run directly on pool
+  if (!tenantCtx) {
+    try {
+      const res = await pool.query(text, params);
+      const duration = Date.now() - start;
+      if (duration > 1000) {
+        console.warn(`[postgres:slow_query] ${duration}ms: ${text.slice(0, 100)}`);
+      }
+      return res;
+    } catch (err) {
+      console.error('[postgres:query_error]', err.message, { query: text.slice(0, 100), params });
+      throw err;
+    }
+  }
+
+  // Scoped execution with transaction-isolated RLS session variables
+  const client = await pool.connect();
   try {
-    const res = await pool.query(text, params);
+    await client.query('BEGIN');
+    if (tenantCtx.tenantId) {
+      await client.query('SET LOCAL app.current_tenant_id = $1', [tenantCtx.tenantId]);
+    }
+    if (tenantCtx.isSuperAdmin && !tenantCtx.masqueraded) {
+      await client.query("SET LOCAL app.is_super_admin = 'true'");
+    }
+    const res = await client.query(text, params);
+    await client.query('COMMIT');
     const duration = Date.now() - start;
     if (duration > 1000) {
       console.warn(`[postgres:slow_query] ${duration}ms: ${text.slice(0, 100)}`);
     }
     return res;
   } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (_) {}
     console.error('[postgres:query_error]', err.message, { query: text.slice(0, 100), params });
     throw err;
+  } finally {
+    client.release();
   }
 }
 
 /**
- * Runs a set of operations inside an atomic PostgreSQL transaction (BEGIN -> COMMIT / ROLLBACK).
+ * Runs a set of operations inside an atomic PostgreSQL transaction with ambient tenant RLS context.
  * @param {Function} callback - async (client) => result
  */
 async function withTransaction(callback) {
   const pool = getPool();
   const client = await pool.connect();
+  const tenantCtx = getTenantContext();
   try {
     await client.query('BEGIN');
+    if (tenantCtx) {
+      if (tenantCtx.tenantId) {
+        await client.query('SET LOCAL app.current_tenant_id = $1', [tenantCtx.tenantId]);
+      }
+      if (tenantCtx.isSuperAdmin && !tenantCtx.masqueraded) {
+        await client.query("SET LOCAL app.is_super_admin = 'true'");
+      }
+    }
     const result = await callback(client);
     await client.query('COMMIT');
     return result;

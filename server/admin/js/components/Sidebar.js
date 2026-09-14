@@ -15,8 +15,8 @@ export class Sidebar {
 
     const user = store.state.user || {};
     const role = user.role || 'superadmin';
-    const tenantBrandName = user.tenantName || window.ACTIVE_TENANT_NAME || 'Elaraby Connect';
-    const tenantBrandInitials = tenantBrandName.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() || 'EC';
+    const tenantBrandName = user.tenantName || window.ACTIVE_TENANT_NAME || 'Workforce OS';
+    const tenantBrandInitials = tenantBrandName.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() || 'WF';
 
     this.element.innerHTML = `
       <div class="sidebar-header">
