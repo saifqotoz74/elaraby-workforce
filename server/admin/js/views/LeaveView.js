@@ -202,7 +202,7 @@ export class LeaveView {
           exportBtn.querySelector('span').textContent = 'Exporting...';
           const res = await leaveApi.list({ limit: 1000, status: this.statusFilter, type: this.typeFilter });
           const requests = res.requests || [];
-          ExportService.exportToCsv('Elaraby_Leave_Requests', [
+          ExportService.exportToCsv('Leave_Requests', [
             { key: 'id', label: 'Request ID / رقم الطلب' },
             { key: 'employeeName', label: 'Employee Name / اسم الموظف' },
             { key: 'employeeCode', label: 'Employee Code / كود الموظف' },

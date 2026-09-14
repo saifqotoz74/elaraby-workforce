@@ -1,5 +1,5 @@
-# Production Dockerfile for Elaraby Connect Backend
-FROM node:18-alpine
+# Production Dockerfile for Workforce OS Backend
+FROM node:20-alpine
 
 # Set node environment
 ENV NODE_ENV=production

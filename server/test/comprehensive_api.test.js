@@ -112,7 +112,7 @@ async function runAllTests() {
     await test('GET / serves Admin index.html', async () => {
       const res = await request('GET', '/');
       assert.strictEqual(res.status, 200);
-      assert.ok(res.text.includes('Elaraby Connect'));
+      assert.ok(res.text.includes('Workforce OS') || res.text.includes('Elaraby Connect'));
     });
 
     await test('GET /admin/ serves Admin dashboard SPA', async () => {

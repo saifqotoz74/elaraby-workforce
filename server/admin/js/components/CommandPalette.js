@@ -207,7 +207,7 @@ export class CommandPalette {
             <span><span class="kbd-badge">↑</span> <span class="kbd-badge">↓</span> Navigate</span>
             <span><span class="kbd-badge">↵</span> Select</span>
           </div>
-          <span>Elaraby Connect Spotlight</span>
+          <span>Workforce OS Spotlight</span>
         </div>
       </div>
     `;

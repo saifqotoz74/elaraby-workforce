@@ -56,6 +56,11 @@ export class Sidebar {
           <span>Payroll</span>
         </button>
 
+        <button class="nav-link" data-route="transport">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="13" rx="2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M5 9h14M12 9v4"/></svg>
+          <span>Fleet & Shuttles</span>
+        </button>
+
         <div class="nav-section-title">Communication & Governance</div>
 
         <button class="nav-link" data-route="announcements">

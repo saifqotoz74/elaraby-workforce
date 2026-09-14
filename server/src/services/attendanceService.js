@@ -409,6 +409,51 @@ function getTodayPunchState(employeeId, dateKey = shiftService.toDateKey(new Dat
   };
 }
 
+/**
+ * Retrieve today's attendance records and overview for HR Admin dashboard.
+ */
+function getAdminTodayAttendance({ tenantId, factory, limit = 100 } = {}) {
+  const currentTenant = tenantId || getCurrentTenantId();
+  const dateKey = shiftService.toDateKey(new Date());
+  let records = db().attendanceRecords || [];
+  if (currentTenant && currentTenant !== 'all') {
+    records = records.filter((r) => !r.tenantId || r.tenantId === currentTenant);
+  }
+  if (factory && factory !== 'all') {
+    records = records.filter((r) => r.factory === factory);
+  }
+  const todayRecords = records.filter((r) => r.date === dateKey);
+
+  const totalPunches = todayRecords.length;
+  const inPunches = todayRecords.filter((r) => r.type === 'in');
+  const outOfGeofencePunches = todayRecords.filter((r) => r.isOutOfBounds === true || r.withinGeofence === false);
+  const latePunches = todayRecords.filter((r) => r.punctuality === 'late');
+
+  const enrichedRecords = todayRecords.map((r) => {
+    const emp = (db().employees || []).find((e) => e.id === r.employeeId);
+    return {
+      ...r,
+      employeeName: r.employeeName || emp?.name || r.employeeId,
+      employeeCode: emp?.employeeCode || '—',
+      factory: r.factory || emp?.factory || '—',
+      department: r.department || emp?.department || '—',
+      withinGeofence: r.isOutOfBounds !== undefined ? !r.isOutOfBounds : (r.withinGeofence !== false),
+    };
+  });
+
+  return {
+    date: dateKey,
+    tenantId: currentTenant,
+    stats: {
+      totalPunches,
+      activePresent: inPunches.length,
+      outOfGeofenceCount: outOfGeofencePunches.length,
+      lateCount: latePunches.length,
+    },
+    records: enrichedRecords.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, limit),
+  };
+}
+
 module.exports = {
   FACTORIES,
   TENANT_FACTORIES,
@@ -419,4 +464,5 @@ module.exports = {
   generateOfflineToken,
   recordPunch,
   getTodayPunchState,
+  getAdminTodayAttendance,
 };

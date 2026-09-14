@@ -280,6 +280,90 @@ function getLoanDetails(employeeId, loanId) {
   return loan;
 }
 
+/**
+ * Retrieve all loans for administrative inspection with filtering.
+ */
+function getAllLoans({ tenantId, status, limit = 100 } = {}) {
+  const currentTenant = tenantId || getCurrentTenantId();
+  let loans = db().loans || [];
+  if (currentTenant && currentTenant !== 'all') {
+    loans = loans.filter((l) => !l.tenantId || l.tenantId === currentTenant);
+  }
+  if (status && status !== 'all') {
+    loans = loans.filter((l) => l.status === status);
+  }
+  const employees = db().employees || [];
+  const empMap = new Map(employees.map((e) => [e.id, e]));
+
+  const enriched = loans.map((l) => {
+    const emp = empMap.get(l.employeeId);
+    return {
+      ...l,
+      employeeName: emp?.name || l.employeeId,
+      employeeCode: emp?.employeeCode || '—',
+      department: emp?.department || '—',
+      factory: emp?.factory || '—',
+    };
+  });
+
+  return enriched.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, limit);
+}
+
+/**
+ * Update status of a loan (approve, reject, disburse) by an HR administrator.
+ */
+function updateLoanStatus(loanId, newStatus, { adminSub = 'admin', reason = '', ip, userAgent } = {}) {
+  if (!Object.values(LOAN_STATUS).includes(newStatus)) {
+    const err = new Error(`invalid_status: ${newStatus}`);
+    err.statusCode = 400;
+    throw err;
+  }
+
+  return transaction((state) => {
+    state.loans = state.loans || [];
+    const loan = state.loans.find((l) => l.id === loanId);
+    if (!loan) {
+      const err = new Error('loan_not_found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const previousStatus = loan.status;
+    loan.status = newStatus;
+    loan.updatedAt = Date.now();
+    if (newStatus === LOAN_STATUS.APPROVED) {
+      loan.approvedAt = Date.now();
+      loan.approvedBy = adminSub;
+    } else if (newStatus === LOAN_STATUS.REJECTED) {
+      loan.rejectedAt = Date.now();
+      loan.rejectedBy = adminSub;
+      loan.rejectionReason = reason;
+    }
+
+    recordAuditLog(state, {
+      tenantId: loan.tenantId,
+      actor: adminSub,
+      role: 'admin',
+      action: `loan_status_${newStatus}`,
+      entity: 'loan',
+      entityId: loan.id,
+      before: { status: previousStatus },
+      after: { status: newStatus, reason },
+      details: `HR Admin ${adminSub} changed loan ${loan.referenceNumber} status from ${previousStatus} to ${newStatus}`,
+      ip,
+      userAgent,
+    });
+
+    broadcast(
+      'loan.updated',
+      { loan, previousStatus, employeeId: loan.employeeId, tenantId: loan.tenantId },
+      { employeeId: loan.employeeId, tenantId: loan.tenantId }
+    );
+
+    return loan;
+  });
+}
+
 module.exports = {
   LOAN_TYPES,
   LOAN_STATUS,
@@ -287,4 +371,6 @@ module.exports = {
   applyLoan,
   getEmployeeLoans,
   getLoanDetails,
+  getAllLoans,
+  updateLoanStatus,
 };

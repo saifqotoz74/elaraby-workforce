@@ -84,6 +84,19 @@ export class Topbar {
           <span>Live Sync</span>
         </div>
 
+        <!-- Active Multi-Tenant Context Selector -->
+        <div class="topbar-tenant-box" style="display: flex; align-items: center; gap: 6px;">
+          <select id="topbar-tenant-select" class="form-select" style="padding: 4px 10px; height: 34px; font-size: 12px; font-weight: 700; border-radius: var(--radius-pill); background: var(--surface-subtle); border: 1px solid var(--border-light); cursor: pointer;" title="Active Tenant Organization Context">
+            <option value="all">🌐 All Organizations</option>
+            <option value="elaraby">🏢 Elaraby Group</option>
+            <option value="elsewedy">🏢 Elsewedy Electric</option>
+            <option value="ghabbour">🏢 GB Corp (Ghabbour)</option>
+            <option value="tmg">🏢 Talaat Moustafa Group</option>
+            <option value="gulf_industrial">🏢 Gulf Industrial Corp</option>
+            <option value="generic">🏢 PR Connect (Neutral)</option>
+          </select>
+        </div>
+
         <!-- User Profile Badge -->
         <div class="user-profile-badge" id="topbar-user-badge" title="Authenticated Administrator">
           <div class="user-avatar">${username.slice(0, 2).toUpperCase()}</div>
@@ -156,6 +169,21 @@ export class Topbar {
         const textEl = this.element.querySelector('#theme-toggle-text');
         if (iconEl) iconEl.textContent = newTheme === 'dark' ? '☀️' : '🌙';
         if (textEl) textEl.textContent = newTheme === 'dark' ? 'Light' : 'Dark';
+      };
+    }
+
+    // Active Tenant Switcher
+    const tenantSelect = this.element.querySelector('#topbar-tenant-select');
+    if (tenantSelect) {
+      tenantSelect.value = localStorage.getItem('admin_active_tenant') || 'all';
+      tenantSelect.onchange = (e) => {
+        const val = e.target.value;
+        if (val === 'all') {
+          localStorage.removeItem('admin_active_tenant');
+        } else {
+          localStorage.setItem('admin_active_tenant', val);
+        }
+        window.location.reload();
       };
     }
 

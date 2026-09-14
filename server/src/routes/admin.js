@@ -20,6 +20,7 @@ const attendanceService = require('../services/attendanceService');
 const announcementService = require('../services/announcementService');
 const uploadService = require('../services/uploadService');
 const transportService = require('../services/transportService');
+const loanService = require('../services/loanService');
 
 const router = express.Router();
 
@@ -764,6 +765,73 @@ router.post('/transport/alerts', requireAdmin, (req, res) => {
       reportedBy: req.admin?.sub || 'Admin Control Room',
     });
     res.json({ ok: true, alert });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.get('/transport/routes', requireAdmin, (req, res) => {
+  try {
+    const routes = transportService.getRoutes();
+    res.json({ ok: true, routes });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.get('/transport/manifest/:routeId', requireAdmin, (req, res) => {
+  try {
+    const manifest = transportService.getRouteManifest(req.params.routeId);
+    res.json({ ok: true, manifest });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+// ---------- Loans & Salary Advances Administration ----------
+router.get('/loans', requireAdmin, (req, res) => {
+  try {
+    const { status, tenantId, limit } = req.query || {};
+    const loans = loanService.getAllLoans({
+      status,
+      tenantId: tenantId || req.tenantId,
+      limit: limit ? Number(limit) : 100,
+    });
+    res.json({ ok: true, loans });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/loans/:id/status', requireAdmin, (req, res) => {
+  try {
+    const { status, reason } = req.body || {};
+    if (!status) {
+      return res.status(400).json({ error: 'status_required' });
+    }
+    const loan = loanService.updateLoanStatus(req.params.id, status, {
+      adminSub: req.admin?.sub || 'admin',
+      reason,
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+    save();
+    res.json({ ok: true, loan });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+// ---------- Live Attendance & Geofencing Monitor ----------
+router.get('/attendance/today', requireAdmin, (req, res) => {
+  try {
+    const { factory, tenantId, limit } = req.query || {};
+    const attendance = attendanceService.getAdminTodayAttendance({
+      factory,
+      tenantId: tenantId || req.tenantId,
+      limit: limit ? Number(limit) : 100,
+    });
+    res.json({ ok: true, ...attendance });
   } catch (err) {
     res.status(err.statusCode || 500).json({ error: err.message });
   }

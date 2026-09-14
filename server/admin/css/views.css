@@ -961,7 +961,7 @@
   position: relative;
 }
 .payslip-header-bar::after {
-  content: 'ELARABY GROUP';
+  content: 'PAYROLL VOUCHER';
   position: absolute;
   right: 28px;
   top: 50%;

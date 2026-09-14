@@ -118,7 +118,7 @@ export class AuditView {
           const res = await auditApi.list(params);
           const logs = res.logs || res.auditLogs || [];
 
-          ExportService.exportToCsv('Elaraby_Security_Audit_Trail', [
+          ExportService.exportToCsv('Security_Audit_Trail', [
             { key: 'timestamp', label: 'Timestamp / الوقت', formatter: (val) => new Date(val).toISOString() },
             { key: 'actor', label: 'Actor / المستخدم' },
             { key: 'role', label: 'Role / الصلاحية' },

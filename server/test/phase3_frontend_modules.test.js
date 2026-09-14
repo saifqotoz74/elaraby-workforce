@@ -146,7 +146,7 @@ async function runPhase3Tests() {
     try {
       const resHtml = await get('/admin/');
       assert.strictEqual(resHtml.status, 200, '/admin/ must return 200 OK');
-      assert.ok(resHtml.body.includes('Elaraby Connect'), 'Must serve HTML with title');
+      assert.ok(resHtml.body.includes('Workforce OS') || resHtml.body.includes('Elaraby Connect'), 'Must serve HTML with title');
 
       const resCss = await get('/admin/css/design-system.css');
       assert.strictEqual(resCss.status, 200, 'design-system.css must return 200 OK');

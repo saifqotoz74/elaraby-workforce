@@ -1,4 +1,4 @@
-// Elaraby Connect - Central HTML Sanitization Utility
+// Workforce OS - Central HTML Sanitization Utility
 // Prevents Stored and Reflected XSS by escaping HTML special characters.
 
 /**

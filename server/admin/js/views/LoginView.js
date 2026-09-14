@@ -32,10 +32,10 @@ export class LoginView {
     this.element.innerHTML = `
       <div class="login-card-window">
         <div class="login-header-logo">
-          <div class="login-logo-badge">EC</div>
+          <div class="login-logo-badge">OS</div>
           <div>
-            <h1 style="font-size: 20px; font-weight: 700; color: var(--navy-900);">Elaraby Connect</h1>
-            <p style="font-size: 13px; color: var(--text-muted);">Enterprise HR Administration</p>
+            <h1 style="font-size: 20px; font-weight: 700; color: var(--navy-900);">Workforce OS</h1>
+            <p style="font-size: 13px; color: var(--text-muted);">Enterprise HR & Workforce Platform</p>
           </div>
         </div>
 

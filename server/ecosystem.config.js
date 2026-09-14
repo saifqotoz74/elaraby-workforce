@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: 'elaraby-workforce-api',
+      name: 'workforce-os-api',
       script: 'server.js',
       instances: 'max',
       exec_mode: 'cluster',
@@ -15,8 +15,23 @@ module.exports = {
         NODE_ENV: 'production',
         PORT: 3000,
       },
-      error_file: 'logs/err.log',
-      out_file: 'logs/out.log',
+      error_file: 'logs/api-err.log',
+      out_file: 'logs/api-out.log',
+      merge_logs: true,
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+    },
+    {
+      name: 'workforce-os-worker',
+      script: 'worker.js',
+      instances: 1,
+      exec_mode: 'fork',
+      watch: false,
+      max_memory_restart: '300M',
+      env_production: {
+        NODE_ENV: 'production',
+      },
+      error_file: 'logs/worker-err.log',
+      out_file: 'logs/worker-out.log',
       merge_logs: true,
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
     },

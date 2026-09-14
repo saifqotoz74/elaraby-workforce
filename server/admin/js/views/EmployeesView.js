@@ -227,7 +227,7 @@ export class EmployeesView {
           exportBtn.querySelector('span').textContent = 'Exporting...';
           const res = await employeeApi.list({ limit: 1000, q: this.query, factory: this.factory });
           const employees = res.employees || [];
-          ExportService.exportToCsv('Elaraby_Employees_Directory', [
+          ExportService.exportToCsv('Employees_Directory', [
             { key: 'employeeCode', label: 'Employee Code / كود الموظف' },
             { key: 'name', label: 'Full Name / الاسم' },
             { key: 'nationalId', label: 'National ID / الرقم القومي' },

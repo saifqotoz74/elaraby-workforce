@@ -83,3 +83,19 @@ export const superAdminApi = {
   deactivateTenant: (id) => api.delete(`/api/super-admin/tenants/${id}`),
 };
 
+export const transportApi = {
+  getFleet: () => api.get('/api/admin/transport/fleet'),
+  getRoutes: () => api.get('/api/admin/transport/routes'),
+  getManifest: (routeId) => api.get(`/api/admin/transport/manifest/${routeId}`),
+  reportAlert: (data) => api.post('/api/admin/transport/alerts', data),
+};
+
+export const loanApi = {
+  list: (params) => api.get('/api/admin/loans', params),
+  updateStatus: (id, data) => api.post(`/api/admin/loans/${id}/status`, data),
+};
+
+export const attendanceApi = {
+  getToday: (params) => api.get('/api/admin/attendance/today', params),
+};
+

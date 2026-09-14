@@ -1,7 +1,7 @@
 // Payroll View Component
 // Search employee, inspect salary statement, and publish payroll adjustments.
 
-import { payrollApi, employeeApi } from '../api/services.js';
+import { payrollApi, employeeApi, loanApi } from '../api/services.js';
 import { Modal } from '../components/Modal.js';
 import { toast } from '../components/Toast.js';
 import { ExportService } from '../services/exportService.js';
@@ -18,6 +18,11 @@ export class PayrollView {
     this.selectedEmployee = null;
     this.currentPayroll = null;
     this.cachedEmployees = [];
+    this.activeTab = 'payslips';
+    this.loansList = [];
+    this.loansFilterStatus = 'all';
+    this.loansSearchQuery = '';
+    this.isLoadingLoans = false;
   }
 
   async mount() {
@@ -34,57 +39,158 @@ export class PayrollView {
     this.element.className = 'animate-fade-in';
 
     this.element.innerHTML = `
-      <div class="toolbar-container" style="margin-bottom: 24px;">
+      <div class="toolbar-container" style="margin-bottom: 20px;">
         <div>
           <h2 style="font-size: 20px; font-weight: 800; color: var(--text-main); margin: 0 0 4px 0;">
-            Payroll & Compensation / الأجور والمرتبات
+            Payroll & Financial Services / الأجور والخدمات المالية
           </h2>
           <p style="font-size: 13.5px; color: var(--text-muted); margin: 0;">
-            Manage official monthly compensation statements, allowances, and statutory deductions.
+            Manage monthly compensation statements, statutory deductions, and employee loans/advances.
           </p>
         </div>
-        <button class="btn btn-secondary btn-sm" id="btn-export-payroll">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          <span>Export Payroll Report</span>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="tabs-nav" style="display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 2px solid var(--border-light);">
+        <button class="tab-btn active" id="tab-btn-payslips" type="button">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <span>Payslip Statements / مفردات المرتب</span>
+        </button>
+        <button class="tab-btn" id="tab-btn-loans" type="button">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          <span>Loans & Salary Advances / السلف والقروض</span>
+          <span class="badge badge-warning" id="tab-loans-count" style="display: none; margin-left: 6px; font-size: 11px;">0</span>
         </button>
       </div>
 
-      <!-- Employee Selector Card -->
-      <div class="card" style="margin-bottom: 24px;">
-        <label class="form-label" style="margin-bottom: 10px; font-weight: 700;">Select Employee to View Compensation Statement</label>
-        <div style="display: grid; grid-template-columns: 240px 1fr auto; gap: 12px; align-items: flex-end;">
-          <div>
-            <label class="form-label" style="font-size: 11px;">Search Worker</label>
-            <input type="text" id="payroll-worker-filter" class="form-input" placeholder="Name or code..." />
-          </div>
-
-          <div>
-            <label class="form-label" style="font-size: 11px;">Workforce Directory</label>
-            <select class="form-select" id="payroll-employee-select">
-              <option value="">Loading workforce...</option>
-            </select>
-          </div>
-
-          <button class="btn btn-primary" id="btn-load-payroll" style="height: 40px;">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <span>Inspect Payslip</span>
+      <!-- PANEL 1: Payslips -->
+      <div id="panel-payslips">
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+          <button class="btn btn-secondary btn-sm" id="btn-export-payroll">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Export Payroll Report</span>
           </button>
+        </div>
+
+        <!-- Employee Selector Card -->
+        <div class="card" style="margin-bottom: 24px;">
+          <label class="form-label" style="margin-bottom: 10px; font-weight: 700;">Select Employee to View Compensation Statement</label>
+          <div style="display: grid; grid-template-columns: 240px 1fr auto; gap: 12px; align-items: flex-end;">
+            <div>
+              <label class="form-label" style="font-size: 11px;">Search Worker</label>
+              <input type="text" id="payroll-worker-filter" class="form-input" placeholder="Name or code..." />
+            </div>
+
+            <div>
+              <label class="form-label" style="font-size: 11px;">Workforce Directory</label>
+              <select class="form-select" id="payroll-employee-select">
+                <option value="">Loading workforce...</option>
+              </select>
+            </div>
+
+            <button class="btn btn-primary" id="btn-load-payroll" style="height: 40px;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <span>Inspect Payslip</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Payroll Statement Display Card -->
+        <div id="payroll-details-wrapper">
+          <div class="empty-state">
+            <div class="empty-state-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <div class="empty-state-title">No Employee Selected</div>
+            <div class="empty-state-sub">Select an employee from the workforce selector above to view or modify their compensation statement.</div>
+          </div>
         </div>
       </div>
 
-      <!-- Payroll Statement Display Card -->
-      <div id="payroll-details-wrapper">
-        <div class="empty-state">
-          <div class="empty-state-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      <!-- PANEL 2: Loans & Advances -->
+      <div id="panel-loans" style="display: none;">
+        <!-- KPI Metrics Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+          <div class="card" style="padding: 16px 20px;">
+            <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Total Applications</div>
+            <div id="loans-stat-total" style="font-size: 24px; font-weight: 800; color: var(--text-main); margin-top: 4px;">0</div>
           </div>
-          <div class="empty-state-title">No Employee Selected</div>
-          <div class="empty-state-sub">Select an employee from the workforce selector above to view or modify their compensation statement.</div>
+          <div class="card" style="padding: 16px 20px; border-left: 4px solid var(--status-yellow);">
+            <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Pending Review</div>
+            <div id="loans-stat-pending" style="font-size: 24px; font-weight: 800; color: var(--status-yellow); margin-top: 4px;">0</div>
+          </div>
+          <div class="card" style="padding: 16px 20px; border-left: 4px solid var(--status-green);">
+            <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Active Repayments</div>
+            <div id="loans-stat-active" style="font-size: 24px; font-weight: 800; color: var(--status-green); margin-top: 4px;">0</div>
+          </div>
+          <div class="card" style="padding: 16px 20px; border-left: 4px solid var(--primary);">
+            <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Total Disbursed</div>
+            <div id="loans-stat-amount" style="font-size: 24px; font-weight: 800; color: var(--primary); margin-top: 4px;">0 EGP</div>
+          </div>
+        </div>
+
+        <!-- Filter & Search Toolbar -->
+        <div class="card" style="margin-bottom: 20px; padding: 16px 20px;">
+          <div style="display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; justify-content: space-between;">
+            <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; flex: 1;">
+              <div style="min-width: 220px; flex: 1;">
+                <label class="form-label" style="font-size: 11px;">Search Loan / Worker</label>
+                <input type="text" id="loans-search-filter" class="form-input" placeholder="Search by name, code, or ref #..." />
+              </div>
+              <div style="width: 180px;">
+                <label class="form-label" style="font-size: 11px;">Status Filter</label>
+                <select class="form-select" id="loans-status-filter">
+                  <option value="all">All Statuses</option>
+                  <option value="pending">Pending Review</option>
+                  <option value="approved">Approved (Awaiting Disbursement)</option>
+                  <option value="active">Active (Repaying)</option>
+                  <option value="completed">Completed</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-loans">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                <span>Refresh</span>
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-export-loans">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span>Export Loans</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Loans Table -->
+        <div class="card" style="padding: 0; overflow: hidden;">
+          <div id="loans-table-wrapper" style="overflow-x: auto;"></div>
         </div>
       </div>
     `;
 
     this.loadEmployeesList();
+    this.checkLoansPendingBadge();
+
+    // Tab buttons wiring
+    const tabPayslips = this.element.querySelector('#tab-btn-payslips');
+    const tabLoans = this.element.querySelector('#tab-btn-loans');
+    tabPayslips.onclick = () => this.switchTab('payslips');
+    tabLoans.onclick = () => this.switchTab('loans');
+
+    // Loans filters wiring
+    const searchLoans = this.element.querySelector('#loans-search-filter');
+    searchLoans.oninput = (e) => {
+      this.loansSearchQuery = e.target.value.toLowerCase().trim();
+      this.renderLoansTable();
+    };
+    const filterLoansStatus = this.element.querySelector('#loans-status-filter');
+    filterLoansStatus.onchange = (e) => {
+      this.loansFilterStatus = e.target.value;
+      this.renderLoansTable();
+    };
+    this.element.querySelector('#btn-refresh-loans').onclick = () => this.loadLoans();
+    this.element.querySelector('#btn-export-loans').onclick = () => this.exportLoansReport();
 
     const exportBtn = this.element.querySelector('#btn-export-payroll');
     if (exportBtn) {
@@ -121,7 +227,7 @@ export class PayrollView {
             }
           }
 
-          ExportService.exportToCsv('Elaraby_Workforce_Payroll_Report', [
+          ExportService.exportToCsv('Workforce_Payroll_Report', [
             { key: 'employeeCode', label: 'Employee Code / كود الموظف' },
             { key: 'name', label: 'Full Name / الاسم' },
             { key: 'factory', label: 'Factory / المصنع' },
@@ -350,7 +456,7 @@ export class PayrollView {
                 Payment Method: <span class="badge badge-info">💳 ${escapeHtml(payroll.paymentMethod || 'Bank Transfer')}</span>
               </div>
               <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="badge badge-success">✓ Verified by Elaraby HR Payroll Engine</span>
+                <span class="badge badge-success">✓ Verified by Workforce Payroll Engine</span>
                 <span>Confidential Document</span>
               </div>
             </div>
@@ -478,5 +584,398 @@ export class PayrollView {
     };
 
     modal.render();
+  }
+
+  switchTab(tabName) {
+    this.activeTab = tabName;
+    const btnPayslips = this.element.querySelector('#tab-btn-payslips');
+    const btnLoans = this.element.querySelector('#tab-btn-loans');
+    const panelPayslips = this.element.querySelector('#panel-payslips');
+    const panelLoans = this.element.querySelector('#panel-loans');
+
+    if (tabName === 'loans') {
+      btnPayslips.classList.remove('active');
+      btnLoans.classList.add('active');
+      panelPayslips.style.display = 'none';
+      panelLoans.style.display = 'block';
+      this.loadLoans();
+    } else {
+      btnLoans.classList.remove('active');
+      btnPayslips.classList.add('active');
+      panelLoans.style.display = 'none';
+      panelPayslips.style.display = 'block';
+    }
+  }
+
+  async checkLoansPendingBadge() {
+    try {
+      const res = await loanApi.list({ status: 'pending', limit: 100 });
+      const pendingCount = (res.loans || []).length;
+      const badge = this.element.querySelector('#tab-loans-count');
+      if (badge) {
+        if (pendingCount > 0) {
+          badge.textContent = pendingCount;
+          badge.style.display = 'inline-block';
+        } else {
+          badge.style.display = 'none';
+        }
+      }
+    } catch (_) {}
+  }
+
+  async loadLoans() {
+    if (this.isLoadingLoans) return;
+    this.isLoadingLoans = true;
+    const wrapper = this.element.querySelector('#loans-table-wrapper');
+    if (!wrapper) return;
+    wrapper.innerHTML = `
+      <div style="display: flex; justify-content: center; padding: 48px;">
+        <div class="animate-spin" style="width: 28px; height: 28px; border: 2px solid var(--border-light); border-top-color: var(--primary); border-radius: 50%;"></div>
+      </div>
+    `;
+
+    try {
+      const res = await loanApi.list({ limit: 200 });
+      this.loansList = res.loans || [];
+      this.updateLoanKpis();
+      this.renderLoansTable();
+    } catch (err) {
+      wrapper.innerHTML = `<div class="form-error" style="margin: 20px;">${escapeHtml(err.message || 'Failed to load loans')}</div>`;
+    } finally {
+      this.isLoadingLoans = false;
+    }
+  }
+
+  updateLoanKpis() {
+    const list = this.loansList || [];
+    const total = list.length;
+    const pending = list.filter((l) => l.status === 'pending').length;
+    const active = list.filter((l) => l.status === 'active' || l.status === 'approved').length;
+    const disbursed = list
+      .filter((l) => l.status === 'active' || l.status === 'completed')
+      .reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
+
+    const elTotal = this.element.querySelector('#loans-stat-total');
+    const elPending = this.element.querySelector('#loans-stat-pending');
+    const elActive = this.element.querySelector('#loans-stat-active');
+    const elAmount = this.element.querySelector('#loans-stat-amount');
+
+    if (elTotal) elTotal.textContent = total;
+    if (elPending) elPending.textContent = pending;
+    if (elActive) elActive.textContent = active;
+    if (elAmount) elAmount.textContent = `${disbursed.toLocaleString()} EGP`;
+
+    const badge = this.element.querySelector('#tab-loans-count');
+    if (badge) {
+      if (pending > 0) {
+        badge.textContent = pending;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+  }
+
+  renderLoansTable() {
+    const wrapper = this.element.querySelector('#loans-table-wrapper');
+    if (!wrapper) return;
+
+    let filtered = this.loansList || [];
+    if (this.loansFilterStatus && this.loansFilterStatus !== 'all') {
+      filtered = filtered.filter((l) => l.status === this.loansFilterStatus);
+    }
+    if (this.loansSearchQuery) {
+      const q = this.loansSearchQuery;
+      filtered = filtered.filter((l) =>
+        (l.referenceNumber || '').toLowerCase().includes(q) ||
+        (l.employeeName || '').toLowerCase().includes(q) ||
+        (l.employeeCode || '').toLowerCase().includes(q) ||
+        (l.factory || '').toLowerCase().includes(q)
+      );
+    }
+
+    if (filtered.length === 0) {
+      wrapper.innerHTML = `
+        <div class="empty-state" style="padding: 40px 20px;">
+          <div class="empty-state-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          </div>
+          <div class="empty-state-title">No Loan Applications Found</div>
+          <div class="empty-state-sub">There are no employee loans or salary advances matching your active filters.</div>
+        </div>
+      `;
+      return;
+    }
+
+    const rowsHtml = filtered.map((l) => {
+      const currency = escapeHtml(l.currency || 'EGP');
+      const amount = (Number(l.amount) || 0).toLocaleString();
+      const installment = (Number(l.monthlyInstallment) || 0).toLocaleString();
+      const count = l.installmentsCount || 1;
+      const dateStr = l.createdAt ? new Date(l.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+      const isEmergency = l.type === 'emergency_advance';
+
+      let statusBadge = '';
+      if (l.status === 'pending') {
+        statusBadge = '<span class="badge badge-warning">⏳ Pending Review</span>';
+      } else if (l.status === 'approved') {
+        statusBadge = '<span class="badge badge-info">✓ Approved</span>';
+      } else if (l.status === 'active') {
+        statusBadge = '<span class="badge badge-success">● Active Repaying</span>';
+      } else if (l.status === 'completed') {
+        statusBadge = '<span class="badge badge-neutral">✓ Settled</span>';
+      } else if (l.status === 'rejected') {
+        statusBadge = '<span class="badge badge-danger">✕ Rejected</span>';
+      } else {
+        statusBadge = `<span class="badge badge-neutral">${escapeHtml(l.status)}</span>`;
+      }
+
+      let actionButtons = '';
+      if (l.status === 'pending') {
+        actionButtons = `
+          <button type="button" class="btn btn-success btn-xs" data-loan-action="approve" data-loan-id="${escapeHtml(l.id)}">Approve</button>
+          <button type="button" class="btn btn-danger btn-xs" data-loan-action="reject" data-loan-id="${escapeHtml(l.id)}">Reject</button>
+        `;
+      } else if (l.status === 'approved') {
+        actionButtons = `
+          <button type="button" class="btn btn-primary btn-xs" data-loan-action="disburse" data-loan-id="${escapeHtml(l.id)}">Disburse</button>
+        `;
+      }
+      actionButtons += `
+        <button type="button" class="btn btn-secondary btn-xs" data-loan-action="details" data-loan-id="${escapeHtml(l.id)}">Details</button>
+      `;
+
+      return `
+        <tr>
+          <td style="font-family: monospace; font-size: 12px; font-weight: 700; color: var(--primary);">
+            ${escapeHtml(l.referenceNumber || l.id.substring(0, 10))}
+          </td>
+          <td>
+            <div style="font-weight: 700; color: var(--text-main);">${escapeHtml(l.employeeName || '—')}</div>
+            <div style="font-size: 11.5px; color: var(--text-muted);">${escapeHtml(l.employeeCode || '')} • ${escapeHtml(l.factory || '—')}</div>
+          </td>
+          <td>
+            <span class="badge ${isEmergency ? 'badge-warning' : 'badge-primary'}" style="font-size: 11px;">
+              ${isEmergency ? '⚡ Emergency Advance' : '🤝 Social Loan'}
+            </span>
+          </td>
+          <td style="font-weight: 800; color: var(--text-main);">
+            ${amount} <small style="font-weight: 600; color: var(--text-muted);">${currency}</small>
+          </td>
+          <td style="font-size: 12px;">
+            <b>${installment} ${currency}</b>
+            <div style="color: var(--text-muted); font-size: 11px;">${count} monthly installment${count > 1 ? 's' : ''}</div>
+          </td>
+          <td style="font-size: 12px; color: var(--text-muted);">${dateStr}</td>
+          <td>${statusBadge}</td>
+          <td>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              ${actionButtons}
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    wrapper.innerHTML = `
+      <table class="data-table" style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr>
+            <th>Ref #</th>
+            <th>Employee</th>
+            <th>Facility Type</th>
+            <th>Amount</th>
+            <th>Repayment Terms</th>
+            <th>Date</th>
+            <th>Status</th>
+            <th style="min-width: 130px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+    `;
+
+    wrapper.querySelectorAll('[data-loan-action]').forEach((btn) => {
+      btn.onclick = (e) => {
+        const action = e.currentTarget.getAttribute('data-loan-action');
+        const id = e.currentTarget.getAttribute('data-loan-id');
+        this.handleLoanAction(action, id);
+      };
+    });
+  }
+
+  async handleLoanAction(action, loanId) {
+    if (action === 'approve') {
+      try {
+        await loanApi.updateStatus(loanId, { status: 'approved' });
+        toast.success('Loan Approved', 'Application status updated to approved.');
+        await this.loadLoans();
+      } catch (err) {
+        toast.error('Approval Failed', err.message);
+      }
+    } else if (action === 'disburse') {
+      try {
+        await loanApi.updateStatus(loanId, { status: 'active' });
+        toast.success('Funds Disbursed', 'Loan is now active and deductions will apply on payroll.');
+        await this.loadLoans();
+      } catch (err) {
+        toast.error('Disbursement Failed', err.message);
+      }
+    } else if (action === 'reject') {
+      this.openRejectLoanModal(loanId);
+    } else if (action === 'details') {
+      this.openLoanDetailsModal(loanId);
+    }
+  }
+
+  openRejectLoanModal(loanId) {
+    const loan = (this.loansList || []).find((l) => l.id === loanId);
+    const content = document.createElement('div');
+    content.innerHTML = `
+      <p style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 14px;">
+        Please provide a clear administrative justification for rejecting loan application <b>${escapeHtml(loan?.referenceNumber || loanId)}</b>.
+      </p>
+      <div class="form-group">
+        <label class="form-label" style="font-weight: 700;">Rejection Reason / سبب الرفض</label>
+        <textarea id="loan-reject-reason" class="form-input" rows="3" placeholder="e.g., Exceeds maximum debt-to-income ratio or probationary period..."></textarea>
+      </div>
+      <div class="form-error" id="loan-reject-err" style="display: none; margin-top: 8px;"></div>
+    `;
+
+    const footer = document.createElement('div');
+    footer.style.display = 'flex';
+    footer.style.justifyContent = 'flex-end';
+    footer.style.gap = '10px';
+    footer.innerHTML = `
+      <button class="btn btn-secondary btn-sm" id="btn-cancel-reject">Cancel</button>
+      <button class="btn btn-danger btn-sm" id="btn-confirm-reject">Confirm Rejection</button>
+    `;
+
+    const modal = new Modal({
+      title: 'Reject Loan Application',
+      content,
+      footer,
+    });
+
+    footer.querySelector('#btn-cancel-reject').onclick = () => modal.close();
+    footer.querySelector('#btn-confirm-reject').onclick = async () => {
+      const reason = content.querySelector('#loan-reject-reason').value.trim();
+      const errEl = content.querySelector('#loan-reject-err');
+      if (!reason) {
+        errEl.textContent = 'Please enter a rejection reason.';
+        errEl.style.display = 'block';
+        return;
+      }
+      try {
+        await loanApi.updateStatus(loanId, { status: 'rejected', reason });
+        toast.success('Loan Rejected', 'Application was marked as rejected.');
+        modal.close();
+        await this.loadLoans();
+      } catch (err) {
+        errEl.textContent = err.message || 'Failed to reject loan';
+        errEl.style.display = 'block';
+      }
+    };
+
+    modal.render();
+  }
+
+  openLoanDetailsModal(loanId) {
+    const loan = (this.loansList || []).find((l) => l.id === loanId);
+    if (!loan) return;
+
+    const currency = escapeHtml(loan.currency || 'EGP');
+    const content = document.createElement('div');
+    content.innerHTML = `
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px;">
+        <div class="card" style="padding: 14px; background: var(--surface-subtle); margin: 0;">
+          <small style="color: var(--text-muted); display: block;">Applicant</small>
+          <div style="font-weight: 800; font-size: 15px; color: var(--text-main); margin-top: 2px;">
+            ${escapeHtml(loan.employeeName || '—')}
+          </div>
+          <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+            Code: <b>${escapeHtml(loan.employeeCode || '—')}</b> | Facility: <b>${escapeHtml(loan.factory || '—')}</b>
+          </div>
+        </div>
+        <div class="card" style="padding: 14px; background: var(--surface-subtle); margin: 0;">
+          <small style="color: var(--text-muted); display: block;">Financing Facility</small>
+          <div style="font-weight: 800; font-size: 15px; color: var(--primary); margin-top: 2px;">
+            ${(Number(loan.amount) || 0).toLocaleString()} ${currency}
+          </div>
+          <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+            Type: <b>${loan.type === 'emergency_advance' ? 'Emergency Advance' : 'Social Loan'}</b>
+          </div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px; margin-bottom: 16px;">
+        <div><b>Monthly Installment:</b> ${(Number(loan.monthlyInstallment) || 0).toLocaleString()} ${currency}</div>
+        <div><b>Tenure:</b> ${loan.installmentsCount || 1} months</div>
+        <div><b>Created Date:</b> ${loan.createdAt ? new Date(loan.createdAt).toLocaleString() : '—'}</div>
+        <div><b>Status:</b> <span class="badge badge-info">${escapeHtml(loan.status)}</span></div>
+        ${loan.approvedBy ? `<div><b>Approved By:</b> ${escapeHtml(loan.approvedBy)}</div>` : ''}
+        ${loan.rejectionReason ? `<div style="grid-column: 1 / -1; color: var(--status-red);"><b>Rejection Reason:</b> ${escapeHtml(loan.rejectionReason)}</div>` : ''}
+      </div>
+
+      ${loan.reason ? `
+        <div style="padding: 12px; background: var(--surface-card); border: 1px solid var(--border-light); border-radius: var(--radius-sm); font-size: 12.5px; margin-bottom: 16px;">
+          <b>Employee Note:</b> "${escapeHtml(loan.reason)}"
+        </div>
+      ` : ''}
+    `;
+
+    const footer = document.createElement('div');
+    footer.style.display = 'flex';
+    footer.style.justifyContent = 'flex-end';
+    footer.innerHTML = `<button class="btn btn-primary btn-sm" id="btn-close-details">Close</button>`;
+
+    const modal = new Modal({
+      title: `Loan Record: ${escapeHtml(loan.referenceNumber || loan.id)}`,
+      content,
+      footer,
+    });
+
+    footer.querySelector('#btn-close-details').onclick = () => modal.close();
+    modal.render();
+  }
+
+  exportLoansReport() {
+    const filtered = (this.loansList || []).map((l) => ({
+      referenceNumber: l.referenceNumber || l.id,
+      employeeCode: l.employeeCode || '—',
+      employeeName: l.employeeName || '—',
+      factory: l.factory || '—',
+      department: l.department || '—',
+      type: l.type === 'emergency_advance' ? 'Emergency Advance' : 'Social Loan',
+      amount: l.amount || 0,
+      monthlyInstallment: l.monthlyInstallment || 0,
+      installmentsCount: l.installmentsCount || 1,
+      currency: l.currency || 'EGP',
+      status: l.status,
+      createdAt: l.createdAt ? new Date(l.createdAt).toISOString() : '—',
+      approvedBy: l.approvedBy || '—',
+      rejectionReason: l.rejectionReason || '—',
+    }));
+
+    ExportService.exportToCsv('Workforce_Loans_Advances_Report', [
+      { key: 'referenceNumber', label: 'Reference # / رقم السلفة' },
+      { key: 'employeeCode', label: 'Employee Code / كود الموظف' },
+      { key: 'employeeName', label: 'Name / الاسم' },
+      { key: 'factory', label: 'Factory / المصنع' },
+      { key: 'department', label: 'Department / القسم' },
+      { key: 'type', label: 'Facility Type / النوع' },
+      { key: 'amount', label: 'Amount / المبلغ' },
+      { key: 'monthlyInstallment', label: 'Monthly Installment / القسط الشهري' },
+      { key: 'installmentsCount', label: 'Tenure (Months) / عدد الأقساط' },
+      { key: 'currency', label: 'Currency / العملة' },
+      { key: 'status', label: 'Status / الحالة' },
+      { key: 'createdAt', label: 'Date Applied / تاريخ التقديم' },
+      { key: 'approvedBy', label: 'Approved By / المعتمد بواسطة' },
+      { key: 'rejectionReason', label: 'Rejection Reason / سبب الرفض' },
+    ], filtered);
+
+    toast.success('Export Completed', `Successfully exported ${filtered.length} loan applications.`);
   }
 }

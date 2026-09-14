@@ -1,4 +1,4 @@
-// Elaraby Connect - HR Admin Dashboard
+// Workforce OS - HR Admin Dashboard
 // Native ES Module Application Bootstrap & Lifecycle Manager
 
 import { store } from './state/store.js';
@@ -20,6 +20,7 @@ import { ConcernsView } from './views/ConcernsView.js';
 import { AuditView } from './views/AuditView.js';
 import { SettingsView } from './views/SettingsView.js';
 import { TenantsView } from './views/TenantsView.js';
+import { TransportView } from './views/TransportView.js';
 
 class App {
   constructor() {
@@ -162,6 +163,11 @@ class App {
     // 11. Platform Super-Admin Tenants Management
     this.router.addRoute('/tenants', () => {
       this.renderView(TenantsView, 'Tenant Organizations & White-Label Management', 'tenants');
+    });
+
+    // 12. Transport & Fleet Logistics
+    this.router.addRoute('/transport', () => {
+      this.renderView(TransportView, 'Fleet & Shuttle Logistics', 'transport');
     });
   }
 }

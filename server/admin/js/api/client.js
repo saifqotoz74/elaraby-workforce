@@ -31,6 +31,11 @@ export async function apiFetch(endpoint, options = {}) {
     ...(options.headers || {}),
   };
 
+  const activeTenant = localStorage.getItem('admin_active_tenant') || window.ACTIVE_TENANT_ID;
+  if (activeTenant && activeTenant !== 'all' && !headers['X-Tenant-ID']) {
+    headers['X-Tenant-ID'] = activeTenant;
+  }
+
   // Mutating requests require CSRF token when authenticated via cookies
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
     const csrf = getCsrfToken();
