@@ -30,6 +30,7 @@ class NumericKeypad extends StatelessWidget {
 
   Widget _buildRow(List<String> numbers) {
     return Row(
+      textDirection: TextDirection.ltr,
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: numbers.map((n) => _buildKey(n)).toList(),
     );
@@ -37,6 +38,7 @@ class NumericKeypad extends StatelessWidget {
 
   Widget _buildBottomRow() {
     return Row(
+      textDirection: TextDirection.ltr,
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
         const SizedBox(width: 72, height: 72),

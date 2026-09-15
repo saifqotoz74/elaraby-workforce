@@ -877,14 +877,18 @@ class _ShiftScheduleScreenState extends ConsumerState<ShiftScheduleScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '${swap.date} (${swap.myShiftName} ↔ ${swap.targetShiftName})',
-                style: AppTypography.fontBase.copyWith(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+              Expanded(
+                child: Text(
+                  '${swap.date} (${swap.myShiftName} ↔ ${swap.targetShiftName})',
+                  style: AppTypography.fontBase.copyWith(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(

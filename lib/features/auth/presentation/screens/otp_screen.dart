@@ -336,6 +336,7 @@ class _OtpScreenState extends State<OtpScreen> {
                                 _codeLength)
                             .clamp(36.0, 48.0);
                     return Row(
+                      textDirection: TextDirection.ltr,
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: List.generate(_codeLength, (index) {
                         final isActive = index == code.length && !_verifying;

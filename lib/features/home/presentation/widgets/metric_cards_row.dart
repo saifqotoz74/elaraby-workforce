@@ -95,7 +95,7 @@ class MetricCardsRow extends StatelessWidget {
                       FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Text(
-                          AppLocale.tr('view_payslip_action'),
+                          AppLocale.tr('salary_status'),
                           style: AppTypography.metricValue.copyWith(
                             fontSize: 16,
                             color: AppColors.primary,

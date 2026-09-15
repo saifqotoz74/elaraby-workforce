@@ -358,6 +358,10 @@ class Backend {
     if (balance is num) {
       LocalStore.instance.setVacationBalance(balance.toInt());
     }
+    final tenantId = (employee['tenantId'] as String? ?? 'elaraby').toLowerCase();
+    if (tenantId.isNotEmpty && tenantId != LocalStore.instance.activeTenantSlug) {
+      LocalStore.instance.setActiveTenantSlug(tenantId);
+    }
   }
 
   // ---------- Requests ----------

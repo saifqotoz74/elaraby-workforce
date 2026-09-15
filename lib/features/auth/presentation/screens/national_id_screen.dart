@@ -95,6 +95,7 @@ class _NationalIdScreenState extends State<NationalIdScreen> {
       child: Column(
         children: [
           Row(
+            textDirection: TextDirection.ltr,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: List.generate(length, (index) {
               final hasChar = index < text.length;
