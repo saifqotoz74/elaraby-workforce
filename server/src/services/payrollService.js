@@ -24,7 +24,12 @@ function getPayroll(admin, employeeId, { period } = {}) {
   if (allRecords.length === 0) return null;
 
   if (period) {
-    const matched = allRecords.find((p) => p.period && p.period.toLowerCase() === String(period).toLowerCase().trim());
+    const pStr = String(period).toLowerCase().trim();
+    const matched = allRecords.find((p) =>
+      (p.period && p.period.toLowerCase() === pStr) ||
+      (p.periodEn && p.periodEn.toLowerCase() === pStr) ||
+      (p.periodAr && p.periodAr.toLowerCase() === pStr)
+    );
     return matched || null;
   }
 

@@ -50,14 +50,14 @@ class SalarySlipData {
   }) : netSalary = netSalary ?? (basicSalary + allowances - deductions);
 
   factory SalarySlipData.fromJson(Map<String, dynamic> json) {
-    final basic = (json['basicSalary'] as num?)?.toInt() ?? 8500;
+    final basic = ((json['basicSalary'] ?? json['baseSalary']) as num?)?.toInt() ?? 8500;
     final overtime = (json['overtimeAmount'] as num?)?.toInt() ?? 650;
     final transport = (json['transportAllowance'] as num?)?.toInt() ?? 400;
     final meal = (json['mealAllowance'] as num?)?.toInt() ?? 350;
     final incentive = (json['incentiveBonus'] as num?)?.toInt() ?? 800;
     
     // Total allowances fallback
-    final totalAllowances = (json['allowances'] as num?)?.toInt() ??
+    final totalAllowances = ((json['totalAllowances'] ?? json['allowances']) as num?)?.toInt() ??
         (overtime + transport + meal + incentive);
 
     final socIns = (json['socialInsurance'] as num?)?.toInt() ?? 680;
@@ -67,14 +67,19 @@ class SalarySlipData {
     final loanDed = (json['loanDeduction'] as num?)?.toInt() ?? 0;
 
     // Total deductions fallback
-    final totalDeductions = (json['deductions'] as num?)?.toInt() ??
+    final totalDeductions = ((json['totalDeductions'] ?? json['deductions']) as num?)?.toInt() ??
         (socIns + incTax + medIns + pen + loanDed);
 
     final net = (json['netSalary'] as num?)?.toInt() ??
         (basic + totalAllowances - totalDeductions);
 
+    final period = json['periodEn'] as String? ??
+        json['periodAr'] as String? ??
+        json['period'] as String? ??
+        defaultPeriod;
+
     return SalarySlipData(
-      period: json['period'] as String? ?? defaultPeriod,
+      period: period,
       basicSalary: basic,
       overtimeAmount: overtime,
       transportAllowance: transport,
@@ -88,7 +93,7 @@ class SalarySlipData {
       loanDeduction: loanDed,
       deductions: totalDeductions,
       netSalary: net,
-      paidOn: json['paidOn'] as String? ?? 'Jul 28, 2026',
+      paidOn: json['paidOn'] as String? ?? 'Aug 28, 2026',
       paymentMethod: json['paymentMethod'] as String? ?? 'Bank Transfer (CIB)',
     );
   }

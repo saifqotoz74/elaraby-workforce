@@ -77,6 +77,9 @@ class SalaryNotifier extends StateNotifier<UiState<Map<String, dynamic>>> {
       );
       if (serverPeriods != null && serverPeriods.isNotEmpty) {
         _availablePeriods = serverPeriods;
+        if (!_availablePeriods.contains(_selectedPeriod)) {
+          _selectedPeriod = _availablePeriods.first;
+        }
       }
 
       await _fetchForPeriod(_selectedPeriod, pin: _lastPin, token: _salaryToken);
@@ -109,7 +112,9 @@ class SalaryNotifier extends StateNotifier<UiState<Map<String, dynamic>>> {
     if (payload != null) {
       if (payload['payroll'] is Map<String, dynamic>) {
         payrollData = payload['payroll'] as Map<String, dynamic>;
-      } else if (payload.containsKey('basicSalary')) {
+      } else if (payload.containsKey('basicSalary') ||
+          payload.containsKey('baseSalary') ||
+          payload.containsKey('netSalary')) {
         payrollData = payload;
       }
     }

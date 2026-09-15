@@ -195,6 +195,7 @@ function resolveOrCreateMasterEmployee(tenantId, preferredNationalId) {
       month: 8,
       year: 2026,
       baseSalary: 8500,
+      basicSalary: 8500,
       allowances: [
         { nameAr: 'بدل طبيعة عمل ونوبات', nameEn: 'Shift & Hazards Allowance', amount: 1200 },
         { nameAr: 'بدل انتقال ومظهر', nameEn: 'Commute & Appearance Allowance', amount: 600 },
