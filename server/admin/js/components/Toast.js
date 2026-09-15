@@ -56,3 +56,4 @@ class ToastManager {
 }
 
 export const toast = new ToastManager();
+export const Toast = toast;
