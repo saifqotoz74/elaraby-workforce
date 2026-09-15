@@ -51,14 +51,30 @@ export class Sidebar {
           <span>Shift Roster</span>
         </button>
 
+        <button class="nav-link" data-route="attendance">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+          <span>Live Attendance</span>
+        </button>
+
         <button class="nav-link" data-route="payroll">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           <span>Payroll</span>
         </button>
 
+        <button class="nav-link" data-route="loans">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          <span>Loans & Advances</span>
+          <span class="nav-counter" id="sidebar-loans-counter" style="display: none; background: var(--status-amber, #F59E0B); color: #fff;">0</span>
+        </button>
+
         <button class="nav-link" data-route="transport">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="13" rx="2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/><path d="M5 9h14M12 9v4"/></svg>
           <span>Fleet & Shuttles</span>
+        </button>
+
+        <button class="nav-link" data-route="reports">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+          <span>Reports & Integrations</span>
         </button>
 
         <div class="nav-section-title">Communication & Governance</div>
@@ -135,6 +151,19 @@ export class Sidebar {
   updatePendingBadge(count) {
     if (!this.element) return;
     const badge = this.element.querySelector('#sidebar-leave-counter');
+    if (badge) {
+      if (count > 0) {
+        badge.textContent = count;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+  }
+
+  updatePendingLoansBadge(count) {
+    if (!this.element) return;
+    const badge = this.element.querySelector('#sidebar-loans-counter');
     if (badge) {
       if (count > 0) {
         badge.textContent = count;

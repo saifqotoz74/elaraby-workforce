@@ -21,6 +21,7 @@ import { AuditView } from './views/AuditView.js';
 import { SettingsView } from './views/SettingsView.js';
 import { TenantsView } from './views/TenantsView.js';
 import { TransportView } from './views/TransportView.js';
+import { ReportsView } from './views/ReportsView.js';
 
 class App {
   constructor() {
@@ -135,9 +136,19 @@ class App {
       this.renderView(ShiftsView, 'Shift Scheduling & Rosters', 'shifts');
     }, 'shift.read');
 
+    // 5b. Live Attendance & Geofencing Monitor
+    this.router.addRoute('/attendance', () => {
+      this.renderView(ShiftsView, 'Live Attendance & Geofencing', 'attendance', { tab: 'attendance' });
+    }, 'shift.read');
+
     // 6. Payroll
     this.router.addRoute('/payroll', () => {
       this.renderView(PayrollView, 'Payroll & Compensation', 'payroll');
+    }, 'payroll.read');
+
+    // 6b. Emergency Loans & Advances
+    this.router.addRoute('/loans', () => {
+      this.renderView(PayrollView, 'Loans & Salary Advances', 'loans', { tab: 'loans' });
     }, 'payroll.read');
 
     // 7. Announcements & Content
@@ -168,6 +179,20 @@ class App {
     // 12. Transport & Fleet Logistics
     this.router.addRoute('/transport', () => {
       this.renderView(TransportView, 'Fleet & Shuttle Logistics', 'transport');
+    });
+
+    // 13. Executive Reports & Enterprise Integrations
+    this.router.addRoute('/reports', () => {
+      this.renderView(ReportsView, 'Executive Reports & Enterprise Integrations', 'reports');
+    });
+    this.router.addRoute('/reports/analytics', () => {
+      this.renderView(ReportsView, 'Executive Analytics', 'reports', { tab: 'analytics' });
+    });
+    this.router.addRoute('/reports/bank', () => {
+      this.renderView(ReportsView, 'Bank Payroll & WPS', 'reports', { tab: 'bank' });
+    });
+    this.router.addRoute('/reports/integrations', () => {
+      this.renderView(ReportsView, 'ERP & Biometrics Gateway', 'reports', { tab: 'integrations' });
     });
   }
 }

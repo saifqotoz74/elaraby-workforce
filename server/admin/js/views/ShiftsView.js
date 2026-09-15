@@ -27,15 +27,16 @@ const DAY_NAMES = [
 ];
 
 export class ShiftsView {
-  constructor(container) {
+  constructor(container, opts = {}) {
     this.container = container;
+    this.opts = opts;
     this.employees = [];
     this.filteredEmployees = [];
     this.selectedEmployeeId = null;
     this.currentRoster = null;
     this.weekStart = null;
     this.isLoading = false;
-    this.activeTab = 'roster';
+    this.activeTab = opts?.tab === 'attendance' ? 'attendance' : 'roster';
     this.attendanceRecords = [];
     this.attendanceStats = null;
     this.attendanceFilterFactory = 'all';
@@ -46,6 +47,9 @@ export class ShiftsView {
   async mount() {
     this.renderSkeleton();
     await this.loadEmployees();
+    if (this.activeTab === 'attendance') {
+      this.switchTab('attendance');
+    }
   }
 
   renderSkeleton() {
@@ -151,13 +155,8 @@ export class ShiftsView {
               </div>
               <div style="width: 200px;">
                 <label class="form-label" style="font-size: 11px;">Facility / Factory</label>
-                <select class="form-select" id="att-factory-filter">
-                  <option value="all">All Facilities</option>
-                  <option value="Benha Complex">Benha Complex</option>
-                  <option value="Qwesna Industrial">Qwesna Industrial</option>
-                  <option value="HQ Tower">HQ Tower</option>
-                  <option value="Dammam Industrial 2">Dammam Industrial 2</option>
-                  <option value="Riyadh Logistics">Riyadh Logistics</option>
+                <select class="form-select" id="att-factory-filter" style="width: 220px;">
+                  <option value="all">🏭 All Facilities / كل المصانع</option>
                 </select>
               </div>
             </div>
@@ -676,12 +675,37 @@ export class ShiftsView {
       const res = await attendanceApi.getToday(params);
       this.attendanceStats = res.stats || {};
       this.attendanceRecords = res.records || [];
+      this.populateAttendanceFactories();
       this.updateAttendanceKpis();
       this.renderAttendanceTable();
     } catch (err) {
       wrapper.innerHTML = `<div class="form-error" style="margin: 20px;">${escapeHtml(err.message || 'Failed to load attendance')}</div>`;
     } finally {
       this.isLoadingAttendance = false;
+    }
+  }
+
+  populateAttendanceFactories() {
+    const filter = this.container.querySelector('#att-factory-filter');
+    if (!filter || this.hasPopulatedAttFactories) return;
+    const currentVal = this.attendanceFilterFactory;
+    const factories = new Set();
+    for (const r of (this.attendanceRecords || [])) {
+      if (r.factory && r.factory.trim()) factories.add(r.factory.trim());
+    }
+    for (const e of (this.employees || [])) {
+      if (e.factory && e.factory.trim()) factories.add(e.factory.trim());
+    }
+    if (factories.size > 0) {
+      this.hasPopulatedAttFactories = true;
+      filter.innerHTML = `<option value="all">🏭 All Facilities / كل المصانع</option>`;
+      Array.from(factories).sort().forEach((f) => {
+        const opt = document.createElement('option');
+        opt.value = f;
+        opt.textContent = `🏭 ${f}`;
+        filter.appendChild(opt);
+      });
+      filter.value = currentVal;
     }
   }
 

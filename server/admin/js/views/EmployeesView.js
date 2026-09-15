@@ -87,11 +87,8 @@ export class EmployeesView {
             <span class="kbd-badge">Live</span>
           </div>
 
-          <select class="form-select" id="emp-factory-filter" style="width: 190px;">
-            <option value="">🏭 All Factories</option>
-            <option value="10th of Ramadan">10th of Ramadan</option>
-            <option value="Qwesna">Qwesna</option>
-            <option value="Benha">Benha</option>
+          <select class="form-select" id="emp-factory-filter" style="width: 220px;">
+            <option value="">🏭 All Facilities / كل المصانع</option>
           </select>
 
           <select class="form-select" id="emp-status-filter" style="width: 150px;">
@@ -366,6 +363,7 @@ export class EmployeesView {
 
       this.table.update(list, false);
       this.renderCardsView(list);
+      this.populateFactoryFilter(res.employees || []);
 
       const pagWrapper = this.element.querySelector('#emp-pagination-wrapper');
       pagWrapper.innerHTML = '';
@@ -383,6 +381,31 @@ export class EmployeesView {
       }
     } catch (err) {
       toast.error('Failed to load employees', err.message);
+    }
+  }
+
+  populateFactoryFilter(employees = []) {
+    const filterSelect = this.element?.querySelector('#emp-factory-filter');
+    if (!filterSelect || this.hasPopulatedFactories) return;
+
+    const currentVal = this.factory;
+    const factories = new Set();
+    for (const e of employees) {
+      if (e.factory && e.factory.trim()) {
+        factories.add(e.factory.trim());
+      }
+    }
+
+    if (factories.size > 0) {
+      this.hasPopulatedFactories = true;
+      filterSelect.innerHTML = `<option value="">🏭 All Facilities / كل المصانع</option>`;
+      Array.from(factories).sort().forEach((f) => {
+        const opt = document.createElement('option');
+        opt.value = f;
+        opt.textContent = `🏭 ${f}`;
+        filterSelect.appendChild(opt);
+      });
+      filterSelect.value = currentVal;
     }
   }
 

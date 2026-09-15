@@ -8,17 +8,19 @@ import { ExportService } from '../services/exportService.js';
 import { escapeHtml } from '../utils/sanitize.js';
 
 export class PayrollView {
-  constructor(containerOrOpts) {
+  constructor(containerOrOpts, opts) {
     if (containerOrOpts instanceof HTMLElement) {
       this.container = containerOrOpts;
+      this.opts = opts || {};
     } else {
       this.container = null;
+      this.opts = containerOrOpts || {};
     }
     this.element = null;
     this.selectedEmployee = null;
     this.currentPayroll = null;
     this.cachedEmployees = [];
-    this.activeTab = 'payslips';
+    this.activeTab = this.opts?.tab === 'loans' ? 'loans' : 'payslips';
     this.loansList = [];
     this.loansFilterStatus = 'all';
     this.loansSearchQuery = '';
@@ -30,6 +32,9 @@ export class PayrollView {
     if (this.container) {
       this.container.innerHTML = '';
       this.container.appendChild(el);
+    }
+    if (this.activeTab === 'loans') {
+      this.switchTab('loans');
     }
     return el;
   }
@@ -206,7 +211,7 @@ export class PayrollView {
             try {
               const pRes = await payrollApi.get(emp.id);
               const p = pRes.payroll || {};
-              const basic = p.basicSalary || 0;
+              const basic = p.basicSalary !== undefined ? p.basicSalary : (p.baseSalary || 0);
               const allow = p.allowances || 0;
               const deduct = p.deductions || 0;
               const net = p.netSalary !== undefined ? p.netSalary : (basic + allow - deduct);
@@ -215,7 +220,7 @@ export class PayrollView {
                 name: emp.name,
                 factory: emp.factory || '—',
                 department: emp.department || '—',
-                period: p.period || '2026-03',
+                period: p.period || new Date().toISOString().slice(0, 7),
                 basicSalary: basic,
                 allowances: allow,
                 deductions: deduct,
@@ -332,7 +337,7 @@ export class PayrollView {
         return;
       }
 
-      const basic = payroll.basicSalary || 0;
+      const basic = payroll.basicSalary !== undefined ? payroll.basicSalary : (payroll.baseSalary || 0);
       const allow = payroll.allowances || 0;
       const deduct = payroll.deductions || 0;
       const net = payroll.netSalary !== undefined ? payroll.netSalary : basic + allow - deduct;
@@ -437,11 +442,11 @@ export class PayrollView {
                 </div>
                 <div class="payslip-line-row">
                   <span style="color: var(--text-main);">Social Insurance & Statutory</span>
-                  <b>${(deduct * 0.75).toFixed(0).toLocaleString()} EGP</b>
+                  <b>${Math.round(deduct * 0.75).toLocaleString()} EGP</b>
                 </div>
                 <div class="payslip-line-row">
                   <span style="color: var(--text-main);">Tax & Miscellaneous Withholding</span>
-                  <b>${(deduct * 0.25).toFixed(0).toLocaleString()} EGP</b>
+                  <b>${Math.round(deduct * 0.25).toLocaleString()} EGP</b>
                 </div>
                 <div class="payslip-total-row">
                   <span>Total Deductions</span>
@@ -811,6 +816,7 @@ export class PayrollView {
       try {
         await loanApi.updateStatus(loanId, { status: 'approved' });
         toast.success('Loan Approved', 'Application status updated to approved.');
+        window.dispatchEvent(new CustomEvent('admin:loans.changed'));
         await this.loadLoans();
       } catch (err) {
         toast.error('Approval Failed', err.message);
@@ -819,6 +825,7 @@ export class PayrollView {
       try {
         await loanApi.updateStatus(loanId, { status: 'active' });
         toast.success('Funds Disbursed', 'Loan is now active and deductions will apply on payroll.');
+        window.dispatchEvent(new CustomEvent('admin:loans.changed'));
         await this.loadLoans();
       } catch (err) {
         toast.error('Disbursement Failed', err.message);
@@ -871,6 +878,7 @@ export class PayrollView {
       try {
         await loanApi.updateStatus(loanId, { status: 'rejected', reason });
         toast.success('Loan Rejected', 'Application was marked as rejected.');
+        window.dispatchEvent(new CustomEvent('admin:loans.changed'));
         modal.close();
         await this.loadLoans();
       } catch (err) {

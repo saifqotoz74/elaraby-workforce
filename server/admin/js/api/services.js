@@ -99,3 +99,16 @@ export const attendanceApi = {
   getToday: (params) => api.get('/api/admin/attendance/today', params),
 };
 
+export const reportsApi = {
+  getAnalytics: (params) => api.get('/api/admin/reports/analytics', params),
+  getBankExportUrl: (format, period, facilityCode, tenantId) =>
+    `/api/admin/reports/bank-export?format=${encodeURIComponent(format || 'wps_cbe')}&period=${encodeURIComponent(period || '')}&facilityCode=${encodeURIComponent(facilityCode || '')}&tenantId=${encodeURIComponent(tenantId || '')}`,
+};
+
+export const integrationsApi = {
+  getStatus: () => api.get('/api/admin/integrations/status'),
+  triggerSync: (domain, options) => api.post('/api/admin/integrations/sync', { domain, options }),
+  getReconciliation: (params) => api.get('/api/admin/integrations/reconciliation', params),
+  resolveReconciliation: (data) => api.post('/api/admin/integrations/reconciliation/resolve', data),
+};
+

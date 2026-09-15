@@ -1,6 +1,7 @@
 // Topbar Component — Executive Command Header
 
 import { store } from '../state/store.js';
+import { superAdminApi } from '../api/services.js';
 
 export class Topbar {
   constructor({ onToggleSidebar, onOpenCommandPalette }) {
@@ -185,6 +186,7 @@ export class Topbar {
         }
         window.location.reload();
       };
+      this.loadTenants();
     }
 
     const menuBtn = this.element.querySelector('.topbar-menu-btn');
@@ -195,6 +197,28 @@ export class Topbar {
     }
 
     return this.element;
+  }
+
+  async loadTenants() {
+    const tenantSelect = this.element?.querySelector('#topbar-tenant-select');
+    if (!tenantSelect) return;
+    try {
+      const res = await superAdminApi.listTenants();
+      const tenants = res.tenants || [];
+      if (tenants.length > 0) {
+        const currentVal = localStorage.getItem('admin_active_tenant') || 'all';
+        tenantSelect.innerHTML = `<option value="all">🌐 All Organizations</option>`;
+        for (const t of tenants) {
+          const opt = document.createElement('option');
+          opt.value = t.slug || t.id;
+          opt.textContent = `🏢 ${t.brandName || t.name || t.slug}`;
+          tenantSelect.appendChild(opt);
+        }
+        tenantSelect.value = currentVal;
+      }
+    } catch (_) {
+      // Graceful fallback to static options if non-superadmin or offline
+    }
   }
 
   setTitle(title) {

@@ -85,6 +85,7 @@ async function runPhase3Tests() {
       'ConcernsView.js',
       'AuditView.js',
       'SettingsView.js',
+      'ReportsView.js',
     ];
 
     for (const v of views) {

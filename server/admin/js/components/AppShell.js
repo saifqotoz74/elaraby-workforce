@@ -5,6 +5,7 @@ import { Sidebar } from './Sidebar.js';
 import { Topbar } from './Topbar.js';
 import { CommandPalette } from './CommandPalette.js';
 import { store } from '../state/store.js';
+import { loanApi } from '../api/services.js';
 
 export class AppShell {
   constructor({ onNavigate, onLogout }) {
@@ -42,6 +43,19 @@ export class AppShell {
         this.sidebar.updatePendingBadge(state.stats.pendingRequests);
       }
     });
+
+    this.refreshLoansBadge();
+    window.addEventListener('realtime:loan.created', () => this.refreshLoansBadge());
+    window.addEventListener('realtime:loan.updated', () => this.refreshLoansBadge());
+    window.addEventListener('admin:loans.changed', () => this.refreshLoansBadge());
+  }
+
+  async refreshLoansBadge() {
+    try {
+      const res = await loanApi.list({ status: 'pending', limit: 100 });
+      const pendingCount = (res.loans || []).length;
+      this.sidebar.updatePendingLoansBadge(pendingCount);
+    } catch (_) {}
   }
 
   handleCommandAction(action) {
@@ -60,7 +74,7 @@ export class AppShell {
     } else if (action === 'new-announcement') {
       if (this.onNavigate) this.onNavigate('announcements');
       setTimeout(() => {
-        const btn = document.querySelector('#btn-new-announcement');
+        const btn = document.querySelector('#btn-create-content') || document.querySelector('#btn-new-announcement');
         if (btn) btn.click();
       }, 150);
     } else if (action === 'export-excel') {
@@ -69,6 +83,14 @@ export class AppShell {
         const btn = document.querySelector('#btn-export-employees');
         if (btn) btn.click();
       }, 150);
+    } else if (action === 'review-loans') {
+      if (this.onNavigate) this.onNavigate('loans');
+    } else if (action === 'view-attendance') {
+      if (this.onNavigate) this.onNavigate('attendance');
+    } else if (action === 'export-bank') {
+      if (this.onNavigate) this.onNavigate('reports/bank');
+    } else if (action === 'sync-erp') {
+      if (this.onNavigate) this.onNavigate('reports/integrations');
     }
   }
 

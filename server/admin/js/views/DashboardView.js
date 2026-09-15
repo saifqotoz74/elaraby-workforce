@@ -71,6 +71,18 @@ export class DashboardView {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             <span>Broadcast</span>
           </button>
+          <button class="btn btn-secondary btn-sm" id="dash-act-loans">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            <span>Review Loans</span>
+          </button>
+          <button class="btn btn-secondary btn-sm" id="dash-act-attendance">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+            <span>Live Attendance</span>
+          </button>
+          <button class="btn btn-secondary btn-sm" id="dash-act-reports">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+            <span>Executive Reports</span>
+          </button>
           <button class="btn btn-primary btn-sm" id="dash-goto-requests">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             <span>Review Leaves</span>
@@ -397,9 +409,30 @@ export class DashboardView {
       broadcastBtn.onclick = () => {
         if (this.onNavigate) this.onNavigate('announcements');
         setTimeout(() => {
-          const btn = document.querySelector('#btn-new-announcement');
+          const btn = document.querySelector('#btn-create-content') || document.querySelector('#btn-new-announcement');
           if (btn) btn.click();
         }, 150);
+      };
+    }
+
+    const loansBtn = this.element.querySelector('#dash-act-loans');
+    if (loansBtn) {
+      loansBtn.onclick = () => {
+        if (this.onNavigate) this.onNavigate('loans');
+      };
+    }
+
+    const attendanceBtn = this.element.querySelector('#dash-act-attendance');
+    if (attendanceBtn) {
+      attendanceBtn.onclick = () => {
+        if (this.onNavigate) this.onNavigate('attendance');
+      };
+    }
+
+    const reportsBtn = this.element.querySelector('#dash-act-reports');
+    if (reportsBtn) {
+      reportsBtn.onclick = () => {
+        if (this.onNavigate) this.onNavigate('reports');
       };
     }
 

@@ -197,6 +197,22 @@
   transition: margin var(--transition-normal);
 }
 
+[dir="rtl"] .app-sidebar {
+  inset: 0 0 0 auto;
+  border-right: none;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.25);
+}
+
+[dir="rtl"] .app-main {
+  margin-left: 0;
+  margin-right: var(--sidebar-width);
+}
+
+[dir="rtl"] .nav-link {
+  text-align: right;
+}
+
 /* Topbar */
 .app-topbar {
   height: var(--topbar-height);
@@ -1294,5 +1310,260 @@
   color: #EF4444;
 }
 
+/* ==========================================================================
+   EXECUTIVE REPORTS & ENTERPRISE INTEGRATIONS HUB (REPORTS VIEW)
+   ========================================================================== */
+.reports-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
 
+.reports-header-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: var(--surface-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 24px 28px;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+.reports-header-hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--grad-primary);
+}
 
+.reports-tabs-bar {
+  display: flex;
+  gap: 8px;
+  background: var(--surface-subtle);
+  padding: 6px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+  width: fit-content;
+}
+.reports-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.reports-tab-btn:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.5);
+}
+.reports-tab-btn.active {
+  color: #FFFFFF;
+  background: var(--grad-primary);
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+}
+
+/* Executive Metric Grid */
+.executive-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+}
+
+.executive-metric-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all var(--transition-normal);
+  position: relative;
+}
+.executive-metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-border);
+}
+
+.metric-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.metric-icon-box {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+.metric-icon-box.blue { background: var(--primary-soft); color: var(--primary); }
+.metric-icon-box.emerald { background: var(--status-green-soft); color: var(--status-green); }
+.metric-icon-box.amber { background: var(--status-amber-soft); color: var(--status-amber); }
+.metric-icon-box.purple { background: var(--status-purple-soft); color: var(--status-purple); }
+
+.metric-value-huge {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+}
+.metric-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Interactive SVG Charts */
+.charts-grid-duo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+}
+@media (max-width: 1024px) {
+  .charts-grid-duo {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chart-card-executive {
+  background: var(--surface-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.chart-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 14px;
+}
+.chart-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.svg-chart-container {
+  width: 100%;
+  height: 240px;
+  position: relative;
+}
+.svg-chart-container svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Bank Export Cards */
+.bank-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+}
+.bank-option-card {
+  background: var(--surface-card);
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+.bank-option-card:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+.bank-card-logo-area {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.bank-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--primary-soft);
+  color: var(--primary);
+  text-transform: uppercase;
+}
+
+/* Integration Adapter Cards */
+.integrations-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+}
+.integration-device-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.integration-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+}
+.integration-status-pill.online {
+  background: var(--status-green-soft);
+  color: var(--status-green);
+  border: 1px solid var(--status-green-border);
+}
+.integration-status-pill.ready {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border: 1px solid var(--primary-border);
+}
+
+.diff-badge-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--status-amber-soft);
+  color: var(--status-amber);
+  border: 1px solid var(--status-amber-border);
+}
