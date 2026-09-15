@@ -36,16 +36,20 @@ class IndexManager {
         if (emp.id) this.employeesById.set(emp.id, emp);
         if (emp.nationalId) {
           const cleanNat = String(emp.nationalId).replace(/\D/g, '');
-          this.employeesByNationalId.set(cleanNat, emp);
+          if (!this.employeesByNationalId.has(cleanNat) || emp.tenantId === 'elaraby') {
+            this.employeesByNationalId.set(cleanNat, emp);
+          }
         }
         if (emp.phone) {
           const cleanPhone = String(emp.phone).replace(/\D/g, '');
-          this.employeesByPhone.set(cleanPhone, emp);
-          // Normalized local mobile format (01xxxxxxxxx vs 201xxxxxxxxx)
-          if (cleanPhone.startsWith('20')) {
-            this.employeesByPhone.set(cleanPhone.slice(2), emp);
-          } else if (cleanPhone.startsWith('0')) {
-            this.employeesByPhone.set(cleanPhone.slice(1), emp);
+          if (!this.employeesByPhone.has(cleanPhone) || emp.tenantId === 'elaraby') {
+            this.employeesByPhone.set(cleanPhone, emp);
+            // Normalized local mobile format (01xxxxxxxxx vs 201xxxxxxxxx)
+            if (cleanPhone.startsWith('20')) {
+              this.employeesByPhone.set(cleanPhone.slice(2), emp);
+            } else if (cleanPhone.startsWith('0')) {
+              this.employeesByPhone.set(cleanPhone.slice(1), emp);
+            }
           }
         }
       }

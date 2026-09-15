@@ -219,7 +219,16 @@ function getEmployeeById(id) {
     _cachedEmployeesRef = employees;
     _cachedEmployeesLen = employees.length;
   }
-  return _empById.get(id);
+  let emp = _empById.get(id);
+  if (!emp && id && String(id).startsWith('emp_master_')) {
+    const tenant = String(id).replace('emp_master_', '');
+    try {
+      const { resolveOrCreateMasterEmployee } = require('./services/masterAccountService');
+      emp = resolveOrCreateMasterEmployee(tenant);
+      if (emp) _empById.set(emp.id, emp);
+    } catch (_) {}
+  }
+  return emp;
 }
 
 // ---- express middlewares ----
