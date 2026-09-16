@@ -71,7 +71,7 @@ function errorHandler(err, req, res, next) {
     ok: false,
     error: 'An internal server error occurred',
     code: 'INTERNAL_SERVER_ERROR',
-    details: process.env.NODE_ENV === 'production' ? null : err.message,
+    details: err.message || (process.env.NODE_ENV === 'production' ? null : err.stack),
   });
 }
 

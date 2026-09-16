@@ -21,9 +21,8 @@ const { closeAllQueues } = require('./src/queue/queues');
 
 const PORT = process.env.PORT || 3000;
 const isVercel = !!(process.env.VERCEL || process.env.NOW_REGION);
-const isProd = process.env.NODE_ENV === 'production';
 const d = data();
-if (!isVercel && !isProd && d.employees.length === 0) {
+if (d.employees.length === 0) {
   seed(d);
   save();
 }
