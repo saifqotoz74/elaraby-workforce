@@ -392,4 +392,14 @@ export class TransportView {
     ExportService.exportToCsv(`${tenant}_Fleet_Roster`, columns, rows);
     toast.success('Exported', 'Transport fleet roster saved to CSV.');
   }
+
+  destroy() {
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+    if (this.container) {
+      this.container.innerHTML = '';
+    }
+  }
 }

@@ -261,10 +261,7 @@ export class PayrollView {
 
     const batchZipBtn = this.element.querySelector('#btn-batch-payslips-zip');
     if (batchZipBtn) {
-      batchZipBtn.onclick = () => {
-        toast.info('Generating Payslips ZIP', 'Compiling PDF archive for all active employees...');
-        window.open('/api/admin/payroll/payslips-zip', '_blank');
-      };
+      batchZipBtn.onclick = () => this.openBatchZipModal();
     }
 
     const select = this.element.querySelector('#payroll-employee-select');
@@ -349,12 +346,26 @@ export class PayrollView {
         return;
       }
 
-      const basic = payroll.basicSalary !== undefined ? payroll.basicSalary : (payroll.baseSalary || 0);
-      const allow = payroll.allowances || 0;
-      const deduct = payroll.deductions || 0;
-      const net = payroll.netSalary !== undefined ? payroll.netSalary : basic + allow - deduct;
+      const basic = Number(payroll.basicSalary !== undefined ? payroll.basicSalary : (payroll.baseSalary || 0));
+      const overtime = Number(payroll.overtimeAmount || 0);
+      const transport = Number(payroll.transportAllowance || 0);
+      const meal = Number(payroll.mealAllowance || 0);
+      const bonus = Number(payroll.incentiveBonus || 0);
+      const rawAllowances = Number(typeof payroll.allowances === 'object' ? (payroll.allowances?.total || 0) : (payroll.allowances || 0));
+      const allow = rawAllowances > 0 ? rawAllowances : (overtime + transport + meal + bonus);
+
+      const socialInsurance = Number(payroll.socialInsurance !== undefined ? payroll.socialInsurance : Math.round(basic * 0.11));
+      const incomeTax = Number(payroll.incomeTax !== undefined ? payroll.incomeTax : Math.round(basic * 0.035));
+      const medicalInsurance = Number(payroll.medicalInsurance || 0);
+      const loanDeduction = Number(payroll.loanDeduction || 0);
+      const penalties = Number(payroll.penalties || 0);
+
+      const rawDeductions = Number(typeof payroll.deductions === 'object' ? (payroll.deductions?.total || 0) : (payroll.deductions || 0));
+      const deduct = rawDeductions > 0 ? rawDeductions : (socialInsurance + incomeTax + medicalInsurance + loanDeduction + penalties);
 
       const totalGross = basic + allow;
+      const net = Number(payroll.netSalary !== undefined ? payroll.netSalary : (totalGross - deduct));
+
       const basePct = totalGross > 0 ? ((basic / totalGross) * 100).toFixed(0) : 75;
       const allowPct = totalGross > 0 ? ((allow / totalGross) * 100).toFixed(0) : 25;
 
@@ -378,14 +389,18 @@ export class PayrollView {
               </div>
             </div>
 
-            <div style="display: flex; gap: 10px; align-items: center;">
-              <button class="btn btn-secondary btn-sm" id="btn-download-payslip-pdf" style="background: rgba(255,255,255,0.15); color: #FFFFFF; border: 1px solid rgba(255,255,255,0.3);">
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <button class="btn btn-secondary btn-sm" id="btn-preview-payslip-pdf" style="background: rgba(255,255,255,0.15); color: #FFFFFF; border: 1px solid rgba(255,255,255,0.3);" title="Preview in browser tab">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <span>Preview PDF</span>
+              </button>
+              <button class="btn btn-secondary btn-sm" id="btn-download-payslip-pdf" style="background: rgba(255,255,255,0.15); color: #FFFFFF; border: 1px solid rgba(255,255,255,0.3);" title="Download vector PDF file">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
                 <span>Download PDF</span>
               </button>
               <button class="btn btn-secondary btn-sm" id="btn-print-payslip" style="background: rgba(255,255,255,0.15); color: #FFFFFF; border: 1px solid rgba(255,255,255,0.3);">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-                <span>Print Payslip</span>
+                <span>Print</span>
               </button>
               <button class="btn btn-primary btn-sm" id="btn-edit-payroll">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -398,17 +413,17 @@ export class PayrollView {
             <!-- 4 Stat Summary Cards -->
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
               <div style="background: var(--surface-subtle); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--border-light);">
-                <small style="color: var(--text-muted); display: block; font-weight: 600;">Basic Salary / الراتب الأساسي</small>
+                <small style="color: var(--text-muted); display: block; font-weight: 600;">Basic Contractual / الراتب الأساسي</small>
                 <b style="font-size: 20px; color: var(--text-main);">${basic.toLocaleString()} <span style="font-size: 13px;">EGP</span></b>
               </div>
 
               <div style="background: var(--status-green-soft); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--status-green-border);">
-                <small style="color: #065F46; display: block; font-weight: 600;">Allowances & Incentives / البدلات</small>
+                <small style="color: #065F46; display: block; font-weight: 600;">Allowances & Overtime / البدلات والإضافي</small>
                 <b style="font-size: 20px; color: #065F46;">+${allow.toLocaleString()} <span style="font-size: 13px;">EGP</span></b>
               </div>
 
               <div style="background: var(--status-red-soft); padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--status-red-border);">
-                <small style="color: #991B1B; display: block; font-weight: 600;">Deductions / الاستقطاعات</small>
+                <small style="color: #991B1B; display: block; font-weight: 600;">Total Deductions / الاستقطاعات</small>
                 <b style="font-size: 20px; color: #991B1B;">-${deduct.toLocaleString()} <span style="font-size: 13px;">EGP</span></b>
               </div>
 
@@ -422,7 +437,7 @@ export class PayrollView {
             <div>
               <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--text-muted);">
                 <span>Salary Distribution Structure</span>
-                <span>Base (${basePct}%) • Allowances (${allowPct}%)</span>
+                <span>Base (${basePct}%) • Allowances & OT (${allowPct}%)</span>
               </div>
               <div class="payslip-breakdown-bar">
                 <div class="payslip-bar-seg payslip-bar-base" style="width: ${basePct}%;" title="Base Salary: ${basePct}%"></div>
@@ -438,12 +453,17 @@ export class PayrollView {
                   <span>📥 Gross Earnings / المستحقات</span>
                 </div>
                 <div class="payslip-line-row">
-                  <span style="color: var(--text-main);">Basic Contractual Salary</span>
+                  <span style="color: var(--text-main);">Basic Contractual Salary (المرتب الأساسي)</span>
                   <b>${basic.toLocaleString()} EGP</b>
                 </div>
+                ${overtime > 0 ? `
                 <div class="payslip-line-row">
-                  <span style="color: var(--text-main);">Shift & Attendance Allowance</span>
-                  <b>${allow.toLocaleString()} EGP</b>
+                  <span style="color: var(--text-main);">Overtime Pay (أجر العمل الإضافي)</span>
+                  <b style="color: var(--status-green);">+${overtime.toLocaleString()} EGP</b>
+                </div>` : ''}
+                <div class="payslip-line-row">
+                  <span style="color: var(--text-main);">Allowances & Incentives (البدلات والحوافز)</span>
+                  <b>${(allow - overtime > 0 ? (allow - overtime) : allow).toLocaleString()} EGP</b>
                 </div>
                 <div class="payslip-total-row">
                   <span>Total Gross Earnings</span>
@@ -454,16 +474,26 @@ export class PayrollView {
               <!-- Deductions -->
               <div class="payslip-column-box">
                 <div style="font-weight: 800; font-size: 14px; color: var(--status-red); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
-                  <span>📤 Deductions / الاستقطاعات</span>
+                  <span>📤 Statutory & Financial Deductions / الاستقطاعات</span>
                 </div>
                 <div class="payslip-line-row">
-                  <span style="color: var(--text-main);">Social Insurance & Statutory</span>
-                  <b>${Math.round(deduct * 0.75).toLocaleString()} EGP</b>
+                  <span style="color: var(--text-main);">Social Insurance - Employee (تأمينات اجتماعية)</span>
+                  <b>${socialInsurance.toLocaleString()} EGP</b>
                 </div>
                 <div class="payslip-line-row">
-                  <span style="color: var(--text-main);">Tax & Miscellaneous Withholding</span>
-                  <b>${Math.round(deduct * 0.25).toLocaleString()} EGP</b>
+                  <span style="color: var(--text-main);">Income Tax Withholding (ضريبة كسب العمل)</span>
+                  <b>${incomeTax.toLocaleString()} EGP</b>
                 </div>
+                ${loanDeduction > 0 ? `
+                <div class="payslip-line-row">
+                  <span style="color: var(--text-main);">Company Loan Installment (قسط السلفة)</span>
+                  <b style="color: var(--status-red);">-${loanDeduction.toLocaleString()} EGP</b>
+                </div>` : ''}
+                ${(medicalInsurance + penalties) > 0 ? `
+                <div class="payslip-line-row">
+                  <span style="color: var(--text-main);">Medical Insurance & Other (تأمين طبي وجزاءات)</span>
+                  <b>${(medicalInsurance + penalties).toLocaleString()} EGP</b>
+                </div>` : ''}
                 <div class="payslip-total-row">
                   <span>Total Deductions</span>
                   <span style="color: var(--status-red);">-${deduct.toLocaleString()} EGP</span>
@@ -487,11 +517,13 @@ export class PayrollView {
 
       wrapper.querySelector('#btn-edit-payroll').onclick = () => this.openEditModal(employeeId);
       wrapper.querySelector('#btn-print-payslip').onclick = () => window.print();
-      const pdfBtn = wrapper.querySelector('#btn-download-payslip-pdf');
-      if (pdfBtn) {
-        pdfBtn.onclick = () => {
-          window.open(`/api/admin/payroll/${employeeId}/payslip-pdf`, '_blank');
-        };
+      const previewPdfBtn = wrapper.querySelector('#btn-preview-payslip-pdf');
+      if (previewPdfBtn) {
+        previewPdfBtn.onclick = () => this.downloadPayslipPdf(employeeId, { preview: true });
+      }
+      const downloadPdfBtn = wrapper.querySelector('#btn-download-payslip-pdf');
+      if (downloadPdfBtn) {
+        downloadPdfBtn.onclick = () => this.downloadPayslipPdf(employeeId, { preview: false });
       }
     } catch (err) {
       wrapper.innerHTML = `<div class="form-error">${err.message}</div>`;
@@ -971,8 +1003,185 @@ export class PayrollView {
     modal.render();
   }
 
+  async downloadPayslipPdf(employeeId, { preview = false } = {}) {
+    try {
+      toast.info(preview ? 'Loading PDF Preview' : 'Downloading Payslip PDF', 'Retrieving official corporate PDF statement...');
+      const activeTenant = localStorage.getItem('admin_active_tenant') || window.ACTIVE_TENANT_ID || 'elaraby';
+      const headers = {};
+      if (activeTenant && activeTenant !== 'all') {
+        headers['X-Tenant-ID'] = activeTenant;
+      }
+      const token = localStorage.getItem('admin_token') || sessionStorage.getItem('admin_token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const queryParams = new URLSearchParams();
+      if (!preview) queryParams.set('download', 'true');
+      if (this.currentPayroll?.period) queryParams.set('period', this.currentPayroll.period);
+
+      const qs = queryParams.toString() ? `?${queryParams.toString()}` : '';
+      const response = await fetch(`/api/admin/payroll/${encodeURIComponent(employeeId)}/payslip-pdf${qs}`, {
+        method: 'GET',
+        headers,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        let errData = {};
+        try { errData = await response.json(); } catch (_) {}
+        throw new Error(errData.message || errData.error || `Failed to fetch payslip PDF (${response.status})`);
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+
+      if (preview) {
+        window.open(objectUrl, '_blank');
+      } else {
+        const empCode = this.selectedEmployee?.employeeCode || this.selectedEmployee?.id || employeeId;
+        const periodStr = (this.currentPayroll?.period || 'current').replace(/\s+/g, '_');
+        const filename = `Payslip_${empCode}_${periodStr}.pdf`;
+        const a = document.createElement('a');
+        a.href = objectUrl;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+        toast.success('Payslip Downloaded', `Saved ${filename}`);
+      }
+    } catch (err) {
+      toast.error('Payslip PDF Error', err.message);
+    }
+  }
+
+  openBatchZipModal() {
+    const currentPeriod = this.currentPayroll?.period || new Date().toISOString().slice(0, 7);
+    const form = document.createElement('form');
+    form.innerHTML = `
+      <p style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 16px;">
+        Compile an official ZIP archive containing tamper-evident vector PDF payslips for all active employees within the selected parameters.
+      </p>
+      <div class="form-group">
+        <label class="form-label" style="font-weight: 700;">Pay Period / شهر الراتب (YYYY-MM)</label>
+        <input type="month" name="month" class="form-input" value="${escapeHtml(currentPeriod)}" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label" style="font-weight: 700;">Department Filter / القسم</label>
+        <select name="department" class="form-select">
+          <option value="">All Departments / كافة الأقسام</option>
+          <option value="Production">Production / خطوط الإنتاج</option>
+          <option value="Manufacturing">Manufacturing / التصنيع</option>
+          <option value="Engineering">Engineering / الهندسة والصيانة</option>
+          <option value="Operations">Operations / العمليات والتشغيل</option>
+          <option value="Quality Assurance">Quality Assurance / توكيد الجودة</option>
+          <option value="Supply Chain">Supply Chain / سلاسل الإمداد</option>
+        </select>
+      </div>
+    `;
+
+    const footer = document.createElement('div');
+    footer.style.display = 'flex';
+    footer.style.justifyContent = 'flex-end';
+    footer.style.gap = '10px';
+    footer.innerHTML = `
+      <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-zip">Cancel</button>
+      <button type="submit" class="btn btn-primary btn-sm" id="btn-submit-zip">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span>Generate & Download ZIP</span>
+      </button>
+    `;
+
+    const modal = new Modal({
+      title: 'Batch Payslips ZIP Export / تصدير حزمة مفردات المرتب (ZIP)',
+      content: form,
+      footer,
+    });
+
+    footer.querySelector('#btn-cancel-zip').onclick = () => modal.close();
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+      const month = formData.get('month');
+      const department = formData.get('department');
+      modal.close();
+      await this.downloadBatchPayslipsZip({ month, department });
+    };
+
+    modal.render();
+  }
+
+  async downloadBatchPayslipsZip({ month, department } = {}) {
+    try {
+      const activeTenant = localStorage.getItem('admin_active_tenant') || window.ACTIVE_TENANT_ID || 'elaraby';
+      const periodVal = month || new Date().toISOString().slice(0, 7);
+      toast.info('Generating Payslips ZIP', `Compiling PDF archive for period ${periodVal}...`);
+
+      const headers = {};
+      if (activeTenant && activeTenant !== 'all') {
+        headers['X-Tenant-ID'] = activeTenant;
+      }
+      const token = localStorage.getItem('admin_token') || sessionStorage.getItem('admin_token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const params = new URLSearchParams();
+      params.set('month', periodVal);
+      params.set('period', periodVal);
+      if (department) {
+        params.set('department', department);
+        params.set('departmentId', department);
+      }
+
+      const response = await fetch(`/api/admin/payroll/payslips-zip?${params.toString()}`, {
+        method: 'GET',
+        headers,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        let errData = {};
+        try { errData = await response.json(); } catch (_) {}
+        throw new Error(errData.message || errData.error || `Failed to generate ZIP archive (${response.status})`);
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const filename = `Payslips_${activeTenant}_${periodVal.replace(/\s+/g, '_')}.zip`;
+
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+      toast.success('Batch ZIP Downloaded', `Successfully downloaded ${filename}`);
+    } catch (err) {
+      toast.error('Batch ZIP Generation Failed', err.message);
+    }
+  }
+
   exportLoansReport() {
-    const filtered = (this.loansList || []).map((l) => ({
+    let source = this.loansList || [];
+    if (this.loansFilterStatus && this.loansFilterStatus !== 'all') {
+      source = source.filter((l) => l.status === this.loansFilterStatus);
+    }
+    if (this.loansSearchQuery) {
+      const q = this.loansSearchQuery;
+      source = source.filter((l) =>
+        (l.referenceNumber || '').toLowerCase().includes(q) ||
+        (l.employeeName || '').toLowerCase().includes(q) ||
+        (l.employeeCode || '').toLowerCase().includes(q) ||
+        (l.factory || '').toLowerCase().includes(q)
+      );
+    }
+
+    const filtered = source.map((l) => ({
       referenceNumber: l.referenceNumber || l.id,
       employeeCode: l.employeeCode || '—',
       employeeName: l.employeeName || '—',
@@ -1007,5 +1216,11 @@ export class PayrollView {
     ], filtered);
 
     toast.success('Export Completed', `Successfully exported ${filtered.length} loan applications.`);
+  }
+
+  destroy() {
+    if (this.container) {
+      this.container.innerHTML = '';
+    }
   }
 }

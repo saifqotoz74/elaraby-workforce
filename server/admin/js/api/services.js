@@ -112,3 +112,10 @@ export const integrationsApi = {
   resolveReconciliation: (data) => api.post('/api/admin/integrations/reconciliation/resolve', data),
 };
 
+export const alertApi = {
+  list: (params) => api.get('/api/admin/alerts', params),
+  markRead: (id) => api.put(`/api/admin/alerts/${id}/read`, {}),
+  markAllRead: (params) => api.post('/api/admin/alerts/mark-all-read', params || {}),
+};
+
+

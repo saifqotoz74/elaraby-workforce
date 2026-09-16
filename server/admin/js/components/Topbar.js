@@ -1,7 +1,7 @@
 // Topbar Component — Executive Command Header
 
 import { store } from '../state/store.js';
-import { superAdminApi } from '../api/services.js';
+import { superAdminApi, alertApi } from '../api/services.js';
 
 export class Topbar {
   constructor({ onToggleSidebar, onOpenCommandPalette }) {
@@ -9,6 +9,11 @@ export class Topbar {
     this.onOpenCommandPalette = onOpenCommandPalette;
     this.element = null;
     this.clockInterval = null;
+    this.alerts = [];
+    this.unreadAlertsCount = 0;
+    this.isAlertsOpen = false;
+    this.alertListener = null;
+    this.outsideClickListener = null;
   }
 
   render() {
@@ -78,6 +83,38 @@ export class Topbar {
           <span id="theme-toggle-icon">${currentTheme === 'dark' ? '☀️' : '🌙'}</span>
           <span id="theme-toggle-text" style="font-size: 12px; font-weight: 600;">${currentTheme === 'dark' ? 'Light' : 'Dark'}</span>
         </button>
+
+        <!-- Manager Alerts & Exception Bell Dropdown -->
+        <div class="topbar-alerts-container" id="topbar-alerts-container">
+          <button class="topbar-alerts-btn" id="topbar-alerts-btn" title="Manager Alerts & Operational Exceptions" aria-haspopup="true" aria-expanded="false">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span class="topbar-alerts-badge" id="topbar-alerts-badge" style="display: none;">0</span>
+          </button>
+          
+          <div class="topbar-alerts-dropdown" id="topbar-alerts-dropdown" style="display: none;">
+            <div class="topbar-alerts-header">
+              <div class="topbar-alerts-title">
+                <span>🚨 Manager Alerts</span>
+                <span class="badge badge-secondary badge-pill" id="topbar-alerts-count-badge" style="font-size: 11px;">0 unread</span>
+              </div>
+              <button class="btn btn-ghost btn-xs" id="topbar-alerts-mark-all" style="font-size: 11px; font-weight: 600;">
+                Mark all read
+              </button>
+            </div>
+            <div class="topbar-alerts-list" id="topbar-alerts-list">
+              <div class="topbar-alerts-empty">
+                <div class="topbar-alerts-empty-icon">✓</div>
+                <div class="topbar-alerts-empty-text">No active alerts. All operations normal.</div>
+              </div>
+            </div>
+            <div class="topbar-alerts-footer">
+              <a href="#/audit" id="topbar-alerts-view-all">View Audit Trail & Exceptions →</a>
+            </div>
+          </div>
+        </div>
 
         <!-- Realtime Live Sync Badge -->
         <div class="realtime-indicator" id="topbar-realtime-badge">
@@ -173,6 +210,49 @@ export class Topbar {
       };
     }
 
+    // Manager Alerts Interactions
+    const alertsBtn = this.element.querySelector('#topbar-alerts-btn');
+    if (alertsBtn) {
+      alertsBtn.onclick = (e) => {
+        e.stopPropagation();
+        this.toggleAlertsDropdown();
+      };
+    }
+
+    const markAllBtn = this.element.querySelector('#topbar-alerts-mark-all');
+    if (markAllBtn) {
+      markAllBtn.onclick = async (e) => {
+        e.stopPropagation();
+        await this.markAllAlertsRead();
+      };
+    }
+
+    const viewAllLink = this.element.querySelector('#topbar-alerts-view-all');
+    if (viewAllLink) {
+      viewAllLink.onclick = () => {
+        this.toggleAlertsDropdown(false);
+      };
+    }
+
+    this.outsideClickListener = (e) => {
+      const container = this.element?.querySelector('#topbar-alerts-container');
+      if (container && !container.contains(e.target) && this.isAlertsOpen) {
+        this.toggleAlertsDropdown(false);
+      }
+    };
+    document.addEventListener('click', this.outsideClickListener);
+
+    this.alertListener = (e) => {
+      const newAlert = e.detail;
+      if (newAlert) {
+        this.handleIncomingAlert(newAlert);
+      }
+    };
+    window.addEventListener('realtime:manager.alert', this.alertListener);
+
+    // Initial alert load
+    this.loadAlerts();
+
     // Active Tenant Switcher
     const tenantSelect = this.element.querySelector('#topbar-tenant-select');
     if (tenantSelect) {
@@ -197,6 +277,163 @@ export class Topbar {
     }
 
     return this.element;
+  }
+
+  async loadAlerts() {
+    try {
+      const res = await alertApi.list({ limit: 15 });
+      this.alerts = res.alerts || [];
+      this.unreadAlertsCount = typeof res.unreadCount === 'number' 
+        ? res.unreadCount 
+        : this.alerts.filter(a => !a.isRead).length;
+      this.updateAlertsUI();
+    } catch (_) {
+      // Graceful degradation when offline or logged out
+    }
+  }
+
+  handleIncomingAlert(alert) {
+    if (!alert) return;
+    this.alerts.unshift(alert);
+    if (this.alerts.length > 30) this.alerts.pop();
+    this.unreadAlertsCount += 1;
+    this.updateAlertsUI();
+  }
+
+  toggleAlertsDropdown(force) {
+    this.isAlertsOpen = typeof force === 'boolean' ? force : !this.isAlertsOpen;
+    const dropdown = this.element?.querySelector('#topbar-alerts-dropdown');
+    const btn = this.element?.querySelector('#topbar-alerts-btn');
+    if (dropdown) {
+      dropdown.style.display = this.isAlertsOpen ? 'flex' : 'none';
+    }
+    if (btn) {
+      btn.setAttribute('aria-expanded', String(this.isAlertsOpen));
+    }
+  }
+
+  updateAlertsUI() {
+    const badge = this.element?.querySelector('#topbar-alerts-badge');
+    const countBadge = this.element?.querySelector('#topbar-alerts-count-badge');
+    if (badge) {
+      if (this.unreadAlertsCount > 0) {
+        badge.textContent = this.unreadAlertsCount > 99 ? '99+' : this.unreadAlertsCount;
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+    if (countBadge) {
+      countBadge.textContent = `${this.unreadAlertsCount} unread`;
+    }
+    this.renderAlertsList();
+  }
+
+  renderAlertsList() {
+    const listContainer = this.element?.querySelector('#topbar-alerts-list');
+    if (!listContainer) return;
+
+    if (!this.alerts || this.alerts.length === 0) {
+      listContainer.innerHTML = `
+        <div class="topbar-alerts-empty">
+          <div class="topbar-alerts-empty-icon">✓</div>
+          <div class="topbar-alerts-empty-text">No active alerts. All operations normal.</div>
+        </div>
+      `;
+      return;
+    }
+
+    listContainer.innerHTML = '';
+    for (const alert of this.alerts) {
+      const item = document.createElement('div');
+      item.className = `topbar-alert-item ${!alert.isRead ? 'unread' : ''}`;
+
+      let icon = '🔔';
+      let iconClass = 'info';
+      if (alert.type === 'geofence_breach') {
+        icon = '🚨';
+        iconClass = 'critical';
+      } else if (alert.type === 'emergency_loan') {
+        icon = '⚠️';
+        iconClass = 'warning';
+      } else if (alert.type === 'audit_event') {
+        icon = '🛡️';
+        iconClass = alert.severity === 'critical' ? 'critical' : 'warning';
+      }
+
+      const timeAgo = this.formatRelativeTime(alert.createdAt);
+      const tenantTag = alert.tenantId ? `<span class="badge badge-secondary badge-pill" style="font-size: 10px; text-transform: uppercase;">${alert.tenantId}</span>` : '';
+
+      item.innerHTML = `
+        <div class="topbar-alert-icon ${iconClass}">${icon}</div>
+        <div class="topbar-alert-content">
+          <div class="topbar-alert-item-title">${this.escapeHtml(alert.title || 'Manager Alert')}</div>
+          <div class="topbar-alert-item-msg">${this.escapeHtml(alert.message || '')}</div>
+          <div class="topbar-alert-item-meta">
+            <span>${timeAgo}</span>
+            ${tenantTag}
+            ${!alert.isRead ? '<span class="topbar-alert-unread-dot" title="Unread"></span>' : ''}
+          </div>
+        </div>
+      `;
+
+      item.onclick = async () => {
+        await this.onAlertClicked(alert);
+      };
+
+      listContainer.appendChild(item);
+    }
+  }
+
+  async onAlertClicked(alert) {
+    if (!alert.isRead) {
+      try {
+        await alertApi.markRead(alert.id);
+        alert.isRead = true;
+        this.unreadAlertsCount = Math.max(0, this.unreadAlertsCount - 1);
+        this.updateAlertsUI();
+      } catch (_) {}
+    }
+
+    this.toggleAlertsDropdown(false);
+
+    if (alert.type === 'emergency_loan') {
+      window.location.hash = '#/loans';
+    } else if (alert.type === 'geofence_breach') {
+      window.location.hash = '#/attendance';
+    } else {
+      window.location.hash = '#/audit';
+    }
+  }
+
+  async markAllAlertsRead() {
+    try {
+      await alertApi.markAllRead();
+      this.alerts.forEach(a => { a.isRead = true; });
+      this.unreadAlertsCount = 0;
+      this.updateAlertsUI();
+    } catch (_) {}
+  }
+
+  formatRelativeTime(dateStr) {
+    if (!dateStr) return 'Just now';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffSec = Math.floor((now - date) / 1000);
+    if (diffSec < 60) return 'Just now';
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+    return `${Math.floor(diffSec / 86400)}d ago`;
+  }
+
+  escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 
   async loadTenants() {
@@ -253,6 +490,15 @@ export class Topbar {
       clearInterval(this.clockInterval);
       this.clockInterval = null;
     }
+    if (this.alertListener) {
+      window.removeEventListener('realtime:manager.alert', this.alertListener);
+      this.alertListener = null;
+    }
+    if (this.outsideClickListener) {
+      document.removeEventListener('click', this.outsideClickListener);
+      this.outsideClickListener = null;
+    }
   }
 }
+
 
