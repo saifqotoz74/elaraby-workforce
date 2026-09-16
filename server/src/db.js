@@ -91,8 +91,8 @@ function cleanupOrphanedTmpFiles() {
 function data() {
   if (_data) return _data;
 
-  // In production, refuse to silently rely on JSON file storage without PostgreSQL
-  if (process.env.NODE_ENV === 'production' && !postgres.isConfigured() && !process.env.ALLOW_JSON_IN_PROD) {
+  // In production, refuse to silently rely on JSON file storage without PostgreSQL (unless running in Vercel serverless /tmp mode)
+  if (process.env.NODE_ENV === 'production' && !isVercel && !postgres.isConfigured() && !process.env.ALLOW_JSON_IN_PROD) {
     const fatalErr = new Error('FATAL: Production mode strictly forbids JSON persistence. Set DATABASE_URL to connect to PostgreSQL.');
     console.error(`❌ [db] ${fatalErr.message}`);
     throw fatalErr;
@@ -243,7 +243,7 @@ let _debounceTimer = null;
 const DEBOUNCE_MS = 50;
 
 function save() {
-  if (process.env.NODE_ENV === 'production' && !postgres.isConfigured() && !process.env.ALLOW_JSON_IN_PROD) {
+  if (process.env.NODE_ENV === 'production' && !isVercel && !postgres.isConfigured() && !process.env.ALLOW_JSON_IN_PROD) {
     throw new Error('FATAL: Production mode strictly forbids JSON persistence. Set DATABASE_URL to connect to PostgreSQL.');
   }
   if (_debounceTimer) clearTimeout(_debounceTimer);

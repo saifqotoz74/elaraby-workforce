@@ -1,5 +1,9 @@
 {
   "version": 2,
+  "env": {
+    "ALLOW_JSON_IN_PROD": "true",
+    "ALLOW_EPHEMERAL_STORAGE": "true"
+  },
   "builds": [
     {
       "src": "admin/**",
