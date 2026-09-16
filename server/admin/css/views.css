@@ -1550,6 +1550,201 @@
   border: 1px solid var(--status-green-border);
 }
 .integration-status-pill.ready {
+  gap: 8px;
+  padding: 10px 20px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.reports-tab-btn:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.5);
+}
+.reports-tab-btn.active {
+  color: #FFFFFF;
+  background: var(--grad-primary);
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+}
+
+/* Executive Metric Grid */
+.executive-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+}
+
+.executive-metric-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all var(--transition-normal);
+  position: relative;
+}
+.executive-metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-border);
+}
+
+.metric-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.metric-icon-box {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+.metric-icon-box.blue { background: var(--primary-soft); color: var(--primary); }
+.metric-icon-box.emerald { background: var(--status-green-soft); color: var(--status-green); }
+.metric-icon-box.amber { background: var(--status-amber-soft); color: var(--status-amber); }
+.metric-icon-box.purple { background: var(--status-purple-soft); color: var(--status-purple); }
+
+.metric-value-huge {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-main);
+}
+.metric-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Interactive SVG Charts */
+.charts-grid-duo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+}
+@media (max-width: 1024px) {
+  .charts-grid-duo {
+    grid-template-columns: 1fr;
+  }
+}
+
+.chart-card-executive {
+  background: var(--surface-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.chart-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 14px;
+}
+.chart-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.svg-chart-container {
+  width: 100%;
+  height: 240px;
+  position: relative;
+}
+.svg-chart-container svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Bank Export Cards */
+.bank-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 18px;
+}
+.bank-option-card {
+  background: var(--surface-card);
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+.bank-option-card:hover {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+.bank-card-logo-area {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.bank-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--primary-soft);
+  color: var(--primary);
+  text-transform: uppercase;
+}
+
+/* Integration Adapter Cards */
+.integrations-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+}
+.integration-device-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.integration-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+}
+.integration-status-pill.online {
+  background: var(--status-green-soft);
+  color: var(--status-green);
+  border: 1px solid var(--status-green-border);
+}
+.integration-status-pill.ready {
   background: var(--primary-soft);
   color: var(--primary);
   border: 1px solid var(--primary-border);
@@ -1566,4 +1761,55 @@
   background: var(--status-amber-soft);
   color: var(--status-amber);
   border: 1px solid var(--status-amber-border);
+}
+
+/* ================= PRINT MEDIA OPTIMIZATION FOR PAYSLIPS ================= */
+@media print {
+  body, html {
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    font-size: 11pt !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .app-sidebar,
+  .app-topbar,
+  .toolbar-container,
+  .tabs-nav,
+  #btn-export-payroll,
+  .card:has(#payroll-employee-select),
+  #btn-edit-payroll,
+  #btn-print-payslip,
+  .toast-container,
+  .command-palette-backdrop {
+    display: none !important;
+  }
+  .app-shell, .app-main, .view-wrapper, #payroll-details-wrapper {
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+  }
+  .payslip-voucher {
+    border: 1.5px solid #1E293B !important;
+    box-shadow: none !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+    page-break-inside: avoid !important;
+  }
+  .payslip-header-bar {
+    background: #0F172A !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color: #FFFFFF !important;
+    padding: 16px 20px !important;
+  }
+  .payslip-body {
+    padding: 20px !important;
+  }
+  .payslip-breakdown-bar {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
 }
