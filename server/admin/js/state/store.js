@@ -27,6 +27,7 @@ class Store {
   constructor() {
     this.state = {
       user: this.loadPersistedUser(),
+      tenant: this.loadPersistedTenant(),
       stats: null,
       realtimeConnected: false,
       activeRoute: 'dashboard',
@@ -41,6 +42,19 @@ class Store {
     } catch (_) {
       return null;
     }
+  }
+
+  loadPersistedTenant() {
+    try {
+      const stored = localStorage.getItem('admin_tenant');
+      return stored ? JSON.parse(stored) : { code: 'elaraby', name: 'Elaraby Group' };
+    } catch (_) {
+      return { code: 'elaraby', name: 'Elaraby Group' };
+    }
+  }
+
+  getState() {
+    return this.state;
   }
 
   subscribe(listener) {
@@ -94,6 +108,18 @@ class Store {
 
   setActiveRoute(route) {
     this.state.activeRoute = route;
+    this.notify();
+  }
+
+  getTenant() {
+    return this.state.tenant || { code: 'elaraby', name: 'Elaraby Group' };
+  }
+
+  setTenant(tenant) {
+    this.state.tenant = tenant;
+    try {
+      localStorage.setItem('admin_tenant', JSON.stringify(tenant));
+    } catch (_) {}
     this.notify();
   }
 

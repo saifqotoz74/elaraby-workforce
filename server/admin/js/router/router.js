@@ -35,10 +35,12 @@ export class Router {
 
   navigate(path) {
     const target = path.startsWith('/') ? path : `/${path}`;
-    if (window.location.hash !== `#${target}`) {
-      window.location.hash = target;
+    const targetHash = `#${target}`;
+    if (window.location.hash !== targetHash) {
+      window.location.hash = targetHash;
+    } else {
+      this.resolve();
     }
-    this.resolve();
   }
 
   resolve() {

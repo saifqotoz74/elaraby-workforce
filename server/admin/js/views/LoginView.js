@@ -67,6 +67,11 @@ export class LoginView {
           <button type="submit" class="btn btn-primary" id="login-submit-btn" style="width: 100%; padding: 12px;">
             <span>Sign In to Dashboard</span>
           </button>
+
+          <div style="margin-top: 14px; padding: 10px 12px; background: rgba(2, 132, 199, 0.08); border: 1px solid rgba(2, 132, 199, 0.18); border-radius: 8px; font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center;">
+            <span><strong>Default:</strong> admin / elaraby2026</span>
+            <button type="button" id="fill-demo-btn" style="background: var(--brand-primary); color: #fff; border: none; border-radius: 4px; padding: 3px 8px; font-size: 11px; cursor: pointer; font-weight: 600;">Fill Demo</button>
+          </div>
         </form>
       </div>
     `;
@@ -74,6 +79,15 @@ export class LoginView {
     const form = this.element.querySelector('#login-form');
     const errEl = this.element.querySelector('#login-error');
     const submitBtn = this.element.querySelector('#login-submit-btn');
+    const fillBtn = this.element.querySelector('#fill-demo-btn');
+
+    if (fillBtn) {
+      fillBtn.onclick = () => {
+        form.querySelector('#login-username').value = 'admin';
+        form.querySelector('#login-password').value = 'elaraby2026';
+        form.querySelector('#login-role').value = 'superadmin';
+      };
+    }
 
     form.onsubmit = async (e) => {
       e.preventDefault();

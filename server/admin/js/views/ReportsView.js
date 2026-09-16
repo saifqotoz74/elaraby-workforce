@@ -7,8 +7,14 @@ import { Modal } from '../components/Modal.js';
 import { store } from '../state/store.js';
 
 export class ReportsView {
-  constructor(opts = {}) {
-    this.currentTab = opts.tab || 'analytics';
+  constructor(containerOrOpts, opts) {
+    if (containerOrOpts instanceof HTMLElement) {
+      this.container = containerOrOpts;
+      this.currentTab = opts?.tab || 'analytics';
+    } else {
+      this.container = null;
+      this.currentTab = containerOrOpts?.tab || 'analytics';
+    }
     this.analyticsData = null;
     this.integrationsStatus = null;
     this.reconciliationData = null;
@@ -17,11 +23,15 @@ export class ReportsView {
   }
 
   async mount(container) {
-    this.container = container;
+    if (container instanceof HTMLElement) {
+      this.container = container;
+    }
+    if (!this.container) return;
     this.renderSkeleton();
     await this.loadData();
     this.render();
     this.bindEvents();
+    return this.container;
   }
 
   renderSkeleton() {

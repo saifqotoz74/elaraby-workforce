@@ -1,15 +1,27 @@
-/* Workforce OS Enterprise Design System & Modern Tokens */
-:root {
-  /* Brand Core Palette */
-  --primary: #0284C7;
-  --primary-hover: #0369A1;
-  --primary-active: #075985;
-  --primary-soft: rgba(2, 132, 199, 0.08);
-  --primary-subtle: rgba(2, 132, 199, 0.04);
-  --primary-border: rgba(2, 132, 199, 0.22);
-  --primary-glow: rgba(2, 132, 199, 0.35);
+/* Workforce OS Enterprise Design System & Modern Tokens
+   Benchmarked to Stripe & Linear Precision Standards
+   WCAG 2.1 AA/AAA Compliant Architecture */
 
-  /* Deep Corporate Navy & Midnight */
+:root, [data-theme="light"] {
+  /* ================= 1. BRAND & ACCENT TOKENS ================= */
+  --accent-primary: #0284C7;
+  --accent-hover: #0369A1;
+  --accent-active: #075985;
+  --accent-soft: rgba(2, 132, 199, 0.08);
+  --accent-subtle: rgba(2, 132, 199, 0.04);
+  --accent-border: rgba(2, 132, 199, 0.22);
+  --accent-glow: rgba(2, 132, 199, 0.35);
+
+  /* Legacy primary aliases (100% backwards compatible) */
+  --primary: var(--accent-primary);
+  --primary-hover: var(--accent-hover);
+  --primary-active: var(--accent-active);
+  --primary-soft: var(--accent-soft);
+  --primary-subtle: var(--accent-subtle);
+  --primary-border: var(--accent-border);
+  --primary-glow: var(--accent-glow);
+
+  /* Deep Corporate Navy & Midnight Scale */
   --navy-950: #040D1A;
   --navy-900: #0A1A2F;
   --navy-850: #0D213D;
@@ -17,66 +29,152 @@
   --navy-700: #1A365D;
   --navy-600: #254B82;
 
-  /* Surfaces & Backgrounds */
-  --surface-bg: #F8FAFC;
-  --surface-card: #FFFFFF;
-  --surface-subtle: #F1F5F9;
-  --surface-elevated: #FFFFFF;
-  --surface-alt: #F8FAFC;
+  /* ================= 2. SEMANTIC SURFACE SYSTEM ================= */
+  --surface-0: #F8FAFC;                          /* Base Canvas / Body Background */
+  --surface-1: #FFFFFF;                          /* Card / Shell / Sidebar Base */
+  --surface-2: #F1F5F9;                          /* Elevated Panel / Table Header / Hover */
+  --surface-3: #FFFFFF;                          /* Floating Dropdown / Popover / Modal */
+  --surface-glass: rgba(255, 255, 255, 0.78);    /* Frosted Glass Container */
+  --surface-overlay: rgba(4, 13, 26, 0.65);      /* Modal Backdrop Overlay */
+  --surface-inverse: #0F172A;
 
-  /* Glassmorphism System */
-  --glass-bg: rgba(255, 255, 255, 0.78);
+  /* Legacy surface aliases (explicitly resolves TransportView & TenantsView) */
+  --surface-bg: var(--surface-0);
+  --surface-card: var(--surface-1);
+  --surface-subtle: var(--surface-2);
+  --surface-elevated: var(--surface-3);
+  --surface-alt: var(--surface-2);
+  --surface: var(--surface-1);                   /* Fix for TransportView.js */
+  --bg-subtle: var(--surface-2);                 /* Fix for TenantsView.js */
+
+  /* ================= 3. BORDERS & HAIRLINES ================= */
+  --border-subtle: rgba(15, 23, 42, 0.05);
+  --border-light: #E2E8F0;
+  --border-hover: #CBD5E1;
+  --border-active: var(--accent-primary);
+  --border-focus: var(--accent-primary);
+  --border-color: var(--border-light);           /* Fix for TenantsView.js */
+
+  /* ================= 4. GLASSMORPHISM SYSTEM ================= */
+  --glass-bg: var(--surface-glass);
   --glass-border: rgba(226, 232, 240, 0.85);
-  --glass-blur: blur(16px);
-  --card-glow: 0 0 0 1px rgba(226, 232, 240, 0.8), 0 8px 24px -4px rgba(15, 23, 42, 0.06);
+  --glass-blur: blur(12px) saturate(180%);
+  --glass-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.9);
+  --card-glow: inset 0 1px 0 0 rgba(255, 255, 255, 0.9), 0 0 0 1px rgba(226, 232, 240, 0.8), 0 8px 24px -4px rgba(15, 23, 42, 0.06);
 
-  /* Text & Typography */
-  --text-main: #0F172A;
-  --text-secondary: #334155;
-  --text-muted: #64748B;
-  --text-light: #94A3B8;
+  /* ================= 5. TEXT & TYPOGRAPHY TOKENS ================= */
+  --text-primary: #0F172A;                       /* 17.85:1 contrast on white (WCAG AAA) */
+  --text-secondary: #334155;                     /* 10.35:1 contrast on white (WCAG AAA) */
+  --text-muted: #64748B;                         /* 4.76:1 contrast on white (WCAG AA) */
+  --text-light: #94A3B8;                         /* Non-text placeholders & subtle icons */
+  --text-disabled: #CBD5E1;
   --text-inverse: #FFFFFF;
 
-  /* Borders & Dividers */
-  --border-light: #E2E8F0;
-  --border-subtle: #EDF2F7;
-  --border-focus: #0284C7;
+  /* Legacy typography aliases */
+  --text-main: var(--text-primary);
+  --text-dark: var(--text-primary);              /* Fix for TenantsView.js */
 
-  /* Semantic Status Colors */
-  --status-green: #10B981;
-  --status-green-hover: #059669;
-  --status-green-soft: rgba(16, 185, 129, 0.1);
-  --status-green-border: rgba(16, 185, 129, 0.25);
+  /* Typographic Families */
+  --font-sans: 'Inter', 'Cairo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-arabic: 'Cairo', 'Tajawal', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'SF Mono', Menlo, Monaco, Consolas, 'Courier New', monospace;
 
-  --status-amber: #F59E0B;
-  --status-amber-hover: #D97706;
-  --status-amber-soft: rgba(245, 158, 11, 0.1);
-  --status-amber-border: rgba(245, 158, 11, 0.25);
+  /* Type Size Modular Scale */
+  --text-2xs: 0.6875rem;    /* 11px - Micro badges, keyboard tags, tiny status pips */
+  --text-xs: 0.75rem;       /* 12px - Footers, captions, metadata, input hints */
+  --text-sm: 0.8125rem;     /* 13px - Compact table cells, secondary descriptions */
+  --text-base: 0.875rem;    /* 14px - Standard enterprise UI body, inputs, buttons */
+  --text-md: 0.9375rem;     /* 15px - Emphasized body, large buttons, search text */
+  --text-lg: 1.0625rem;     /* 17px - Card headers, subheadings, section titles */
+  --text-xl: 1.25rem;       /* 20px - Modal titles, prominent section headers */
+  --text-2xl: 1.5rem;       /* 24px - Page titles, primary KPI summary stats */
+  --text-3xl: 1.875rem;     /* 30px - Executive summary hero metrics */
+  --text-4xl: 2.25rem;      /* 36px - Large dashboard counters, punch gauge */
 
-  --status-red: #EF4444;
-  --status-red-hover: #DC2626;
-  --status-red-soft: rgba(239, 68, 68, 0.1);
-  --status-red-border: rgba(239, 68, 68, 0.25);
+  /* Fluid Responsive Clamps */
+  --text-fluid-h1: clamp(1.35rem, 1.1rem + 1.25vw, 1.75rem);
+  --text-fluid-hero: clamp(1.75rem, 1.4rem + 1.75vw, 2.5rem);
 
-  --status-blue: #3B82F6;
-  --status-blue-soft: rgba(59, 130, 246, 0.1);
-  --status-blue-border: rgba(59, 130, 246, 0.25);
+  /* Font Weights */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-extrabold: 800;
+  --weight-black: 900;
 
-  --status-purple: #8B5CF6;
-  --status-purple-soft: rgba(139, 92, 246, 0.1);
-  --status-purple-border: rgba(139, 92, 246, 0.25);
+  /* Line Heights (Latin Default) */
+  --leading-none: 1;
+  --leading-tight: 1.2;
+  --leading-snug: 1.35;
+  --leading-normal: 1.52;
+  --leading-relaxed: 1.65;
+  --leading-loose: 1.8;
 
-  /* Modern Gradients */
+  /* Tracking / Letter Spacing (Latin Default) */
+  --tracking-tighter: -0.03em;
+  --tracking-tight: -0.015em;
+  --tracking-normal: 0em;
+  --tracking-wide: 0.025em;
+  --tracking-wider: 0.05em;
+  --tracking-widest: 0.1em;
+
+  /* ================= 6. HIGH-CONTRAST STATUS PALETTE ================= */
+  /* Green / Success (5.48:1 contrast on white - WCAG AA compliant) */
+  --status-green: #047857;
+  --status-green-hover: #065F46;
+  --status-green-soft: rgba(4, 120, 87, 0.08);
+  --status-green-border: rgba(4, 120, 87, 0.25);
+
+  /* Amber / Warning (5.02:1 contrast on white - WCAG AA compliant) */
+  --status-amber: #B45309;
+  --status-amber-hover: #92400E;
+  --status-amber-soft: rgba(180, 83, 9, 0.08);
+  --status-amber-border: rgba(180, 83, 9, 0.25);
+  --status-yellow: var(--status-amber);          /* Fix for PayrollView.js & ShiftsView.js */
+
+  /* Red / Danger (4.8+:1 contrast on white - WCAG AA compliant) */
+  --status-red: #DC2626;
+  --status-red-hover: #B91C1C;
+  --status-red-soft: rgba(220, 38, 38, 0.08);
+  --status-red-border: rgba(220, 38, 38, 0.25);
+
+  /* Blue / Info (5.1+:1 contrast on white - WCAG AA compliant) */
+  --status-blue: #2563EB;
+  --status-blue-hover: #1D4ED8;
+  --status-blue-soft: rgba(37, 99, 235, 0.08);
+  --status-blue-border: rgba(37, 99, 235, 0.25);
+
+  /* Purple / AI & Audit */
+  --status-purple: #7C3AED;
+  --status-purple-hover: #6D28D9;
+  --status-purple-soft: rgba(124, 58, 237, 0.08);
+  --status-purple-border: rgba(124, 58, 237, 0.25);
+
+  /* Neutral Slate Badge */
+  --status-neutral: #475569;
+  --status-neutral-soft: rgba(71, 85, 105, 0.08);
+  --status-neutral-border: rgba(71, 85, 105, 0.2);
+
+  /* Stat Card Palette Accents */
+  --palette-teal: #0D9488;
+  --palette-teal-soft: rgba(20, 184, 166, 0.1);
+  --palette-indigo: #4F46E5;
+  --palette-indigo-soft: rgba(99, 102, 241, 0.1);
+  --palette-orange: #EA580C;
+  --palette-orange-soft: rgba(249, 115, 22, 0.1);
+
+  /* ================= 7. GRADIENTS ================= */
   --grad-primary: linear-gradient(135deg, #0284C7 0%, #2563EB 100%);
   --grad-accent: linear-gradient(135deg, #0EA5E9 0%, #38BDF8 100%);
-  --grad-success: linear-gradient(135deg, #10B981 0%, #059669 100%);
-  --grad-warning: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  --grad-success: linear-gradient(135deg, #047857 0%, #059669 100%);
+  --grad-warning: linear-gradient(135deg, #D97706 0%, #B45309 100%);
   --grad-danger: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
   --grad-dark: linear-gradient(135deg, #0A1A2F 0%, #102842 100%);
   --grad-mesh: radial-gradient(at 0% 0%, rgba(2, 132, 199, 0.08) 0px, transparent 50%),
                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.06) 0px, transparent 50%);
 
-  /* Border Radii */
+  /* ================= 8. BORDER RADII ================= */
   --radius-xs: 6px;
   --radius-sm: 10px;
   --radius-md: 14px;
@@ -84,21 +182,55 @@
   --radius-xl: 26px;
   --radius-pill: 9999px;
 
-  /* Ambient Multi-Layer Shadows */
-  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-sm: 0 2px 8px -1px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
-  --shadow-md: 0 10px 25px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 20px 48px -6px rgba(15, 23, 42, 0.12), 0 8px 16px -4px rgba(15, 23, 42, 0.06);
-  --shadow-modal: 0 25px 65px -12px rgba(10, 26, 47, 0.4), 0 0 0 1px rgba(15, 23, 42, 0.05);
+  /* ================= 9. MULTI-STOP DIFFUSED SHADOWS ================= */
+  --shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.05), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 12px 24px -4px rgba(15, 23, 42, 0.08), 0 4px 8px -2px rgba(15, 23, 42, 0.04), 0 0 0 1px rgba(15, 23, 42, 0.05);
+  --shadow-xl: 0 20px 32px -8px rgba(15, 23, 42, 0.12), 0 8px 16px -4px rgba(15, 23, 42, 0.06);
+  --shadow-modal: 0 24px 64px -12px rgba(15, 23, 42, 0.22), 0 0 0 1px rgba(15, 23, 42, 0.08);
+  --shadow-glow: 0 0 24px -4px var(--accent-glow);
 
-  /* Typography */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-arabic: 'Cairo', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* ================= 10. DEPTH & Z-INDEX HIERARCHY ================= */
+  --z-deep: -1;            /* Background canvas, ambient mesh */
+  --z-base: 0;             /* Standard layout flow */
+  --z-raised: 1;           /* Hovered card, active row */
+  --z-sticky: 10;          /* Table headers, sticky subheaders */
+  --z-header: 50;          /* Topbar app header */
+  --z-sidebar: 100;        /* Navigation sidebar */
+  --z-backdrop: 500;       /* Mobile sidebar drawer backdrop */
+  --z-dropdown: 800;       /* Select popovers, menu dropdowns */
+  --z-modal-backdrop: 1000;/* Modal backdrop overlay */
+  --z-modal: 1050;         /* Modal window, employee profile drawer */
+  --z-command: 2000;       /* Command palette (Ctrl+K) */
+  --z-toast: 3000;         /* Toast notification container */
+  --z-tooltip: 4000;       /* Hover tooltips */
+  --z-max: 9999;           /* Splash screen, emergency lock */
 
-  /* Transitions */
-  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  /* ================= 11. TIMING CURVES & TACTILE TRANSITIONS ================= */
+  --ease-linear: cubic-bezier(0.16, 1, 0.3, 1);       /* Ultra-smooth Linear settling curve */
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Subtle spring bounce */
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --transition-fast: 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-normal: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   --transition-bounce: 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Micro-Interaction Transforms */
+  --lift-hover: translateY(-2px);
+  --lift-hover-card: translateY(-3px) scale(1.005);
+  --press-scale: translateY(0) scale(0.975);
+  --press-scale-sm: scale(0.96);
+
+  /* Dual-Ring Accessible Focus */
+  --ring-offset: 2px;
+  --ring-focus: 0 0 0 var(--ring-offset) var(--surface-1), 0 0 0 calc(var(--ring-offset) + 2px) var(--accent-primary);
+  --ring-focus-danger: 0 0 0 var(--ring-offset) var(--surface-1), 0 0 0 calc(var(--ring-offset) + 2px) var(--status-red);
+
+  /* Directional multiplier & offscreen tokens for LTR */
+  --dir-sign: 1;
+  --drawer-offscreen-start: -100%;
+  --drawer-offscreen-end: 100%;
+  --grad-inline-dir: 90deg;
 
   /* Layout dimensions */
   --sidebar-width: 260px;
@@ -107,15 +239,25 @@
 }
 
 /* ================= DARK THEME (Obsidian / Slate High-End SaaS) ================= */
-[data-theme="dark"] {
-  --primary: #38BDF8;
-  --primary-hover: #0EA5E9;
-  --primary-active: #0284C7;
-  --primary-soft: rgba(56, 189, 248, 0.12);
-  --primary-subtle: rgba(56, 189, 248, 0.06);
-  --primary-border: rgba(56, 189, 248, 0.28);
-  --primary-glow: rgba(56, 189, 248, 0.4);
+:root[data-theme="dark"], [data-theme="dark"] {
+  /* Brand Accent Scale (Luminous on Dark) */
+  --accent-primary: #38BDF8;
+  --accent-hover: #0EA5E9;
+  --accent-active: #0284C7;
+  --accent-soft: rgba(56, 189, 248, 0.12);
+  --accent-subtle: rgba(56, 189, 248, 0.06);
+  --accent-border: rgba(56, 189, 248, 0.28);
+  --accent-glow: rgba(56, 189, 248, 0.45);
 
+  --primary: var(--accent-primary);
+  --primary-hover: var(--accent-hover);
+  --primary-active: var(--accent-active);
+  --primary-soft: var(--accent-soft);
+  --primary-subtle: var(--accent-subtle);
+  --primary-border: var(--accent-border);
+  --primary-glow: var(--accent-glow);
+
+  /* Midnight Navy Shades */
   --navy-950: #020617;
   --navy-900: #060B18;
   --navy-850: #0A1124;
@@ -123,27 +265,50 @@
   --navy-700: #1E293B;
   --navy-600: #334155;
 
-  --surface-bg: #070B14;
-  --surface-card: #0F172A;
-  --surface-subtle: #162032;
-  --surface-elevated: #1E293B;
-  --surface-alt: #111A2E;
+  /* Elevated Surfaces (Lightness progression simulates physical depth) */
+  --surface-0: #0B0F19;                          /* Obsidian Dark Canvas */
+  --surface-1: #111827;                          /* High-End Card Base */
+  --surface-2: #1E293B;                          /* Elevated Panel / Inset / Hover */
+  --surface-3: #26354D;                          /* Floating Dropdown / Modal Surface */
+  --surface-glass: rgba(17, 24, 39, 0.75);       /* Frosted Glass */
+  --surface-overlay: rgba(2, 6, 23, 0.82);       /* Deep Backdrop Overlay */
+  --surface-inverse: #F8FAFC;
 
-  --glass-bg: rgba(15, 23, 42, 0.75);
+  --surface-bg: var(--surface-0);
+  --surface-card: var(--surface-1);
+  --surface-subtle: var(--surface-2);
+  --surface-elevated: var(--surface-3);
+  --surface-alt: #0E1626;
+  --surface: var(--surface-1);
+  --bg-subtle: var(--surface-2);
+
+  /* Translucent Borders */
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-light: rgba(255, 255, 255, 0.09);
+  --border-hover: rgba(255, 255, 255, 0.18);
+  --border-active: #38BDF8;
+  --border-focus: #38BDF8;
+  --border-color: var(--border-light);
+
+  /* Dark Glassmorphism with Machined Hardware Specular Highlight */
+  --glass-bg: var(--surface-glass);
   --glass-border: rgba(255, 255, 255, 0.09);
-  --glass-blur: blur(16px);
-  --card-glow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 8px 32px rgba(0, 0, 0, 0.45);
+  --glass-blur: blur(12px) saturate(160%);
+  --glass-highlight: inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+  --card-glow: inset 0 1px 0 0 rgba(255, 255, 255, 0.1), 0 0 0 1px rgba(255, 255, 255, 0.08), 0 8px 32px rgba(0, 0, 0, 0.55);
 
-  --text-main: #F8FAFC;
-  --text-secondary: #CBD5E1;
-  --text-muted: #94A3B8;
+  /* Dark Typography (WCAG AAA compliant) */
+  --text-primary: #F8FAFC;                       /* 16.96:1 contrast on card */
+  --text-secondary: #CBD5E1;                     /* 11.95:1 contrast on card */
+  --text-muted: #94A3B8;                         /* 6.92:1 contrast on card */
   --text-light: #64748B;
+  --text-disabled: #475569;
   --text-inverse: #070B14;
 
-  --border-light: rgba(255, 255, 255, 0.08);
-  --border-subtle: rgba(255, 255, 255, 0.05);
-  --border-focus: #38BDF8;
+  --text-main: var(--text-primary);
+  --text-dark: var(--text-primary);
 
+  /* Luminous Dark Status Colors */
   --status-green: #34D399;
   --status-green-hover: #10B981;
   --status-green-soft: rgba(52, 211, 153, 0.14);
@@ -153,6 +318,7 @@
   --status-amber-hover: #F59E0B;
   --status-amber-soft: rgba(251, 191, 36, 0.14);
   --status-amber-border: rgba(251, 191, 36, 0.3);
+  --status-yellow: var(--status-amber);
 
   --status-red: #F87171;
   --status-red-hover: #EF4444;
@@ -160,27 +326,46 @@
   --status-red-border: rgba(248, 113, 113, 0.3);
 
   --status-blue: #60A5FA;
+  --status-blue-hover: #3B82F6;
   --status-blue-soft: rgba(96, 165, 250, 0.14);
   --status-blue-border: rgba(96, 165, 250, 0.3);
 
   --status-purple: #A78BFA;
+  --status-purple-hover: #8B5CF6;
   --status-purple-soft: rgba(167, 139, 250, 0.14);
   --status-purple-border: rgba(167, 139, 250, 0.3);
+
+  --status-neutral: #94A3B8;
+  --status-neutral-soft: rgba(148, 163, 184, 0.14);
+  --status-neutral-border: rgba(148, 163, 184, 0.25);
+
+  --palette-teal: #2DD4BF;
+  --palette-teal-soft: rgba(45, 212, 191, 0.15);
+  --palette-indigo: #818CF8;
+  --palette-indigo-soft: rgba(129, 140, 248, 0.15);
+  --palette-orange: #FB923C;
+  --palette-orange-soft: rgba(251, 146, 60, 0.15);
 
   --grad-primary: linear-gradient(135deg, #0284C7 0%, #38BDF8 100%);
   --grad-dark: linear-gradient(135deg, #080E1A 0%, #0F172A 100%);
   --grad-mesh: radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.08) 0px, transparent 50%),
                radial-gradient(at 100% 100%, rgba(167, 139, 250, 0.06) 0px, transparent 50%);
 
+  /* Multi-Stop Dark Shadows with Ambient Occlusion & Perimeter Ring */
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.7);
-  --shadow-modal: 0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-sm: 0 2px 6px 0 rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.07);
+  --shadow-lg: 0 16px 36px -4px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.09);
+  --shadow-xl: 0 24px 48px -8px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.11);
+  --shadow-modal: 0 28px 72px -12px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  --shadow-glow: 0 0 28px -2px var(--accent-glow);
+
+  --ring-focus: 0 0 0 var(--ring-offset) var(--surface-1), 0 0 0 calc(var(--ring-offset) + 2px) var(--accent-primary);
+  --ring-focus-danger: 0 0 0 var(--ring-offset) var(--surface-1), 0 0 0 calc(var(--ring-offset) + 2px) var(--status-red);
 }
 
-/* Base Reset & Typography */
-* {
+/* ================= BASE RESETS ================= */
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
@@ -188,84 +373,40 @@
 
 html {
   scroll-behavior: smooth;
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   font-family: var(--font-sans);
+  font-size: var(--text-base);
   background-color: var(--surface-bg);
-  color: var(--text-main);
-  line-height: 1.55;
+  color: var(--text-primary);
+  line-height: var(--leading-normal);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   overflow-x: hidden;
   transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 
-/* ================= RTL & ARABIC SUPPORT ================= */
-[dir="rtl"] {
-  font-family: var(--font-arabic);
-}
-[dir="rtl"] body {
-  direction: rtl;
-  text-align: right;
-}
-[dir="rtl"] .app-sidebar {
-  inset: 0 0 0 auto !important;
-}
-[dir="rtl"] .app-main {
-  margin-left: 0 !important;
-  margin-right: var(--sidebar-width) !important;
-}
-@media (max-width: 900px) {
-  [dir="rtl"] .app-sidebar {
-    transform: translateX(100%) !important;
-  }
-  [dir="rtl"] .app-sidebar.open {
-    transform: translateX(0) !important;
-  }
-  [dir="rtl"] .app-main {
-    margin-right: 0 !important;
-  }
-}
-[dir="rtl"] .toast-container {
-  right: auto !important;
-  left: 20px !important;
-}
-[dir="rtl"] .toast {
-  border-left: 0 !important;
-  border-right: 4px solid var(--primary) !important;
-}
-[dir="rtl"] .search-box svg {
-  left: auto !important;
-  right: 14px !important;
-}
-[dir="rtl"] .search-box input {
-  padding-left: 14px !important;
-  padding-right: 40px !important;
-}
-[dir="rtl"] .kbd-badge {
-  left: 10px !important;
-  right: auto !important;
-}
-[dir="rtl"] .data-table {
-  text-align: right !important;
-}
-
 a {
-  color: var(--primary);
+  color: var(--accent-primary);
   text-decoration: none;
   transition: color var(--transition-fast);
 }
 a:hover {
-  color: var(--primary-hover);
+  color: var(--accent-hover);
 }
 
 button, input, select, textarea {
   font-family: inherit;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
 }
 
-/* Custom Sleek Scrollbar */
+/* Sleek Minimalist Scrollbar */
 ::-webkit-scrollbar {
   width: 7px;
   height: 7px;
@@ -287,7 +428,146 @@ button, input, select, textarea {
   background: #475569;
 }
 
-/* Keyframes & Animations */
+/* ================= ARABIC & BIDIRECTIONAL (RTL) ENGINE ================= */
+[dir="rtl"] {
+  font-family: var(--font-arabic);
+  direction: rtl;
+  text-align: start;
+
+  /* Optical line-height expansion for Arabic ascenders/descenders */
+  --leading-tight: 1.3;
+  --leading-snug: 1.45;
+  --leading-normal: 1.65;
+  --leading-relaxed: 1.78;
+  --leading-loose: 1.95;
+
+  /* Directional Multipliers */
+  --dir-sign: -1;
+  --drawer-offscreen-start: 100%;
+  --drawer-offscreen-end: -100%;
+  --grad-inline-dir: 270deg;
+
+  /* Collapse tracking variables to zero to prevent cursive break */
+  --tracking-tighter: 0;
+  --tracking-tight: 0;
+  --tracking-normal: 0;
+  --tracking-wide: 0;
+  --tracking-wider: 0;
+  --tracking-widest: 0;
+}
+
+/* STRICT ZERO-TRACKING ENFORCEMENT FOR ARABIC SCRIPT */
+/* Prevents glyph disconnection in Arabic words */
+[dir="rtl"],
+[dir="rtl"] *,
+[lang="ar"],
+[lang="ar"] * {
+  letter-spacing: normal !important;
+}
+
+/* Preserve monospace character spacing strictly for non-Arabic code/key tags */
+[dir="rtl"] code:not([lang="ar"]),
+[dir="rtl"] pre:not([lang="ar"]),
+[dir="rtl"] .kbd-badge {
+  letter-spacing: 0;
+}
+
+/* ================= DIRECTIONAL ICON FLIPPING UTILITIES ================= */
+[dir="rtl"] .icon-flip-rtl,
+[dir="rtl"] [data-icon-directional],
+[dir="rtl"] .btn-arrow-end,
+[dir="rtl"] .page-nav-arrow,
+[dir="rtl"] .breadcrumb-separator,
+[dir="rtl"] .sidebar-collapse-icon,
+[dir="rtl"] .nav-drilldown-arrow {
+  transform: scaleX(-1);
+  display: inline-block;
+  transform-origin: center;
+}
+
+/* Explicit exemption failsafe for invariant optical metaphors */
+[dir="rtl"] .icon-invariant,
+[dir="rtl"] [data-icon-invariant],
+[dir="rtl"] .search-box svg,
+[dir="rtl"] .clock-icon,
+[dir="rtl"] .status-check-icon,
+[dir="rtl"] .toast-icon,
+[dir="rtl"] .lock-icon,
+[dir="rtl"] .shield-icon {
+  transform: none !important;
+}
+
+/* ================= TABULAR FIGURES & NUMERIC FORMATTING ================= */
+.tabular-nums,
+.data-table td.col-numeric,
+.stat-card-value,
+.kpi-figure,
+.clock-time,
+.payslip-amount,
+.emp-card-metric-val,
+.cell-numeric {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* BiDi Isolation for IDs, Phones, and IBANs in RTL context */
+.bidi-isolate,
+.emp-code,
+.phone-number,
+.iban-number,
+.badge-code {
+  unicode-bidi: isolate;
+  direction: ltr;
+  display: inline-block;
+}
+
+[dir="rtl"] .financial-negative {
+  unicode-bidi: isolate;
+  direction: ltr;
+}
+
+/* ================= INVESTOR-GRADE GLASSMORPHISM UTILITY CLASSES ================= */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight), var(--shadow-sm);
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-highlight), var(--shadow-sm);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+}
+
+.glass-card:hover {
+  transform: var(--lift-hover);
+  box-shadow: var(--glass-highlight), var(--shadow-md);
+  border-color: var(--accent-border);
+}
+
+/* Keyboard Shortcut Visual Tag */
+.kbd-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  color: var(--text-muted);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xs);
+  padding: 1px 5px;
+  line-height: 1.2;
+}
+
+/* Keyframes & Global Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -305,11 +585,6 @@ button, input, select, textarea {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
-}
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
 }
 
 @keyframes ping {
@@ -334,27 +609,3 @@ button, input, select, textarea {
 .animate-spin {
   animation: spin 1s linear infinite;
 }
-
-.skeleton-shimmer {
-  background: linear-gradient(90deg, var(--surface-subtle) 25%, var(--border-light) 50%, var(--surface-subtle) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.8s infinite;
-  border-radius: var(--radius-sm);
-}
-
-/* Keyboard Shortcut Visual Tag */
-.kbd-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  font-family: monospace;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-muted);
-  background: var(--surface-subtle);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-xs);
-  padding: 1px 5px;
-  line-height: 1.2;
-}
-

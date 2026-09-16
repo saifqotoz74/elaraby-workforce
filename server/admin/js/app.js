@@ -40,6 +40,7 @@ class App {
     }
 
     this.router.start();
+    window.__appMounted = true;
   }
 
   setupGlobalEvents() {
