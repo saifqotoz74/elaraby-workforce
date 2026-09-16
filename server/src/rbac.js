@@ -116,16 +116,35 @@ function requirePermission(permission) {
 
 /**
  * Validates that an administrative actor has authorization over an employee's organizational scope
- * (Factory / Department isolation). Superadmin is unrestricted.
+ * (Tenant isolation, Factory / Department isolation).
+ * Only global superadmin (without tenantId binding) is unrestricted across tenants.
  */
 function checkScope(admin, employee) {
   if (!admin || !employee) return true;
   const role = admin.role || ROLES.SUPER_ADMIN;
-  if (role === ROLES.SUPER_ADMIN || role === 'admin') return true;
 
-  if (admin.tenantId && employee.tenantId && admin.tenantId !== employee.tenantId) {
+  // 1. Global Super Admin without tenant restriction has full cross-tenant access
+  if (role === ROLES.SUPER_ADMIN && !admin.tenantId) {
+    return true;
+  }
+
+  // 2. Strict Multi-Tenant Isolation Gate
+  // Normalize tenant identifiers (defaulting to 'elaraby' for persisted employees)
+  const adminTenant = admin.tenantId ? String(admin.tenantId).trim().toLowerCase() : null;
+  const employeeTenant = (employee.tenantId || (employee.id ? 'elaraby' : null))
+    ? String(employee.tenantId || (employee.id ? 'elaraby' : null)).trim().toLowerCase()
+    : null;
+
+  if (adminTenant && employeeTenant && adminTenant !== employeeTenant) {
     return false;
   }
+
+  // 3. Within authorized tenant: full admins and superadmins bypass factory/department bounds
+  if (role === ROLES.SUPER_ADMIN || role === 'admin') {
+    return true;
+  }
+
+  // 4. Granular operational role scope enforcement (hr_officer, shift_supervisor)
   if (admin.scopeFactory && employee.factory && admin.scopeFactory !== employee.factory) {
     return false;
   }

@@ -6,6 +6,7 @@ const { DEFAULT_TENANT_ID } = require('../tenantResolver');
 const { requireAdmin, requireRole } = require('../auth');
 const { ROLES } = require('../rbac');
 const realtimeService = require('../services/realtimeService');
+const auditService = require('../services/auditService');
 
 // Standard Institutional Presets for fast out-of-the-box white-label support
 const BUILTIN_TENANTS = {
@@ -491,6 +492,18 @@ router.post(['/super-admin/tenants', '/admin/tenants'], requireAdmin, requireRol
   };
 
   d.tenants.push(newTenant);
+  auditService.recordAuditLog(d, {
+    actor: req.admin?.sub || req.admin?.username || 'superadmin',
+    role: req.admin?.role || 'superadmin',
+    action: 'create_tenant',
+    entity: 'tenant',
+    entityId: newTenant.id,
+    after: newTenant,
+    details: `Provisioned new tenant organization: ${newTenant.name} (${newTenant.slug})`,
+    ip: req.ip,
+    userAgent: req.headers?.['user-agent'] || null,
+    tenantId: newTenant.id,
+  });
   save();
 
   try {
@@ -538,6 +551,8 @@ router.put(['/super-admin/tenants/:id', '/admin/tenants/:id'], requireAdmin, req
   if (!tenant) {
     return res.status(404).json({ error: 'tenant_not_found' });
   }
+
+  const before = JSON.parse(JSON.stringify(tenant));
 
   const {
     name,
@@ -588,6 +603,19 @@ router.put(['/super-admin/tenants/:id', '/admin/tenants/:id'], requireAdmin, req
   }
 
   tenant.updatedAt = new Date().toISOString();
+  auditService.recordAuditLog(d, {
+    actor: req.admin?.sub || req.admin?.username || 'superadmin',
+    role: req.admin?.role || 'superadmin',
+    action: 'update_tenant',
+    entity: 'tenant',
+    entityId: tenant.id,
+    before,
+    after: tenant,
+    details: `Updated configuration for tenant: ${tenant.name} (${tenant.id})`,
+    ip: req.ip,
+    userAgent: req.headers?.['user-agent'] || null,
+    tenantId: tenant.id,
+  });
   save();
 
   try {
@@ -639,9 +667,23 @@ router.post(['/super-admin/tenants/:id/logo', '/admin/tenants/:id/logo'], requir
     return res.status(400).json({ error: 'logo_url_required' });
   }
 
+  const previousLogo = tenant.brand?.logoUrl || null;
   tenant.brand = tenant.brand || {};
   tenant.brand.logoUrl = logoUrl;
   tenant.updatedAt = new Date().toISOString();
+  auditService.recordAuditLog(d, {
+    actor: req.admin?.sub || req.admin?.username || 'superadmin',
+    role: req.admin?.role || 'superadmin',
+    action: 'update_tenant_logo',
+    entity: 'tenant',
+    entityId: tenant.id,
+    before: { logoUrl: previousLogo },
+    after: { logoUrl },
+    details: `Updated brand logo for tenant: ${tenant.name} (${tenant.id})`,
+    ip: req.ip,
+    userAgent: req.headers?.['user-agent'] || null,
+    tenantId: tenant.id,
+  });
   save();
 
   try {
@@ -690,6 +732,19 @@ router.delete(['/super-admin/tenants/:id', '/admin/tenants/:id'], requireAdmin, 
 
   tenant.status = 'inactive';
   tenant.updatedAt = new Date().toISOString();
+  auditService.recordAuditLog(d, {
+    actor: req.admin?.sub || req.admin?.username || 'superadmin',
+    role: req.admin?.role || 'superadmin',
+    action: 'deactivate_tenant',
+    entity: 'tenant',
+    entityId: tenant.id,
+    before: { status: 'active' },
+    after: { status: 'inactive' },
+    details: `Deactivated tenant organization: ${tenant.name} (${tenant.id})`,
+    ip: req.ip,
+    userAgent: req.headers?.['user-agent'] || null,
+    tenantId: tenant.id,
+  });
   save();
 
   res.json({
@@ -699,4 +754,6 @@ router.delete(['/super-admin/tenants/:id', '/admin/tenants/:id'], requireAdmin, 
   });
 });
 
+router.BUILTIN_TENANTS = BUILTIN_TENANTS;
 module.exports = router;
+module.exports.BUILTIN_TENANTS = BUILTIN_TENANTS;

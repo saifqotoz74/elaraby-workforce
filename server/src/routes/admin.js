@@ -24,6 +24,9 @@ const loanService = require('../services/loanService');
 const erp = require('../integrations/erp');
 const biometrics = require('../integrations/biometrics');
 const { reconcileEmployees } = require('../integrations/reconciliation/reconciliationEngine');
+const pdfService = require('../services/pdfService');
+const alertService = require('../services/alertService');
+const { BUILTIN_TENANTS } = require('./tenant');
 
 const router = express.Router();
 
@@ -605,6 +608,145 @@ router.post('/overtime/:id/decide', (req, res, next) => {
 });
 
 // ---------- Payroll ----------
+// ---------- Payroll: Batch Payslips ZIP Archive ----------
+// MUST be registered BEFORE /payroll/:employeeId
+router.get('/payroll/payslips-zip', requirePermission(PERMISSIONS.PAYROLL_READ), async (req, res, next) => {
+  try {
+    const { period, factory, department, employeeIds } = req.query || {};
+    const tenantId = (req.admin?.role === 'superadmin' && req.query.tenantId) 
+      ? req.query.tenantId 
+      : (req.tenantId || req.admin?.tenantId || 'elaraby');
+
+    const database = db();
+    const allEmployees = database.employees || [];
+
+    // Filter employees by tenant, factory, department, and scope
+    const filterIds = employeeIds ? new Set(employeeIds.split(',').map(s => s.trim())) : null;
+
+    const matchedEmployees = allEmployees.filter((emp) => {
+      const eTenant = emp.tenantId || (emp.workEmail && emp.workEmail.includes('elsewedy') ? 'elsewedy' : emp.workEmail && emp.workEmail.includes('tmg') ? 'tmg' : 'elaraby');
+      if (eTenant !== tenantId && req.admin?.role !== 'superadmin') return false;
+      if (filterIds && !filterIds.has(emp.id) && !filterIds.has(emp.employeeCode)) return false;
+      if (factory && emp.factory !== factory) return false;
+      if (department && emp.department !== department) return false;
+      return checkScope(req.admin, emp);
+    });
+
+    if (matchedEmployees.length === 0) {
+      return res.status(404).json({
+        error: 'no_employees_found',
+        message: 'No employees found matching the requested scope and filters.',
+      });
+    }
+
+    // Resolve tenant branding
+    const dbTenants = database.tenants || [];
+    const tenant = dbTenants.find(t => t.id === tenantId || t.slug === tenantId) || BUILTIN_TENANTS[tenantId] || BUILTIN_TENANTS.elaraby;
+
+    const files = [];
+    for (const emp of matchedEmployees) {
+      const payroll = payrollService.getPayroll(req.admin, emp.id, { period }) || {
+        employeeId: emp.id,
+        period: period || 'Current Period',
+        basicSalary: emp.baseSalary || 7500,
+        paidOn: 'End of Period',
+        paymentMethod: 'Direct Bank Transfer',
+      };
+
+      const pdfBuf = pdfService.generatePayslipPdfBuffer({ payroll, employee: emp, tenant });
+      const cleanName = (emp.name || 'employee').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const cleanCode = (emp.employeeCode || emp.id).replace(/[^a-zA-Z0-9_-]/g, '_');
+      const cleanPeriod = (payroll.period || 'Current').replace(/[^a-zA-Z0-9_-]/g, '_');
+      files.push({
+        name: `Payslip_${cleanCode}_${cleanName}_${cleanPeriod}.pdf`,
+        content: pdfBuf,
+      });
+    }
+
+    const zipBuffer = pdfService.createZipArchive(files);
+    const downloadName = `Payslips_${tenantId}_${(period || 'current').replace(/[^a-zA-Z0-9_-]/g, '_')}.zip`;
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${downloadName}"`);
+    res.setHeader('Content-Length', zipBuffer.length);
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.send(zipBuffer);
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
+    next(err);
+  }
+});
+
+// ---------- Payroll: Single Corporate Payslip PDF ----------
+// MUST be registered BEFORE /payroll/:employeeId
+router.get('/payroll/:id/payslip-pdf', requirePermission(PERMISSIONS.PAYROLL_READ), (req, res, next) => {
+  try {
+    const targetId = req.params.id;
+    const database = db();
+    const allEmployees = database.employees || [];
+
+    // Support resolution by employee ID, employeeCode, or national ID
+    let employee = allEmployees.find(e => e.id === targetId || e.employeeCode === targetId || e.nationalId === targetId);
+    let payroll = null;
+
+    if (!employee) {
+      // Check if targetId is a payroll record ID
+      const record = (database.payroll || []).find(p => p.id === targetId);
+      if (record) {
+        employee = allEmployees.find(e => e.id === record.employeeId);
+        payroll = record;
+      }
+    }
+
+    if (!employee) {
+      return res.status(404).json({ error: 'employee_not_found', message: 'Employee record not found.' });
+    }
+
+    if (!checkScope(req.admin, employee)) {
+      return res.status(403).json({ error: 'forbidden_outside_factory_scope', message: 'Access denied outside assigned factory/tenant scope.' });
+    }
+
+    if (!payroll) {
+      payroll = payrollService.getPayroll(req.admin, employee.id, { period: req.query.period });
+    }
+
+    if (!payroll) {
+      // Synthesize fallback baseline statement if not published yet, or return 404 if strict
+      if (req.query.strict === 'true') {
+        return res.status(404).json({ error: 'payroll_not_found', message: 'No published salary statement exists for this period.' });
+      }
+      payroll = {
+        employeeId: employee.id,
+        period: req.query.period || 'Current Period',
+        basicSalary: employee.baseSalary || 7500,
+        paidOn: 'Pending Publication',
+        paymentMethod: 'Bank Transfer (CIB)',
+      };
+    }
+
+    const tenantId = employee.tenantId || req.tenantId || req.admin?.tenantId || 'elaraby';
+    const dbTenants = database.tenants || [];
+    const tenant = dbTenants.find(t => t.id === tenantId || t.slug === tenantId) || BUILTIN_TENANTS[tenantId] || BUILTIN_TENANTS.elaraby;
+
+    const pdfBuffer = pdfService.generatePayslipPdfBuffer({ payroll, employee, tenant });
+    const isAttachment = req.query.download === 'true';
+    const filename = `Payslip_${employee.employeeCode || employee.id}_${(payroll.period || 'current').replace(/\s+/g, '_')}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `${isAttachment ? 'attachment' : 'inline'}; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.setHeader('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+    res.send(pdfBuffer);
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
+    next(err);
+  }
+});
+
 router.get('/payroll/:employeeId', requirePermission(PERMISSIONS.PAYROLL_READ), (req, res, next) => {
   try {
     const payroll = payrollService.getPayroll(req.admin, req.params.employeeId);
@@ -1068,12 +1210,18 @@ router.post('/integrations/sync', requireAdmin, async (req, res) => {
     const { domain = 'employees', options = {} } = req.body || {};
     const result = await erp.sync(domain, options);
 
-    auditService.recordAuditLog(req.admin, 'ERP_MANUAL_SYNC', 'erp_gateway', {
-      domain,
-      resultCount: result.count || 0,
-      source: result.source,
+    auditService.recordAuditLog(db(), {
+      actor: req.admin?.sub || req.admin?.username || 'admin',
+      role: req.admin?.role || 'superadmin',
+      action: 'ERP_MANUAL_SYNC',
+      entity: 'erp_gateway',
+      entityId: domain,
+      details: `Manual sync completed for ${domain} (${result.count || 0} records).`,
       ip: req.ip,
+      userAgent: req.headers['user-agent'],
+      tenantId: req.tenantId || req.admin?.tenantId || 'elaraby',
     });
+    save();
 
     realtimeService.broadcast('realtime:erp.synced', {
       domain,
@@ -1130,14 +1278,23 @@ router.post('/integrations/reconciliation/resolve', requireAdmin, (req, res) => 
     if (action === 'sync_field' && employeeId && field) {
       const emp = database.employees.find((e) => e.id === employeeId);
       if (!emp) return res.status(404).json({ error: 'employee_not_found' });
+      const beforeValue = emp[field];
       emp[field] = value;
       emp.updatedAt = new Date().toISOString();
-      save();
-      auditService.recordAuditLog(req.admin, 'ERP_RECONCILIATION_RESOLVE', `employee:${employeeId}`, {
-        field,
-        newValue: value,
+      auditService.recordAuditLog(database, {
+        actor: req.admin?.sub || req.admin?.username || 'admin',
+        role: req.admin?.role || 'superadmin',
+        action: 'ERP_RECONCILIATION_RESOLVE',
+        entity: 'employee',
+        entityId: employeeId,
+        before: { [field]: beforeValue },
+        after: { [field]: value },
+        details: `ERP Reconciliation resolved field ${field} to "${value}" on employee ${employeeId}`,
         ip: req.ip,
+        userAgent: req.headers['user-agent'],
+        tenantId: req.tenantId || req.admin?.tenantId || 'elaraby',
       });
+      save();
       return res.json({ ok: true, resolved: true, employee: emp });
     }
 
@@ -1156,15 +1313,51 @@ router.post('/integrations/reconciliation/resolve', requireAdmin, (req, res) => 
         createdAt: new Date().toISOString(),
       };
       database.employees.push(newEmp);
-      save();
-      auditService.recordAuditLog(req.admin, 'ERP_RECONCILIATION_IMPORT', `employee:${newEmp.id}`, {
-        nationalId: newEmp.nationalId,
+      auditService.recordAuditLog(database, {
+        actor: req.admin?.sub || req.admin?.username || 'admin',
+        role: req.admin?.role || 'superadmin',
+        action: 'ERP_RECONCILIATION_IMPORT',
+        entity: 'employee',
+        entityId: newEmp.id,
+        after: newEmp,
+        details: `ERP Reconciliation imported new employee ${newEmp.name} (${newEmp.nationalId})`,
         ip: req.ip,
+        userAgent: req.headers['user-agent'],
+        tenantId: newEmp.tenantId,
       });
+      save();
       return res.json({ ok: true, imported: true, employee: newEmp });
     }
 
     res.status(400).json({ error: 'invalid_resolution_action' });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+// ---------- Automated Manager Alerts & Notification Engine ----------
+router.get('/alerts', requireAdmin, (req, res) => {
+  try {
+    const result = alertService.getAlerts(req.query, req.admin);
+    res.json(result);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.put('/alerts/:id/read', requireAdmin, (req, res) => {
+  try {
+    const result = alertService.markAlertAsRead(req.params.id, req.admin);
+    res.json(result);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/alerts/mark-all-read', requireAdmin, (req, res) => {
+  try {
+    const result = alertService.markAllAlertsAsRead(req.admin, req.body || req.query);
+    res.json(result);
   } catch (err) {
     res.status(err.statusCode || 500).json({ error: err.message });
   }

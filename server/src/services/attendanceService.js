@@ -3,6 +3,7 @@ const dbModule = require('../db');
 const repository = require('../db/repository');
 const shiftService = require('./shiftService');
 const realtimeService = require('./realtimeService');
+const alertService = require('./alertService');
 const { getCurrentTenantId } = require('../tenantContext');
 
 function db() {
@@ -233,7 +234,15 @@ function generateOfflineToken(employeeId, dateKey = shiftService.toDateKey(new D
  * Evaluates GPS coordinates against an organization's active factory geofences.
  */
 function evaluateGeofence(tenantId, factoryPreference, lat, lng) {
-  if (!lat || !lng) return { withinGeofence: true, distanceMeters: 0, geofenceId: null };
+  if (lat === undefined || lat === null || lng === undefined || lng === null || lat === '' || lng === '') {
+    return { withinGeofence: true, distanceMeters: 0, geofenceId: null };
+  }
+
+  const numLat = Number(lat);
+  const numLng = Number(lng);
+  if (isNaN(numLat) || isNaN(numLng) || numLat < -90 || numLat > 90 || numLng < -180 || numLng > 180) {
+    return { withinGeofence: false, distanceMeters: Infinity, geofenceId: null, isInvalidCoordinates: true };
+  }
 
   const geofences = getTenantGeofences(tenantId);
   const fenceList = Object.values(geofences);
@@ -247,7 +256,7 @@ function evaluateGeofence(tenantId, factoryPreference, lat, lng) {
   let minDistance = Infinity;
 
   for (const fence of fenceList) {
-    const d = calculateDistanceMeters(lat, lng, fence.lat, fence.lng);
+    const d = calculateDistanceMeters(numLat, numLng, fence.lat, fence.lng);
     if (d < minDistance) {
       minDistance = d;
       closest = fence;
@@ -282,6 +291,32 @@ function recordPunch(employeeId, { type = 'in', lat, lng, qrToken, timestamp = D
 
   // If tenant enforces strict geofence rejection
   if (strict && !geofenceResult.withinGeofence && !isOffline) {
+    try {
+      alertService.createAlert({
+        tenantId,
+        type: alertService.ALERT_TYPES.GEOFENCE_BREACH,
+        title: 'Geofence Breach Blocked',
+        message: `Punch attempt by ${me.name} (${me.employeeCode || me.id}) was rejected: ${geofenceResult.distanceMeters}m outside registered geofence at ${geofenceResult.factoryName}.`,
+        severity: alertService.ALERT_SEVERITIES.CRITICAL,
+        entityType: 'attendance',
+        entityId: `ATT-BREACH-${Date.now()}-${me.id}`,
+        metadata: {
+          employeeId: me.id,
+          employeeName: me.name,
+          employeeCode: me.employeeCode || null,
+          factory: me.factory,
+          punchType: type,
+          lat,
+          lng,
+          distanceMeters: geofenceResult.distanceMeters,
+          geofenceId: geofenceResult.geofenceId,
+          strictRejection: true,
+        },
+      });
+    } catch (alertErr) {
+      console.warn('[attendanceService:strict_alert_error]', alertErr.message);
+    }
+
     const err = new Error(`Location is outside registered factory geofence (${geofenceResult.distanceMeters}m away).`);
     err.statusCode = 403;
     err.code = 'OUT_OF_GEOFENCE';
@@ -332,6 +367,35 @@ function recordPunch(employeeId, { type = 'in', lat, lng, qrToken, timestamp = D
 
   db().attendanceRecords.unshift(punchEntry);
   save();
+
+  if (!geofenceResult.withinGeofence && !isOffline) {
+    try {
+      alertService.createAlert({
+        tenantId,
+        type: alertService.ALERT_TYPES.GEOFENCE_BREACH,
+        title: 'Geofence Breach Detected',
+        message: `Employee ${me.name} (${me.employeeCode || me.id}) punched ${type === 'in' ? 'in' : 'out'} ${geofenceResult.distanceMeters}m outside registered geofence at ${geofenceResult.factoryName}.`,
+        severity: alertService.ALERT_SEVERITIES.WARNING,
+        entityType: 'attendance',
+        entityId: punchEntry.id,
+        metadata: {
+          punchId: punchEntry.id,
+          employeeId: me.id,
+          employeeName: me.name,
+          employeeCode: me.employeeCode || null,
+          factory: me.factory,
+          punchType: type,
+          lat,
+          lng,
+          distanceMeters: geofenceResult.distanceMeters,
+          geofenceId: geofenceResult.geofenceId,
+          strictRejection: false,
+        },
+      });
+    } catch (alertErr) {
+      console.warn('[attendanceService:soft_alert_error]', alertErr.message);
+    }
+  }
 
   // Async repository sync for PostgreSQL persistence
   try {

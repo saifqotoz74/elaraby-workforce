@@ -14,8 +14,12 @@ async function testSuite() {
   console.log('--- EXTENDED MULTI-TENANT & DOMAIN ISOLATION TEST SUITE ---');
   console.log('=============================================================\n');
 
-  // Ensure database has multi-tenant seed
+  // Ensure database has multi-tenant seed and clean loan state for test subjects
   seed();
+  const currentDb = db();
+  if (currentDb.loans) {
+    currentDb.loans = currentDb.loans.filter(l => l.employeeId !== 'emp_3' && l.employeeId !== 'emp_gic_1');
+  }
 
   // -------------------------------------------------------------
   // Test 1: Multi-Tenant Loan Application & Currency Enforcement

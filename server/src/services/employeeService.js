@@ -6,6 +6,7 @@ const { checkScope } = require('../rbac');
 const { recordAuditLog } = require('./auditService');
 const { broadcast } = require('./realtimeService');
 const { validateEmployeeCreate, validateEmployeeUpdate } = require('../validators/adminValidators');
+const { getCurrentTenantId } = require('../tenantContext');
 
 function employeeOut(e) {
   return { ...e, pinHash: undefined };
@@ -70,14 +71,25 @@ function createEmployee(admin, rawBody, { ip, userAgent } = {}) {
   }
 
   const data = validation.data;
-  if (!checkScope(admin, { factory: data.factory, department: data.department })) {
+
+  // Resolve authoritative tenantId: admin binding > request body > ambient AsyncLocalStorage > fallback 'elaraby'
+  const tenantId = (
+    admin?.tenantId ||
+    rawBody?.tenantId ||
+    getCurrentTenantId() ||
+    'elaraby'
+  ).toString().trim().toLowerCase();
+
+  // Validate administrative scope against targeted tenant, factory, and department
+  if (!checkScope(admin, { factory: data.factory, department: data.department, tenantId })) {
     const err = new Error('forbidden_outside_factory_scope');
     err.statusCode = 403;
     throw err;
   }
 
   const created = transaction((state) => {
-    if (state.employees.some((e) => e.nationalId === data.nationalId)) {
+    // Enforce composite uniqueness: National ID must be unique within the active tenant
+    if (state.employees.some((e) => e.nationalId === data.nationalId && (e.tenantId || 'elaraby') === tenantId)) {
       const err = new Error('national_id_already_exists');
       err.statusCode = 422;
       throw err;
@@ -85,6 +97,7 @@ function createEmployee(admin, rawBody, { ip, userAgent } = {}) {
 
     const newEmp = {
       id: `emp_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      tenantId,
       name: data.name,
       nationalId: data.nationalId,
       employeeCode: data.employeeCode || `EG-${Math.floor(10000 + Math.random() * 90000)}`,
@@ -96,6 +109,7 @@ function createEmployee(admin, rawBody, { ip, userAgent } = {}) {
       vacationBalance: data.vacationBalance,
       pinHash: null,
       active: true,
+      tokenVersion: 1,
       createdAt: Date.now(),
     };
 
@@ -108,15 +122,16 @@ function createEmployee(admin, rawBody, { ip, userAgent } = {}) {
       entity: 'employee',
       entityId: newEmp.id,
       after: employeeOut(newEmp),
-      details: `Created employee ${newEmp.name} (${newEmp.employeeCode})`,
+      details: `Created employee ${newEmp.name} (${newEmp.employeeCode}) in tenant ${tenantId}`,
       ip,
       userAgent,
+      tenantId,
     });
 
     return newEmp;
   });
 
-  broadcast('employee.created', { employee: employeeOut(created) }, { factory: created.factory });
+  broadcast('employee.created', { employee: employeeOut(created) }, { factory: created.factory, tenantId: created.tenantId });
   return employeeOut(created);
 }
 

@@ -115,6 +115,26 @@ export function initRealtimeBridge() {
       window.dispatchEvent(new CustomEvent('realtime:otp.requested', { detail: data }));
     } catch (_) {}
   });
+
+  // 7. Manager Automated Alerts
+  eventSource.addEventListener('manager.alert', (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      const alert = data.alert || data;
+
+      if (alert.severity === 'critical') {
+        toast.error(alert.title || 'Critical Alert', alert.message);
+      } else if (alert.severity === 'warning') {
+        toast.warning(alert.title || 'Manager Alert', alert.message);
+      } else {
+        toast.info(alert.title || 'Notification', alert.message);
+      }
+
+      window.dispatchEvent(new CustomEvent('realtime:manager.alert', { detail: alert }));
+    } catch (parseErr) {
+      console.error('[sseConsumer] Failed to parse manager.alert event:', parseErr);
+    }
+  });
 }
 
 export function closeRealtimeBridge() {

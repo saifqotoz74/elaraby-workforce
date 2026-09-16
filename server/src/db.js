@@ -35,7 +35,7 @@ const SEED_FILE = path.join(__dirname, '..', 'data', 'db.json');
 
 const EMPTY = () => ({
   schemaMigrations: [],
-  counters: { request: 100, notification: 100, audit: 100, concern: 100 },
+  counters: { request: 100, notification: 100, audit: 100, concern: 100, alert: 100 },
   employees: [],
   otpCodes: [],
   requests: [],
@@ -49,6 +49,7 @@ const EMPTY = () => ({
   roster: [],
   fcmTokens: [],
   auditLogs: [],
+  alerts: [],
   appVersionConfig: {
     minVersion: '1.0.0',
     latestVersion: '1.0.0',
@@ -111,13 +112,35 @@ function data() {
   if (fs.existsSync(DB_FILE)) {
     try {
       const parsed = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-      _data = { ...EMPTY(), ...parsed };
+      _data = {
+        ...EMPTY(),
+        ...parsed,
+        alerts: Array.isArray(parsed.alerts) ? parsed.alerts : [],
+      };
+      if (Array.isArray(_data.employees)) {
+        for (const emp of _data.employees) {
+          if (typeof emp.tokenVersion === 'number' && emp.tokenVersion < 1) {
+            emp.tokenVersion = 1;
+          }
+        }
+      }
     } catch (err) {
       console.error('[db] corrupted db.json, attempting backup recovery:', err.message);
       if (fs.existsSync(BACKUP_FILE)) {
         try {
           const recovered = JSON.parse(fs.readFileSync(BACKUP_FILE, 'utf8'));
-          _data = { ...EMPTY(), ...recovered };
+          _data = {
+            ...EMPTY(),
+            ...recovered,
+            alerts: Array.isArray(recovered.alerts) ? recovered.alerts : [],
+          };
+          if (Array.isArray(_data.employees)) {
+            for (const emp of _data.employees) {
+              if (typeof emp.tokenVersion === 'number' && emp.tokenVersion < 1) {
+                emp.tokenVersion = 1;
+              }
+            }
+          }
           console.log('[db] successfully recovered data from db.backup.json');
         } catch (backupErr) {
           console.error('[db] backup recovery failed:', backupErr.message);

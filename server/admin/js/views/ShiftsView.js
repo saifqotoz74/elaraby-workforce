@@ -206,9 +206,9 @@ export class ShiftsView {
     if (exportBtn) {
       exportBtn.addEventListener('click', async () => {
         try {
-          exportBtn.disabled = true;
           exportBtn.innerText = 'Exporting...';
-          const res = await employeeApi.list({ limit: 1000 });
+          const filterVal = this.container.querySelector('#shift-employee-filter')?.value?.trim();
+          const res = await employeeApi.list({ limit: 1000, ...(filterVal ? { q: filterVal } : {}) });
           const employees = res.employees || [];
           
           const shiftRows = [];

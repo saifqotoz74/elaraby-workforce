@@ -361,24 +361,35 @@ export class TransportView {
   }
 
   exportRoster() {
-    const rows = [];
-    for (const item of this.fleetData) {
-      const r = item.route;
-      rows.push({
-        'Route ID': r.id,
-        'Route Name En': r.nameEn,
-        'Route Name Ar': r.nameAr,
-        'Target Factory': r.factory,
-        'Bus Plate': r.busPlate,
-        'Driver Name': r.driverName,
-        'Capacity': r.capacity,
-        'Assigned Passengers': r.assignedCount || 0,
-        'Current Status': item.telemetry?.status || 'scheduled',
-      });
-    }
+    const columns = [
+      { key: 'routeId', label: 'Route ID' },
+      { key: 'nameEn', label: 'Route Name (EN)' },
+      { key: 'nameAr', label: 'Route Name (AR)' },
+      { key: 'factory', label: 'Target Factory' },
+      { key: 'busPlate', label: 'Bus Plate' },
+      { key: 'driverName', label: 'Driver Name' },
+      { key: 'capacity', label: 'Capacity' },
+      { key: 'assignedCount', label: 'Assigned Passengers' },
+      { key: 'status', label: 'Current Status' },
+    ];
+
+    const rows = (this.fleetData || []).map(item => {
+      const r = item.route || {};
+      return {
+        routeId: r.id || '—',
+        nameEn: r.nameEn || '—',
+        nameAr: r.nameAr || '—',
+        factory: r.factory || '—',
+        busPlate: r.busPlate || '—',
+        driverName: r.driverName || '—',
+        capacity: r.capacity || 0,
+        assignedCount: r.assignedCount || r.assignedRiders?.length || 0,
+        status: item.telemetry?.status || 'scheduled',
+      };
+    });
 
     const tenant = localStorage.getItem('admin_active_tenant') || 'Workforce';
-    ExportService.exportToCsv(`${tenant}_Fleet_Roster`, rows);
+    ExportService.exportToCsv(`${tenant}_Fleet_Roster`, columns, rows);
     toast.success('Exported', 'Transport fleet roster saved to CSV.');
   }
 }

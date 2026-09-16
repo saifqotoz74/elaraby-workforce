@@ -7,6 +7,7 @@ const repository = require('../db/repository');
 const { getCurrentTenantId } = require('../tenantContext');
 const { recordAuditLog } = require('./auditService');
 const { broadcast } = require('./realtimeService');
+const alertService = require('./alertService');
 
 const LOAN_TYPES = {
   EMERGENCY_ADVANCE: 'emergency_advance', // سلفة طارئة (Max 50% net salary, 1-2 months)
@@ -125,6 +126,12 @@ function applyLoan(employeeId, body, { ip, userAgent } = {}) {
     notes = '',
     idempotencyKey,
   } = body || {};
+
+  // Fast Idempotency Return Check
+  if (idempotencyKey) {
+    const existingLoan = (db().loans || []).find((l) => l.idempotencyKey === idempotencyKey);
+    if (existingLoan) return existingLoan;
+  }
 
   const eligibility = getLoanEligibility(employeeId);
   const tenantId = eligibility.tenantId;
@@ -248,6 +255,40 @@ function applyLoan(employeeId, body, { ip, userAgent } = {}) {
     { loan: newLoan, employeeId, tenantId },
     { employeeId, tenantId }
   );
+
+  if (type === LOAN_TYPES.EMERGENCY_ADVANCE) {
+    try {
+      const emp = (db().employees || []).find((e) => e.id === employeeId);
+      const empName = emp?.name || employeeId;
+      const empCode = emp?.employeeCode || 'N/A';
+      const factory = emp?.factory || 'Factory';
+
+      alertService.createAlert({
+        tenantId,
+        type: alertService.ALERT_TYPES.EMERGENCY_LOAN,
+        title: 'Emergency Loan Requested',
+        message: `Employee ${empName} (${empCode}) submitted an emergency advance request for ${currency} ${numAmount.toLocaleString()} (${referenceNumber}).`,
+        severity: alertService.ALERT_SEVERITIES.WARNING,
+        entityType: 'loan',
+        entityId: newLoan.id,
+        metadata: {
+          loanId: newLoan.id,
+          employeeId,
+          employeeName: empName,
+          employeeCode: empCode,
+          factory,
+          department: emp?.department || null,
+          amount: numAmount,
+          currency,
+          installmentsCount: numInstallments,
+          purpose,
+          referenceNumber,
+        },
+      });
+    } catch (alertErr) {
+      console.warn('[loanService:alert_creation_error]', alertErr.message);
+    }
+  }
 
   return newLoan;
 }
