@@ -780,19 +780,7 @@ function isCommuteSuppressed(employeeId, targetDateStr = null) {
     };
   }
 
-  // 2. Check weekly rest days (Friday = 5, Saturday = 6)
-  const dayOfWeek = now.getDay();
-  if (dayOfWeek === 5 || dayOfWeek === 6) {
-    return {
-      isSuppressed: true,
-      reason: 'rest_day',
-      reasonAr: 'عطلة أسبوعية رسمية (الجمعة / السبت)',
-      reasonEn: 'Weekly rest day (Friday / Saturday)',
-      optOutToday: false,
-    };
-  }
-
-  // 3. Check approved leave requests covering today
+  // 2. Check approved leave requests covering target date
   const requests = db().requests || [];
   const activeLeave = requests.find((r) => {
     if (r.employeeId !== employeeId) return false;
@@ -814,6 +802,18 @@ function isCommuteSuppressed(employeeId, targetDateStr = null) {
       reasonAr: `تنبيهات الحافلة متوقفة: لديك إجازة معتمدة (${leaveName})`,
       reasonEn: `Alerts paused: Approved leave on file (${leaveName})`,
       leaveType: leaveName,
+      optOutToday: false,
+    };
+  }
+
+  // 3. Check weekly rest days (Friday = 5, Saturday = 6)
+  const dayOfWeek = now.getDay();
+  if (dayOfWeek === 5 || dayOfWeek === 6) {
+    return {
+      isSuppressed: true,
+      reason: 'rest_day',
+      reasonAr: 'عطلة أسبوعية رسمية (الجمعة / السبت)',
+      reasonEn: 'Weekly rest day (Friday / Saturday)',
       optOutToday: false,
     };
   }

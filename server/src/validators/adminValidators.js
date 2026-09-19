@@ -48,7 +48,7 @@ function validateEmployeeCreate(body) {
     }
   }
 
-  let finalBalance = 12;
+  let finalBalance = 21;
   if (vacationBalance !== undefined && vacationBalance !== null) {
     const balCheck = validateVacationBalance(vacationBalance);
     if (!balCheck.ok) return balCheck;

@@ -119,13 +119,20 @@ function generateSchedule(amount, installmentsCount, startDate = new Date()) {
  */
 function applyLoan(employeeId, body, { ip, userAgent } = {}) {
   const {
-    type,
+    type: rawType,
     amount,
     installmentsCount,
     purpose = 'general',
     notes = '',
     idempotencyKey,
   } = body || {};
+
+  let type = typeof rawType === 'string' ? rawType.toLowerCase().trim() : rawType;
+  if (type === 'emergency' || type === 'emergency_advance') {
+    type = LOAN_TYPES.EMERGENCY_ADVANCE;
+  } else if (type === 'social' || type === 'social_loan') {
+    type = LOAN_TYPES.SOCIAL_LOAN;
+  }
 
   // Fast Idempotency Return Check
   if (idempotencyKey) {

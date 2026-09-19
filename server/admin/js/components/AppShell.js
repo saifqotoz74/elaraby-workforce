@@ -30,6 +30,9 @@ export class AppShell {
     this.topbar = new Topbar({
       onToggleSidebar: () => this.toggleMobileSidebar(),
       onOpenCommandPalette: () => this.commandPalette.open(),
+      onNavigate: (route) => {
+        if (this.onNavigate) this.onNavigate(route);
+      },
     });
 
     this.element = null;

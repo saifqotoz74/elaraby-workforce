@@ -1,0 +1,7 @@
+﻿test/
+data/*.tmp
+data/*.tmp.*
+data/*.bak
+backups/
+uploads/
+*.log

@@ -55,7 +55,7 @@ function calculateOvertimePay({ hours, date, timePeriod = 'day', hourlyRate = DE
   const numHours = parseFloat(hours) || 0;
   const tier = getOvertimeRateTier(date, timePeriod);
   const effectiveRate = hourlyRate * tier.multiplier;
-  const totalAmount = Math.round(numHours * effectiveRate);
+  const totalAmount = Math.round(numHours * effectiveRate * 100) / 100;
 
   return {
     hours: numHours,

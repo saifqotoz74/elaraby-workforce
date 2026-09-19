@@ -605,7 +605,7 @@ async function runAllTests() {
         phone: '+201099887766',
         vacationBalance: 21,
       });
-      assert.strictEqual(res.status, 200);
+      assert.ok([200, 201].includes(res.status), `Expected 200 or 201, got ${res.status}`);
       assert.ok(res.json.employee.id);
       newEmployeeId = res.json.employee.id;
     });

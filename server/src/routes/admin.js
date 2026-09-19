@@ -463,13 +463,28 @@ router.get('/employees', requirePermission(PERMISSIONS.EMPLOYEE_READ), (req, res
   res.json(employeeService.listEmployees(req.admin, req.query));
 });
 
+router.get('/employees/:id', requirePermission(PERMISSIONS.EMPLOYEE_READ), (req, res, next) => {
+  try {
+    const employee = employeeService.getEmployee(req.admin, req.params.id);
+    if (!employee) {
+      return res.status(404).json({ error: 'employee_not_found' });
+    }
+    res.json({ employee });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
+    next(err);
+  }
+});
+
 router.post('/employees', requirePermission(PERMISSIONS.EMPLOYEE_CREATE), (req, res, next) => {
   try {
     const employee = employeeService.createEmployee(req.admin, req.body, {
       ip: req.ip,
       userAgent: req.headers['user-agent'],
     });
-    res.json({ employee });
+    res.status(201).json({ employee });
   } catch (err) {
     if (err.statusCode) {
       return res.status(err.statusCode).json({ error: err.message });
@@ -571,7 +586,75 @@ router.post('/requests/:id/stages/:stage/decide', async (req, res, next) => {
   }
 });
 
-// ---------- Shift Swaps Supervisor Decision ----------
+// ---------- Shift Swaps Supervisor Decision & Queries ----------
+router.get('/shifts/swaps', requirePermission(PERMISSIONS.SHIFT_READ), (req, res, next) => {
+  try {
+    const { status, factory, department } = req.query || {};
+    const tenantId = req.tenantId || req.admin?.tenantId || 'elaraby';
+    let swaps = db().shiftSwaps || [];
+
+    swaps = swaps.filter((s) => {
+      if (s.tenantId && s.tenantId !== tenantId && req.admin?.role !== 'superadmin') return false;
+      if (status && status !== 'all' && s.status !== status) return false;
+      return true;
+    });
+
+    const employees = db().employees || [];
+    const enrichedSwaps = swaps.map((s) => {
+      const empA = employees.find((e) => e.id === s.requesterEmployeeId || e.id === s.employeeId);
+      const empB = employees.find((e) => e.id === s.targetEmployeeId);
+      return {
+        ...s,
+        requesterName: s.requesterName || empA?.name || s.requesterEmployeeId,
+        targetName: s.targetName || empB?.name || s.targetEmployeeId,
+        factory: empA?.factory || '—',
+        department: empA?.department || '—',
+      };
+    });
+
+    const stats = {
+      total: enrichedSwaps.length,
+      pending: enrichedSwaps.filter((s) => s.status === 'supervisor_pending' || s.status === 'colleague_pending' || s.status === 'pending').length,
+      approved: enrichedSwaps.filter((s) => s.status === 'approved').length,
+      rejected: enrichedSwaps.filter((s) => String(s.status).includes('rejected') || String(s.status).includes('declined')).length,
+    };
+
+    res.json({ swaps: enrichedSwaps, stats });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/shifts/swap-direct', requirePermission(PERMISSIONS.SHIFT_UPDATE), (req, res, next) => {
+  try {
+    const { employeeAId, employeeBId, date, reason } = req.body || {};
+    if (!employeeAId || !employeeBId || !date) {
+      return res.status(400).json({ error: 'employeeAId, employeeBId, and date are required' });
+    }
+
+    const swapRecord = shiftService.createSwapRequest(employeeAId, {
+      targetEmployeeId: employeeBId,
+      date,
+      reason: reason || 'Direct Supervisor Schedule Adjustment',
+    });
+
+    shiftService.respondSwapRequest(employeeBId, swapRecord.id, 'accept');
+    const decided = shiftService.decideSwapSupervisor(
+      req.admin?.username || 'admin',
+      swapRecord.id,
+      'approved',
+      reason || 'Direct supervisor approval',
+    );
+
+    res.json({ ok: true, swap: decided });
+  } catch (err) {
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message, code: err.code });
+    }
+    next(err);
+  }
+});
+
 router.post('/shifts/swaps/:id/decide', (req, res, next) => {
   const { decision, notes } = req.body || {};
   try {
@@ -590,7 +673,51 @@ router.post('/shifts/swaps/:id/decide', (req, res, next) => {
   }
 });
 
-// ---------- Overtime Supervisor Decision ----------
+// ---------- Overtime Supervisor Decision & Queries ----------
+router.get('/overtime', requirePermission(PERMISSIONS.SHIFT_READ), (req, res, next) => {
+  try {
+    const { status, factory, department, limit } = req.query || {};
+    const tenantId = req.tenantId || req.admin?.tenantId || 'elaraby';
+    let claims = db().overtimeClaims || [];
+
+    const employees = db().employees || [];
+    claims = claims.filter((c) => {
+      if (c.tenantId && c.tenantId !== tenantId && req.admin?.role !== 'superadmin') return false;
+      if (status && status !== 'all' && c.status !== status) return false;
+      if (factory && factory !== 'all' && c.factory !== factory) return false;
+      if (department && department !== 'all' && c.department !== department) return false;
+      return true;
+    });
+
+    const enrichedClaims = claims.map((c) => {
+      const emp = employees.find((e) => e.id === c.employeeId);
+      return {
+        ...c,
+        employeeName: c.employeeName || emp?.name || c.employeeId,
+        employeeCode: emp?.employeeCode || '—',
+        factory: c.factory || emp?.factory || '—',
+        department: c.department || emp?.department || '—',
+      };
+    });
+
+    const stats = {
+      total: enrichedClaims.length,
+      pending: enrichedClaims.filter((c) => c.status === 'pending_supervisor' || c.status === 'pending').length,
+      approved: enrichedClaims.filter((c) => c.status === 'approved').length,
+      rejected: enrichedClaims.filter((c) => c.status === 'rejected').length,
+    };
+
+    let result = enrichedClaims;
+    if (limit) {
+      result = result.slice(0, parseInt(limit, 10));
+    }
+
+    res.json({ claims: result, stats });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/overtime/:id/decide', (req, res, next) => {
   const { decision, notes } = req.body || {};
   try {
@@ -774,7 +901,75 @@ router.put('/payroll/:employeeId', requirePermission(PERMISSIONS.PAYROLL_UPDATE)
   }
 });
 
-// ---------- Roster ----------
+// ---------- Roster & Bulk Roster Matrix ----------
+router.get('/rosters', requirePermission(PERMISSIONS.SHIFT_READ), (req, res, next) => {
+  try {
+    const { factory, department, search, weekStart } = req.query || {};
+    const targetWeekStart = weekStart || shiftService.getWeekStart();
+    const database = db();
+    let employees = database.employees || [];
+
+    const tenantId = req.tenantId || req.admin?.tenantId || 'elaraby';
+    employees = employees.filter((emp) => {
+      const eTenant = emp.tenantId || (emp.workEmail && emp.workEmail.includes('elsewedy') ? 'elsewedy' : emp.workEmail && emp.workEmail.includes('tmg') ? 'tmg' : 'elaraby');
+      if (eTenant !== tenantId && req.admin?.role !== 'superadmin') return false;
+      if (factory && factory !== 'all' && emp.factory !== factory) return false;
+      if (department && department !== 'all' && emp.department !== department) return false;
+      if (search) {
+        const q = search.toLowerCase().trim();
+        const matchName = (emp.name || '').toLowerCase().includes(q);
+        const matchCode = (emp.employeeCode || '').toLowerCase().includes(q);
+        const matchNat = (emp.nationalId || '').includes(q);
+        if (!matchName && !matchCode && !matchNat) return false;
+      }
+      return checkScope(req.admin, emp);
+    });
+
+    const sundayDate = new Date(targetWeekStart + 'T00:00:00');
+    const rosterRecords = database.roster || [];
+
+    const rosters = employees.map((emp) => {
+      const saved = rosterRecords.find((r) => r.employeeId === emp.id && r.weekStart === targetWeekStart);
+      if (saved && saved.days && saved.days.length === 7) {
+        return {
+          employeeId: emp.id,
+          employee: {
+            id: emp.id,
+            name: emp.name,
+            employeeCode: emp.employeeCode || (emp.nationalId ? emp.nationalId.slice(-4) : '—'),
+            factory: emp.factory,
+            department: emp.department,
+            position: emp.position,
+          },
+          weekStart: targetWeekStart,
+          days: saved.days,
+          isCustom: true,
+        };
+      }
+
+      const generated = shiftService.getRosterForWeek(emp, sundayDate);
+      return {
+        employeeId: emp.id,
+        employee: {
+          id: emp.id,
+          name: emp.name,
+          employeeCode: emp.employeeCode || (emp.nationalId ? emp.nationalId.slice(-4) : '—'),
+          factory: emp.factory,
+          department: emp.department,
+          position: emp.position,
+        },
+        weekStart: targetWeekStart,
+        days: generated.map((d, idx) => ({ dayIndex: idx, shift: d.shift, date: d.date })),
+        isCustom: false,
+      };
+    });
+
+    res.json({ weekStart: targetWeekStart, rosters });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/roster/:employeeId', requirePermission(PERMISSIONS.SHIFT_READ), (req, res, next) => {
   try {
     const roster = shiftService.getRoster(req.admin, req.params.employeeId);

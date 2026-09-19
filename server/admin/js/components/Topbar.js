@@ -4,9 +4,10 @@ import { store } from '../state/store.js';
 import { superAdminApi, alertApi } from '../api/services.js';
 
 export class Topbar {
-  constructor({ onToggleSidebar, onOpenCommandPalette }) {
+  constructor({ onToggleSidebar, onOpenCommandPalette, onNavigate } = {}) {
     this.onToggleSidebar = onToggleSidebar;
     this.onOpenCommandPalette = onOpenCommandPalette;
+    this.onNavigate = onNavigate;
     this.element = null;
     this.clockInterval = null;
     this.alerts = [];
@@ -14,6 +15,7 @@ export class Topbar {
     this.isAlertsOpen = false;
     this.alertListener = null;
     this.outsideClickListener = null;
+    this.escapeListener = null;
   }
 
   render() {

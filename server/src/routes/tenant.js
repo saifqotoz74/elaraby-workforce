@@ -335,11 +335,27 @@ router.get('/tenant/config', (req, res) => {
   });
 });
 
+function findTenantBySlug(slug) {
+  if (!slug) return null;
+  const s = slug.toLowerCase().trim();
+  const d = db();
+  const dbTenants = d.tenants || [];
+  const fromDb = dbTenants.find((t) => t.id === s || t.slug === s);
+  if (fromDb) return fromDb;
+
+  if (BUILTIN_TENANTS[s]) return BUILTIN_TENANTS[s];
+  if (s === 'gulf' && BUILTIN_TENANTS.gulf_industrial) {
+    return { ...BUILTIN_TENANTS.gulf_industrial, slug: 'gulf' };
+  }
+  const match = Object.values(BUILTIN_TENANTS).find((t) => t.slug === s || t.id === s);
+  return match || null;
+}
+
 /**
- * GET /api/tenant/list
+ * GET /api/tenant/list and GET /api/tenants
  * Returns list of public active tenants for company onboarding discovery.
  */
-router.get('/tenant/list', (req, res) => {
+router.get(['/tenants', '/tenant/list'], (req, res) => {
   const d = db();
   const dbTenants = (d.tenants || []).filter((t) => t.status === 'active');
 
@@ -348,18 +364,24 @@ router.get('/tenant/list', (req, res) => {
     ...dbTenants.filter((dbT) => !BUILTIN_TENANTS[dbT.id]),
   ];
 
-  const publicList = all.map((t) => ({
-    id: t.id,
-    slug: t.slug,
-    name: t.name,
-    nameAr: t.nameAr,
-    primaryColor: t.brand?.primaryColor,
-    authMode: t.authMode,
-  }));
-
   res.json({
     success: true,
-    tenants: publicList,
+    tenants: all,
+  });
+});
+
+/**
+ * GET /api/tenants/:slug
+ * Returns individual tenant metadata including branding, features, and geofences.
+ */
+router.get('/tenants/:slug', (req, res) => {
+  const tenant = findTenantBySlug(req.params.slug);
+  if (!tenant) {
+    return res.status(404).json({ success: false, error: 'tenant_not_found' });
+  }
+  res.json({
+    success: true,
+    tenant,
   });
 });
 

@@ -31,8 +31,8 @@ const TENANT_FACTORIES = {
       id: 'Quesna',
       nameAr: 'مجمع قويسنا الصناعي',
       nameEn: 'Quesna Industrial Complex',
-      lat: 30.5898,
-      lng: 31.1578,
+      lat: 30.5518,
+      lng: 31.1442,
       radiusMeters: 800,
     },
     Benha: {
@@ -357,6 +357,8 @@ function recordPunch(employeeId, { type = 'in', lat, lng, qrToken, timestamp = D
     type, // 'in' or 'out'
     timestamp,
     timeFormatted: new Date(timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+    lat: (lat !== undefined && lat !== null && lat !== '') ? Number(lat) : null,
+    lng: (lng !== undefined && lng !== null && lng !== '') ? Number(lng) : null,
     geofence: geofenceResult,
     isOutOfBounds: !geofenceResult.withinGeofence,
     punctuality,
@@ -501,6 +503,8 @@ function getAdminTodayAttendance({ tenantId, factory, limit = 100 } = {}) {
       employeeCode: emp?.employeeCode || '—',
       factory: r.factory || emp?.factory || '—',
       department: r.department || emp?.department || '—',
+      lat: (r.lat !== undefined && r.lat !== null) ? Number(r.lat) : null,
+      lng: (r.lng !== undefined && r.lng !== null) ? Number(r.lng) : null,
       withinGeofence: r.isOutOfBounds !== undefined ? !r.isOutOfBounds : (r.withinGeofence !== false),
     };
   });
@@ -508,6 +512,7 @@ function getAdminTodayAttendance({ tenantId, factory, limit = 100 } = {}) {
   return {
     date: dateKey,
     tenantId: currentTenant,
+    geofences: getTenantGeofences(currentTenant),
     stats: {
       totalPunches,
       activePresent: inPunches.length,

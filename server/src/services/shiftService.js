@@ -103,13 +103,13 @@ function resolveShiftForDate(employee, dateObj) {
     (o) => o.employeeId === employee.id && o.date === dateKey,
   );
   if (override && SHIFTS[override.shiftId]) {
-    return { ...SHIFTS[override.shiftId], isOverride: true, date: dateKey };
+    return { ...SHIFTS[override.shiftId], shift: SHIFTS[override.shiftId].id, isOverride: true, date: dateKey };
   }
 
   // Check official Egyptian Holidays or factory rest days
   if (dayOfWeek === 5 || dayOfWeek === 6) {
     // Friday & Saturday are factory rest days
-    return { ...SHIFTS.off, isOverride: false, date: dateKey };
+    return { ...SHIFTS.off, shift: SHIFTS.off.id, isOverride: false, date: dateKey };
   }
 
   // HQ/Admin department vs Factory Production Line
@@ -120,7 +120,7 @@ function resolveShiftForDate(employee, dateObj) {
     employee.department === 'IT';
 
   if (isHQ) {
-    return { ...SHIFTS.regular, isOverride: false, date: dateKey };
+    return { ...SHIFTS.regular, shift: SHIFTS.regular.id, isOverride: false, date: dateKey };
   }
 
   // Factory Production Lines 3-Shift Weekly Rotation
@@ -131,7 +131,7 @@ function resolveShiftForDate(employee, dateObj) {
   const empOffset = (employee.id || 'emp_1').charCodeAt((employee.id || 'emp_1').length - 1) % 3;
   const shiftKey = shiftCycle[(weekNumber + empOffset) % 3];
 
-  return { ...SHIFTS[shiftKey], isOverride: false, date: dateKey };
+  return { ...SHIFTS[shiftKey], shift: SHIFTS[shiftKey].id, isOverride: false, date: dateKey };
 }
 
 /**

@@ -28,6 +28,15 @@ export const payrollApi = {
 export const shiftApi = {
   get: (employeeId) => api.get(`/api/admin/roster/${employeeId}`),
   update: (employeeId, data) => api.put(`/api/admin/roster/${employeeId}`, data),
+  listRosters: (params) => api.get('/api/admin/rosters', params),
+  listSwaps: (params) => api.get('/api/admin/shifts/swaps', params),
+  decideSwap: (id, decision) => api.post(`/api/admin/shifts/swaps/${id}/decide`, decision),
+  swapDirect: (data) => api.post('/api/admin/shifts/swap-direct', data),
+};
+
+export const overtimeApi = {
+  list: (params) => api.get('/api/admin/overtime', params),
+  decide: (id, decision) => api.post(`/api/admin/overtime/${id}/decide`, decision),
 };
 
 export const contentApi = {
