@@ -3,12 +3,21 @@ const MockErpAdapter = require('./MockErpAdapter');
 const SapAdapter = require('./SapAdapter');
 const OracleAdapter = require('./OracleAdapter');
 const RestErpAdapter = require('./RestErpAdapter');
+const SapSuccessFactorsConnector = require('./SapSuccessFactorsConnector');
+const OracleFusionHcmConnector = require('./OracleFusionHcmConnector');
+
+const connectors = {
+  sap: new SapSuccessFactorsConnector(),
+  oracle: new OracleFusionHcmConnector(),
+};
 
 const adapters = {
   mock: new MockErpAdapter(),
   sap: new SapAdapter(),
   oracle: new OracleAdapter(),
   rest: new RestErpAdapter(),
+  sap_successfactors: connectors.sap,
+  oracle_fusion: connectors.oracle,
 };
 
 let _activeAdapter = null;
@@ -43,6 +52,22 @@ function setActiveAdapter(nameOrInstance) {
   }
 }
 
+function getConnector(system = 'sap') {
+  const clean = String(system || '').toLowerCase().trim();
+  if (clean === 'sap' || clean === 'successfactors' || clean === 'sap_successfactors' || clean === 'sap_sf') {
+    return connectors.sap;
+  }
+  if (clean === 'oracle' || clean === 'fusion' || clean === 'oracle_fusion' || clean === 'oracle_hcm') {
+    return connectors.oracle;
+  }
+  throw new Error(`Unsupported ERP system: ${system}`);
+}
+
+function exportSchema(system, entity, records = [], tenantId = null) {
+  const connector = getConnector(system);
+  return connector.exportSchema(entity, records, tenantId);
+}
+
 async function sync(domain = 'employees', options = {}) {
   const adapter = getActiveAdapter();
   if (domain === 'employees') {
@@ -68,4 +93,9 @@ module.exports = {
   setActiveAdapter,
   isConfigured,
   adapters,
+  connectors,
+  getConnector,
+  exportSchema,
+  SapSuccessFactorsConnector,
+  OracleFusionHcmConnector,
 };

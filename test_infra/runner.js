@@ -10,29 +10,29 @@ const TIERS = [
     tier: 1,
     name: 'Tier 1: Feature Coverage',
     file: 'tier1_features.test.js',
-    targetMin: 80,
-    desc: 'Opaque-box feature coverage across 16 core requirements',
+    targetMin: 100,
+    desc: 'Opaque-box feature coverage across 20 core requirements (Features 1-20)',
   },
   {
     tier: 2,
     name: 'Tier 2: Boundary & Corner Cases',
     file: 'tier2_boundaries.test.js',
-    targetMin: 80,
-    desc: 'Extreme values, zero states, security injections & edge coordinates',
+    targetMin: 100,
+    desc: 'Extreme values, zero states, security injections, schema boundaries & edge coordinates (B1-B20)',
   },
   {
     tier: 3,
     name: 'Tier 3: Cross-Feature Interactions',
     file: 'tier3_combinations.test.js',
-    targetMin: 16,
-    desc: 'Pairwise and cascading multi-domain interactions',
+    targetMin: 20,
+    desc: 'Pairwise and cascading multi-domain interactions (INT-1 to INT-20)',
   },
   {
     tier: 4,
     name: 'Tier 4: Enterprise Scenarios',
     file: 'tier4_realworld.test.js',
-    targetMin: 8,
-    desc: '8 end-to-end multi-tenant enterprise user journeys',
+    targetMin: 10,
+    desc: '10 end-to-end multi-tenant enterprise and industrial user journeys (SCENARIO 1-10)',
   },
 ];
 
@@ -65,21 +65,22 @@ async function runTier(tierConfig) {
       const combined = stdout + '\n' + stderr;
 
       // Parse TAP / test runner output
-      const passMatches = combined.match(/^ok\s+\d+\s+-\s+(.+)$/gm) || [];
-      const failMatches = combined.match(/^not ok\s+\d+\s+-\s+(.+)$/gm) || [];
+      const passMatches = combined.match(/^\s*ok\s+\d+\s+-\s+(?!===\s*TIER)(.+)$/gm) || [];
+      const failMatches = combined.match(/^\s*not ok\s+\d+\s+-\s+(?!===\s*TIER)(.+)$/gm) || [];
 
       // Extract specific failure details
       const failures = [];
       const lines = combined.split('\n');
       for (let i = 0; i < lines.length; i++) {
-        if (lines[i].startsWith('not ok')) {
-          const name = lines[i].replace(/^not ok\s+\d+\s+-\s+/, '').trim();
+        const trimmed = lines[i].trim();
+        if (trimmed.startsWith('not ok') && !trimmed.includes('=== TIER')) {
+          const name = trimmed.replace(/^not ok\s+\d+\s+-\s+/, '').trim();
           let errorMsg = '';
           for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
             if (lines[j].startsWith('#') || lines[j].includes('error:') || lines[j].includes('AssertionError')) {
               errorMsg += ' ' + lines[j].replace(/^#\s*/, '').trim();
             }
-            if (lines[j].startsWith('ok') || lines[j].startsWith('not ok')) break;
+            if (lines[j].trim().startsWith('ok') || lines[j].trim().startsWith('not ok')) break;
           }
           failures.push({ name, error: errorMsg.trim() || 'Assertion or runtime error' });
         }
@@ -108,7 +109,7 @@ async function main() {
   console.log('================================================================================');
   console.log(' WORKFORCE OS — MASTER E2E OPAQUE-BOX TEST RUNNER');
   console.log(' Execution Mode: Native Node.js test runner (Zero external dependencies)');
-  console.log(' Target Suite: Tiers 1-4 (Coverage Target: >= 184 Tests)');
+  console.log(' Target Suite: Tiers 1-4 (Coverage Target: >= 230 Tests)');
   console.log('================================================================================\n');
 
   const tiersToRun = targetTier ? TIERS.filter((t) => t.tier === targetTier) : TIERS;
@@ -164,7 +165,7 @@ async function main() {
   console.log('-'.repeat(80));
   console.log(
     ' Total'.padEnd(10) +
-    '>= 184'.padEnd(14) +
+    '>= 230'.padEnd(14) +
     `${grandTotal}`.padEnd(14) +
     `\x1b[32m${grandPassed}\x1b[0m`.padEnd(20) +
     `${grandFailed > 0 ? '\x1b[31m' + grandFailed + '\x1b[0m' : '0'}`.padEnd(20) +

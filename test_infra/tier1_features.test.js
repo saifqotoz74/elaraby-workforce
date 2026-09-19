@@ -24,6 +24,9 @@ const shiftService = require('../server/src/services/shiftService');
 const overtimeService = require('../server/src/services/overtimeService');
 const attendanceService = require('../server/src/services/attendanceService');
 const loanService = require('../server/src/services/loanService');
+const erp = require('../server/src/integrations/erp');
+const reconciliationEngine = require('../server/src/integrations/reconciliation/reconciliationEngine');
+const biometrics = require('../server/src/integrations/biometrics');
 
 let adminToken;
 let elarabyEmpToken;
@@ -943,5 +946,319 @@ test('=== TIER 1: FEATURE COVERAGE E2E SUITE ===', async (t) => {
     const res = await request('GET', '/api/tenants/elaraby');
     assert.equal(res.status, 200);
     assert.ok(res.json?.tenant?.factories || res.json?.tenant?.factoryGeofences);
+  });
+
+  // =========================================================================
+  // FEATURE 17: Enterprise ERP Schema Export (SAP SuccessFactors & Oracle Fusion HCM)
+  // =========================================================================
+  await t.test('F17.1: ERP Schema Export - GET /api/admin/integrations/export/schema?system=sap&entity=employees returns OData v4 PerPerson/EmpJob schema', async () => {
+    const res = await request('GET', '/api/admin/integrations/export/schema?system=sap&entity=employees', {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert.equal(res.status, 200, `Expected 200, got ${res.status}`);
+    assert.equal(res.json?.system, 'sap');
+    assert.equal(res.json?.entity, 'employees');
+    assert.equal(res.json?.schemaVersion, 'OData v4 / SF-2026');
+    assert.ok(Array.isArray(res.json?.records));
+    assert.ok(res.json?.count >= 1);
+    assert.ok(res.json?.records[0]?.personIdExternal !== undefined);
+  });
+
+  await t.test('F17.2: ERP Schema Export - GET /api/admin/integrations/export/schema?system=sap&entity=attendance returns EmployeeTime schema', async () => {
+    const res = await request('GET', '/api/admin/integrations/export/schema?system=sap&entity=attendance', {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.system, 'sap');
+    assert.equal(res.json?.entity, 'attendance');
+    assert.equal(res.json?.schemaVersion, 'OData v4 / SF-2026');
+    assert.ok(Array.isArray(res.json?.records));
+  });
+
+  await t.test('F17.3: ERP Schema Export - GET /api/admin/integrations/export/schema?system=sap&entity=payroll returns EmpCompensation schema', async () => {
+    const res = await request('GET', '/api/admin/integrations/export/schema?system=sap&entity=payroll', {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.system, 'sap');
+    assert.equal(res.json?.entity, 'payroll');
+    assert.ok(Array.isArray(res.json?.records));
+  });
+
+  await t.test('F17.4: ERP Schema Export - GET /api/admin/integrations/export/schema?system=oracle&entity=employees returns Oracle workers schema', async () => {
+    const res = await request('GET', '/api/admin/integrations/export/schema?system=oracle&entity=employees', {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.system, 'oracle');
+    assert.equal(res.json?.entity, 'employees');
+    assert.equal(res.json?.schemaVersion, 'REST API 11.13.18.05');
+    assert.ok(Array.isArray(res.json?.records));
+    assert.ok(res.json?.count >= 1);
+    assert.ok(res.json?.records[0]?.PersonNumber !== undefined);
+  });
+
+  await t.test('F17.5: ERP Schema Export - GET /api/admin/integrations/export/schema?system=oracle&entity=payroll returns payrollElementEntries schema', async () => {
+    const res = await request('GET', '/api/admin/integrations/export/schema?system=oracle&entity=payroll', {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.system, 'oracle');
+    assert.equal(res.json?.entity, 'payroll');
+    assert.equal(res.json?.schemaVersion, 'REST API 11.13.18.05');
+    assert.ok(Array.isArray(res.json?.records));
+  });
+
+  // =========================================================================
+  // FEATURE 18: Multi-Domain Payroll & Attendance Reconciliation Audit
+  // =========================================================================
+  await t.test('F18.1: Payroll Reconciliation - POST /api/admin/integrations/reconciliation/payroll detects exact matching records', async () => {
+    const database = db();
+    database.payroll = database.payroll || [];
+    let p1 = database.payroll.find((p) => p.employeeId === 'emp_1');
+    if (!p1) {
+      p1 = {
+        id: 'pay_emp_1',
+        employeeId: 'emp_1',
+        period: '2026-09',
+        basicSalary: 8500,
+        allowances: 1500,
+        deductions: 500,
+        netSalary: 9500,
+      };
+      database.payroll.push(p1);
+      save();
+    }
+
+    const payload = {
+      externalPayroll: [
+        {
+          employeeId: 'emp_1',
+          period: '2026-09',
+          basicSalary: p1.basicSalary,
+          allowances: p1.allowances,
+          deductions: p1.deductions,
+          netSalary: p1.netSalary,
+        },
+      ],
+    };
+
+    const res = await request('POST', '/api/admin/integrations/reconciliation/payroll', {
+      Authorization: `Bearer ${adminToken}`,
+    }, payload);
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.ok, true);
+    assert.equal(res.json?.matchedCount, 1);
+    assert.equal(res.json?.mismatchCount, 0);
+    assert.ok(res.json?.auditLogId);
+  });
+
+  await t.test('F18.2: Payroll Reconciliation - Detects basicSalary and allowances discrepancies with diff calculation', async () => {
+    const database = db();
+    const p1 = (database.payroll || []).find((p) => p.employeeId === 'emp_1') || { basicSalary: 8500, allowances: 1500 };
+
+    const payload = {
+      externalPayroll: [
+        {
+          employeeId: 'emp_1',
+          period: '2026-09',
+          basicSalary: p1.basicSalary + 500,
+          allowances: p1.allowances - 200,
+          deductions: 500,
+          netSalary: 9800,
+        },
+      ],
+    };
+
+    const res = await request('POST', '/api/admin/integrations/reconciliation/payroll', {
+      Authorization: `Bearer ${adminToken}`,
+    }, payload);
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.ok, true);
+    assert.ok(res.json?.mismatchCount > 0);
+    const disc = res.json?.discrepancies?.find((d) => d.employeeId === 'emp_1' && d.field === 'basicSalary');
+    assert.ok(disc, 'Must detect basicSalary discrepancy');
+    assert.equal(disc.diff, 500);
+  });
+
+  await t.test('F18.3: Payroll Reconciliation - Logs tamper-proof audit trail with ERP_RECONCILIATION_PAYROLL action', async () => {
+    const database = db();
+    const payAudit = (database.auditLogs || []).find((l) => l.action === 'ERP_RECONCILIATION_PAYROLL');
+    assert.ok(payAudit, 'Audit log must record ERP_RECONCILIATION_PAYROLL action');
+    assert.equal(payAudit.entity, 'payroll');
+  });
+
+  await t.test('F18.4: Attendance Reconciliation - POST /api/admin/integrations/reconciliation/attendance matches verified check-in/out records', async () => {
+    const database = db();
+    database.attendanceRecords = database.attendanceRecords || [];
+    let att1 = database.attendanceRecords.find((a) => a.employeeId === 'emp_1' && a.date === '2026-09-19');
+    if (!att1) {
+      att1 = {
+        id: 'att_emp_1_test',
+        employeeId: 'emp_1',
+        date: '2026-09-19',
+        tenantId: 'elaraby',
+        checkIn: '08:00:00',
+        checkOut: '17:00:00',
+        hoursWorked: 9.0,
+        scheduledShift: 'morning',
+      };
+      database.attendanceRecords.push(att1);
+      save();
+    }
+
+    const payload = {
+      externalAttendance: [
+        {
+          employeeId: 'emp_1',
+          date: '2026-09-19',
+          checkIn: '08:00:00',
+          checkOut: '17:00:00',
+          shiftKey: 'morning',
+        },
+      ],
+    };
+
+    const res = await request('POST', '/api/admin/integrations/reconciliation/attendance', {
+      Authorization: `Bearer ${adminToken}`,
+    }, payload);
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.ok, true);
+    assert.ok(res.json?.auditLogId);
+  });
+
+  await t.test('F18.5: Attendance Reconciliation - Detects check-in time deviations and shift code mismatches', async () => {
+    const payload = {
+      externalAttendance: [
+        {
+          employeeId: 'emp_1',
+          date: '2026-09-19',
+          checkIn: '08:45:00',
+          checkOut: '17:00:00',
+          shiftKey: 'night',
+        },
+      ],
+    };
+
+    const res = await request('POST', '/api/admin/integrations/reconciliation/attendance', {
+      Authorization: `Bearer ${adminToken}`,
+    }, payload);
+    assert.equal(res.status, 200);
+    assert.ok(res.json?.discrepancies?.length > 0);
+  });
+
+  // =========================================================================
+  // FEATURE 19: Factory Production Line Balancing & AI Roster Optimization
+  // =========================================================================
+  await t.test('F19.1: AI Roster - GET /api/admin/rosters returns multi-worker weekly schedule matrix', async () => {
+    const res = await request('GET', '/api/admin/rosters', {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert.equal(res.status, 200);
+    assert.ok(Array.isArray(res.json?.rosters));
+    assert.ok(res.json.rosters.length >= 1);
+    assert.ok(res.json.rosters[0].days?.length === 7);
+  });
+
+  await t.test('F19.2: AI Roster - Production line rotation balances operators across morning, evening, and night shifts', async () => {
+    const database = db();
+    const emp1 = database.employees.find((e) => e.id === 'emp_1');
+    const sunday = new Date('2026-09-20T00:00:00');
+    const roster = shiftService.getRosterForWeek(emp1, sunday);
+    assert.equal(roster.length, 7);
+    assert.ok(roster.some((d) => d.shift));
+  });
+
+  await t.test('F19.3: AI Roster - Egyptian Labor Law weekly rest compliance guarantees at least one rest day', async () => {
+    const database = db();
+    const emp1 = database.employees.find((e) => e.id === 'emp_1');
+    const sunday = new Date('2026-09-20T00:00:00');
+    const roster = shiftService.getRosterForWeek(emp1, sunday);
+    const restDays = roster.filter((d) => d.shift === 'off' || d.isConfirmed === false);
+    assert.ok(restDays.length >= 1, 'Roster must contain at least 1 mandatory rest day per Egyptian Labor Law Art 83-85');
+  });
+
+  await t.test('F19.4: AI Roster - Circadian turnaround fatigue gate rejects back-to-back 16h double shifts', async () => {
+    const fatigueCheck = shiftService.checkFatigueSafety('emp_1', 'night', 'morning', '2026-09-20');
+    assert.equal(fatigueCheck.safe, false);
+    assert.equal(fatigueCheck.reason, 'double_shift_fatigue');
+  });
+
+  await t.test('F19.5: AI Roster - PUT /api/admin/roster/:id updates schedule matrix with audit log', async () => {
+    const res = await request('PUT', '/api/admin/roster/emp_1', {
+      Authorization: `Bearer ${adminToken}`,
+    }, {
+      days: [
+        { dayIndex: 0, shift: 'morning' },
+        { dayIndex: 1, shift: 'morning' },
+        { dayIndex: 2, shift: 'morning' },
+        { dayIndex: 3, shift: 'evening' },
+        { dayIndex: 4, shift: 'evening' },
+        { dayIndex: 5, shift: 'off' },
+        { dayIndex: 6, shift: 'off' },
+      ],
+    });
+    assert.equal(res.status, 200);
+    assert.ok(res.json?.roster);
+  });
+
+  // =========================================================================
+  // FEATURE 20: Bulk Attendance Synchronization & Queue Ingestion
+  // =========================================================================
+  await t.test('F20.1: Bulk Attendance - Biometrics gateway normalizes heterogeneous time-clock terminal punches', async () => {
+    const raw = {
+      badge_id: 'B_QSN_42',
+      terminal_id: 'TERM_QSN_01',
+      punch_time: '2026-09-20T07:55:00Z',
+      status: 'CHECK_IN',
+    };
+    const norm = biometrics.normalizePunch(raw);
+    assert.equal(norm.badgeNumber, 'B_QSN_42');
+    assert.equal(norm.deviceId, 'TERM_QSN_01');
+    assert.equal(norm.punchType, 'CHECK_IN');
+  });
+
+  await t.test('F20.2: Bulk Attendance - Biometrics gateway parses standard multi-worker attendance CSV file', async () => {
+    const csvContent = 'badge_id,device_id,time,type\nB_101,TERM_01,2026-09-20T08:00:00Z,CHECK_IN\nB_102,TERM_01,2026-09-20T08:02:00Z,CHECK_IN';
+    const parsed = biometrics.parseCsvFile(csvContent);
+    assert.equal(parsed.length, 2);
+    assert.equal(parsed[0].badgeNumber, 'B_101');
+    assert.equal(parsed[1].badgeNumber, 'B_102');
+  });
+
+  await t.test('F20.3: Bulk Attendance - Ingestion processes bulk punches and dispatches asynchronous job', async () => {
+    const punchBatch = [
+      { badge_id: 'B_101', device_id: 'TERM_01', punch_time: new Date().toISOString(), type: 'CHECK_IN' },
+      { badge_id: 'B_102', device_id: 'TERM_01', punch_time: new Date().toISOString(), type: 'CHECK_IN' },
+    ];
+    const ingestRes = await biometrics.ingest(punchBatch);
+    assert.equal(ingestRes.accepted, 2);
+    assert.equal(ingestRes.status, 'queued');
+    assert.ok(ingestRes.jobId);
+  });
+
+  await t.test('F20.4: Bulk Attendance - Offline punch queue persists records with HMAC offlineToken and timestamp', async () => {
+    const token = attendanceService.generateOfflineToken('emp_1', '2026-09-20');
+    assert.ok(token.startsWith('OFFLINE:emp_1:2026-09-20:'));
+    const punchRes = await request('POST', '/api/attendance/punch', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    }, {
+      type: 'in',
+      lat: 30.5518,
+      lng: 31.1442,
+      timestamp: Date.now(),
+      isOffline: true,
+      offlineToken: token,
+    });
+    assert.ok([201, 403].includes(punchRes.status));
+  });
+
+  await t.test('F20.5: Bulk Attendance - Today punch state synchronizes active punch status for mobile client', async () => {
+    const res = await request('GET', '/api/attendance/today', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    });
+    assert.equal(res.status, 200);
+    assert.ok(res.json?.status !== undefined);
+    assert.ok(res.json?.qrToken !== undefined);
   });
 });

@@ -274,7 +274,7 @@ function evaluateGeofence(tenantId, factoryPreference, lat, lng) {
 /**
  * Records a factory Punch-In or Punch-Out with strict tenant scoping.
  */
-function recordPunch(employeeId, { type = 'in', lat, lng, qrToken, timestamp = Date.now(), isOffline = false, strict = false } = {}) {
+function recordPunch(employeeId, { type = 'in', lat, lng, qrToken, timestamp = Date.now(), isOffline = false, strict = false, clientPunchId = null } = {}) {
   const currentTenant = getCurrentTenantId();
   const me = (db().employees || []).find((e) => e.id === employeeId);
   if (!me) {
@@ -350,6 +350,7 @@ function recordPunch(employeeId, { type = 'in', lat, lng, qrToken, timestamp = D
 
   const punchEntry = {
     id: punchId,
+    clientPunchId: clientPunchId || null,
     tenantId,
     employeeId,
     employeeName: me.name,
@@ -523,6 +524,79 @@ function getAdminTodayAttendance({ tenantId, factory, limit = 100 } = {}) {
   };
 }
 
+/**
+ * Bulk sync punches with 120s sliding-window and clientPunchId deduplication
+ */
+function bulkSyncPunches(employeeId, punches = [], options = {}) {
+  if (!Array.isArray(punches)) {
+    return { ok: true, totalProcessed: 0, acceptedCount: 0, duplicateCount: 0, results: [] };
+  }
+
+  const results = [];
+  let acceptedCount = 0;
+  let duplicateCount = 0;
+
+  for (const p of punches) {
+    const clientPunchId = p.clientPunchId || p.id;
+    const punchTs = Number(p.timestamp || Date.now());
+    const punchType = p.type === 'check-out' ? 'out' : (p.type === 'check-in' ? 'in' : (p.type || 'in'));
+    const empId = p.employeeId || employeeId;
+
+    // 120s sliding window check or clientPunchId check
+    const existing = (db().attendanceRecords || []).find((r) => {
+      if (clientPunchId && r.clientPunchId === clientPunchId) return true;
+      if (r.employeeId === empId && r.type === punchType) {
+        const timeDiff = Math.abs((r.timestamp || 0) - punchTs);
+        if (timeDiff <= 120 * 1000) return true; // 120s sliding window
+      }
+      return false;
+    });
+
+    if (existing) {
+      duplicateCount++;
+      results.push({
+        clientPunchId,
+        status: 'duplicate',
+        punchId: existing.id,
+      });
+    } else {
+      try {
+        const record = recordPunch(empId, {
+          type: punchType,
+          lat: p.lat !== undefined ? p.lat : p.latitude,
+          lng: p.lng !== undefined ? p.lng : p.longitude,
+          qrToken: p.qrToken || p.offlineToken,
+          timestamp: punchTs,
+          isOffline: true,
+          clientPunchId,
+        });
+        if (clientPunchId) record.clientPunchId = clientPunchId;
+        save();
+        acceptedCount++;
+        results.push({
+          clientPunchId,
+          status: 'accepted',
+          punchId: record.id,
+        });
+      } catch (err) {
+        results.push({
+          clientPunchId,
+          status: 'error',
+          error: err.message,
+        });
+      }
+    }
+  }
+
+  return {
+    ok: true,
+    totalProcessed: punches.length,
+    acceptedCount,
+    duplicateCount,
+    results,
+  };
+}
+
 module.exports = {
   FACTORIES,
   TENANT_FACTORIES,
@@ -532,6 +606,7 @@ module.exports = {
   verifyAttendanceQrToken,
   generateOfflineToken,
   recordPunch,
+  bulkSyncPunches,
   getTodayPunchState,
   getAdminTodayAttendance,
 };

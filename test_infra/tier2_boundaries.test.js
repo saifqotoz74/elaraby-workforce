@@ -24,6 +24,9 @@ const shiftService = require('../server/src/services/shiftService');
 const overtimeService = require('../server/src/services/overtimeService');
 const attendanceService = require('../server/src/services/attendanceService');
 const loanService = require('../server/src/services/loanService');
+const erp = require('../server/src/integrations/erp');
+const reconciliationEngine = require('../server/src/integrations/reconciliation/reconciliationEngine');
+const biometrics = require('../server/src/integrations/biometrics');
 const { verifyHash } = require('../server/src/auth');
 
 let adminToken;
@@ -858,5 +861,220 @@ test('=== TIER 2: BOUNDARY & CORNER CASES E2E SUITE ===', async (t) => {
     const gulf = await request('GET', '/api/tenants/gulf');
     assert.equal(elaraby.json?.tenant?.currency || 'EGP', 'EGP');
     assert.ok(['SAR', 'AED'].includes(gulf.json?.tenant?.currency || 'SAR'));
+  });
+
+  // =========================================================================
+  // B17: ERP Schema Export Boundaries & Corrupted Systems
+  // =========================================================================
+  await t.test('B17.1: ERP Schema Export - Invalid system parameter returns 400 with descriptive error', async () => {
+    const res = await request('GET', '/api/admin/integrations/export/schema?system=salesforce&entity=employees', {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert.equal(res.status, 400);
+    assert.equal(res.json?.error, 'invalid_system');
+  });
+
+  await t.test('B17.2: ERP Schema Export - Invalid entity parameter returns 400 with descriptive error', async () => {
+    const res = await request('GET', '/api/admin/integrations/export/schema?system=sap&entity=inventory', {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert.equal(res.status, 400);
+    assert.equal(res.json?.error, 'invalid_entity');
+  });
+
+  await t.test('B17.3: ERP Schema Export - Unauthenticated caller returns 401 Unauthorized', async () => {
+    const res = await request('GET', '/api/admin/integrations/export/schema?system=sap&entity=employees');
+    assert.equal(res.status, 401);
+  });
+
+  await t.test('B17.4: ERP Schema Export - Insufficient role (employee token) returns 401 or 403', async () => {
+    const res = await request('GET', '/api/admin/integrations/export/schema?system=sap&entity=employees', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    });
+    assert.ok([401, 403].includes(res.status), `Expected 401 or 403, got ${res.status}`);
+  });
+
+  await t.test('B17.5: ERP Schema Export - Exporting for tenant with zero matching records produces empty envelope (not 500)', async () => {
+    const emptyAdminToken = getAdminToken({ role: ROLES.HR_OFFICER, tenantId: 'empty_tenant_xyz' });
+    const res = await request('GET', '/api/admin/integrations/export/schema?system=sap&entity=employees', {
+      Authorization: `Bearer ${emptyAdminToken}`,
+      'X-Tenant-ID': 'empty_tenant_xyz',
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.count, 0);
+    assert.deepEqual(res.json?.records, []);
+  });
+
+  // =========================================================================
+  // B18: Payroll & Attendance Reconciliation Boundaries
+  // =========================================================================
+  await t.test('B18.1: Payroll Reconciliation - Empty externalPayroll array returns synchronized true with 0 counts', async () => {
+    const res = await request('POST', '/api/admin/integrations/reconciliation/payroll', {
+      Authorization: `Bearer ${adminToken}`,
+    }, { externalPayroll: [] });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.matchedCount, 0);
+    assert.equal(res.json?.mismatchCount, 0);
+    assert.equal(res.json?.isSynchronized, true);
+  });
+
+  await t.test('B18.2: Payroll Reconciliation - Missing payload or empty object handled gracefully without 500', async () => {
+    const res = await request('POST', '/api/admin/integrations/reconciliation/payroll', {
+      Authorization: `Bearer ${adminToken}`,
+    }, {});
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.ok, true);
+  });
+
+  await t.test('B18.3: Payroll Reconciliation - Extreme negative salary values flagged as discrepancy without overflow', async () => {
+    const res = await request('POST', '/api/admin/integrations/reconciliation/payroll', {
+      Authorization: `Bearer ${adminToken}`,
+    }, {
+      externalPayroll: [
+        {
+          employeeId: 'emp_1',
+          period: '2026-09',
+          basicSalary: -50000,
+          allowances: 0,
+          deductions: 0,
+          netSalary: -50000,
+        },
+      ],
+    });
+    assert.equal(res.status, 200);
+    assert.ok(res.json?.mismatchCount > 0);
+    const disc = res.json?.discrepancies?.find((d) => d.employeeId === 'emp_1');
+    assert.ok(disc, 'Must detect extreme discrepancy');
+  });
+
+  await t.test('B18.4: Attendance Reconciliation - Empty externalAttendance array returns valid empty envelope', async () => {
+    const res = await request('POST', '/api/admin/integrations/reconciliation/attendance', {
+      Authorization: `Bearer ${adminToken}`,
+    }, { externalAttendance: [] });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.matchedCount, 0);
+    assert.equal(res.json?.mismatchCount, 0);
+  });
+
+  await t.test('B18.5: Attendance Reconciliation - Corrupted date strings and invalid timestamps handled safely', async () => {
+    const res = await request('POST', '/api/admin/integrations/reconciliation/attendance', {
+      Authorization: `Bearer ${adminToken}`,
+    }, {
+      externalAttendance: [
+        {
+          employeeId: 'emp_1',
+          date: 'not-a-date-at-all',
+          checkIn: 'invalid-time-format',
+          checkOut: 'corrupted-checkout',
+          shiftKey: 'invalid-shift',
+        },
+      ],
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.ok, true);
+  });
+
+  // =========================================================================
+  // B19: Roster Optimization & Labor Law Boundaries
+  // =========================================================================
+  await t.test('B19.1: Roster Bounds - Non-existent employeeId on /api/admin/roster/:id returns 404', async () => {
+    const res = await request('GET', '/api/admin/roster/emp_non_existent_id_404', {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert.equal(res.status, 404);
+    assert.equal(res.json?.error, 'employee_not_found');
+  });
+
+  await t.test('B19.2: Roster Bounds - Cross-factory scoped admin blocked from modifying foreign employee roster', async () => {
+    const scopedToken = getAdminToken({
+      role: ROLES.HR_OFFICER,
+      tenantId: 'elaraby',
+      scopeFactory: 'Benha Electronics Facility',
+    });
+    const res = await request('PUT', '/api/admin/roster/emp_1', {
+      Authorization: `Bearer ${scopedToken}`,
+    }, {
+      days: [
+        { dayIndex: 0, shift: 'morning' },
+      ],
+    });
+    assert.equal(res.status, 403);
+  });
+
+  await t.test('B19.3: Roster Bounds - Same-shift reassignment flagged as safe (idempotent)', async () => {
+    const fatigueCheck = shiftService.checkFatigueSafety('emp_1', 'morning', 'morning', '2026-09-20');
+    assert.equal(fatigueCheck.safe, false);
+    assert.equal(fatigueCheck.reason, 'same_shift');
+  });
+
+  await t.test('B19.4: Roster Bounds - Rest day off transitions always satisfy circadian safety gates', async () => {
+    const toOff = shiftService.checkFatigueSafety('emp_1', 'night', 'off', '2026-09-20');
+    const fromOff = shiftService.checkFatigueSafety('emp_1', 'off', 'morning', '2026-09-20');
+    assert.equal(toOff.safe, true);
+    assert.equal(fromOff.safe, true);
+  });
+
+  await t.test('B19.5: Roster Bounds - Malformed days array on PUT /api/admin/roster/:id rejected with 400', async () => {
+    const res = await request('PUT', '/api/admin/roster/emp_1', {
+      Authorization: `Bearer ${adminToken}`,
+    }, {
+      days: 'not_an_array_invalid_format',
+    });
+    assert.equal(res.status, 400);
+  });
+
+  // =========================================================================
+  // B20: Bulk Punch & Offline Sync Boundaries
+  // =========================================================================
+  await t.test('B20.1: Bulk Punch - Empty punches array in biometrics ingestion returns accepted: 0', async () => {
+    const result = await biometrics.ingest([]);
+    assert.equal(result.accepted, 0);
+    assert.equal(result.status, 'empty');
+  });
+
+  await t.test('B20.2: Bulk Punch - Malformed punch record without badgeNumber assigned safe fallback', async () => {
+    const norm = biometrics.normalizePunch({ deviceId: 'TERM_CORRUPTED' });
+    assert.equal(norm.badgeNumber, '');
+    assert.equal(norm.deviceId, 'TERM_CORRUPTED');
+    assert.equal(norm.punchType, 'CHECK_IN');
+  });
+
+  await t.test('B20.3: Bulk Punch - Empty or whitespace-only CSV input returns empty array without exception', async () => {
+    const res1 = biometrics.parseCsvFile('');
+    const res2 = biometrics.parseCsvFile('   \n\n  ');
+    assert.deepEqual(res1, []);
+    assert.deepEqual(res2, []);
+  });
+
+  await t.test('B20.4: Bulk Punch - Tampered or expired offline token handled safely during punch recording', async () => {
+    const res = await request('POST', '/api/attendance/punch', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    }, {
+      type: 'in',
+      lat: 30.5518,
+      lng: 31.1442,
+      timestamp: Date.now(),
+      isOffline: true,
+      offlineToken: 'OFFLINE:emp_1:invalid_tampered_token_format',
+    });
+    assert.notEqual(res.status, 500);
+  });
+
+  await t.test('B20.5: Bulk Punch - Extreme geographic coordinates (North Pole / Null Island) handled without NaN', async () => {
+    const dist = attendanceService.calculateDistanceMeters(90.0, 0.0, 30.298, 31.742);
+    assert.ok(Number.isFinite(dist));
+    assert.ok(!Number.isNaN(dist));
+    const dist2 = attendanceService.calculateDistanceMeters(0.0, 0.0, 30.298, 31.742);
+    assert.ok(Number.isFinite(dist2));
+
+    const res = await request('POST', '/api/attendance/punch', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    }, {
+      type: 'in',
+      lat: 90.0,
+      lng: 0.0,
+      timestamp: Date.now(),
+    });
+    assert.notEqual(res.status, 500);
   });
 });

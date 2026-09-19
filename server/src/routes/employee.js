@@ -1067,6 +1067,16 @@ router.post('/attendance/punch', requireAuth, (req, res) => {
   }
 });
 
+router.post('/attendance/bulk-sync', requireAuth, (req, res) => {
+  try {
+    const punches = Array.isArray(req.body) ? req.body : (req.body?.punches || []);
+    const result = attendanceService.bulkSyncPunches(req.employeeId, punches);
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(err.statusCode || 400).json({ error: err.message });
+  }
+});
+
 router.get('/attendance/today', requireAuth, (req, res) => {
   const state = attendanceService.getTodayPunchState(req.employeeId, req.query.date);
   res.json(state);

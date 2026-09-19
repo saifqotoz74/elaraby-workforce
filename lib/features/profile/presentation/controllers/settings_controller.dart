@@ -4,6 +4,7 @@ import '../../../../core/localization/app_locale.dart';
 import '../../../../core/network/push_service.dart';
 import '../../../../core/providers/repository_providers.dart';
 import '../../../../core/repositories/settings_repository.dart';
+import '../../../../core/services/biometric_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/ui_feedback.dart';
 
@@ -38,18 +39,42 @@ class SettingsState {
 
 class SettingsNotifier extends StateNotifier<SettingsState> {
   final SettingsRepository _repo;
+  final BiometricService _biometricService;
 
-  SettingsNotifier(this._repo)
-      : super(SettingsState(
+  SettingsNotifier(this._repo, [BiometricService? biometricService])
+      : _biometricService = biometricService ?? BiometricService.instance,
+        super(SettingsState(
           biometricEnabled: _repo.biometricEnabled,
           salaryProtectionEnabled: _repo.salaryProtectionEnabled,
           notificationsEnabled: _repo.notificationsEnabled,
           themeMode: _repo.themeMode,
         ));
 
-  Future<void> setBiometric(bool val) async {
+  Future<bool> setBiometric(bool val, {BuildContext? context}) async {
+    if (val) {
+      final capability = await _biometricService.checkCapability();
+      if (!capability.canAuthenticate) {
+        if (context != null && context.mounted) {
+          final isAr = AppLocale.instance.isArabic;
+          UiFeedback.showWarning(
+            context,
+            !capability.isSupported
+                ? (isAr
+                    ? 'الجهاز لا يدعم تقنية البصمة'
+                    : 'Device does not support biometrics')
+                : (isAr
+                    ? 'لم يتم تسجيل بصمة على هذا الجهاز. يرجى إعدادها في إعدادات الهاتف.'
+                    : 'No biometrics enrolled. Please set them up in device settings.'),
+          );
+        }
+        await _repo.setSetting('fingerprint', false);
+        state = state.copyWith(biometricEnabled: false);
+        return false;
+      }
+    }
     await _repo.setSetting('fingerprint', val);
     state = state.copyWith(biometricEnabled: val);
+    return true;
   }
 
   Future<void> setSalaryProtection(bool val) async {
@@ -134,5 +159,6 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 final settingsStateProvider =
     StateNotifierProvider<SettingsNotifier, SettingsState>((ref) {
   final repo = ref.watch(settingsRepositoryProvider);
-  return SettingsNotifier(repo);
+  final biometricService = ref.watch(biometricServiceProvider);
+  return SettingsNotifier(repo, biometricService);
 });

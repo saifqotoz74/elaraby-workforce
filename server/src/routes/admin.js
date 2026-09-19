@@ -23,7 +23,7 @@ const transportService = require('../services/transportService');
 const loanService = require('../services/loanService');
 const erp = require('../integrations/erp');
 const biometrics = require('../integrations/biometrics');
-const { reconcileEmployees } = require('../integrations/reconciliation/reconciliationEngine');
+const { reconcileEmployees, reconcilePayroll, reconcileAttendance } = require('../integrations/reconciliation/reconciliationEngine');
 const pdfService = require('../services/pdfService');
 const alertService = require('../services/alertService');
 const { BUILTIN_TENANTS } = require('./tenant');
@@ -303,7 +303,16 @@ router.get('/stats', requirePermission(PERMISSIONS.STATS_READ), (req, res) => {
   let totalShiftSlots = 0;
   let totalWeeklyHours = 0;
   for (const r of rosterList) {
-    for (const day of (r.days || [])) {
+    let daysArray = [];
+    if (Array.isArray(r.days)) {
+      daysArray = r.days;
+    } else if (r.days && typeof r.days === 'object') {
+      daysArray = Object.entries(r.days).map(([dayKey, val]) => {
+        if (typeof val === 'string') return { day: dayKey, shift: val, hours: 8 };
+        return val || {};
+      });
+    }
+    for (const day of daysArray) {
       const shift = String(day.shift || 'morning').toLowerCase();
       if (shiftCounts[shift] !== undefined) {
         shiftCounts[shift]++;
@@ -964,7 +973,30 @@ router.get('/rosters', requirePermission(PERMISSIONS.SHIFT_READ), (req, res, nex
       };
     });
 
-    res.json({ weekStart: targetWeekStart, rosters });
+    const conflictEval = shiftService.evaluateRosterConflicts(
+      rosters.map((r) => {
+        const shifts = {};
+        const daysArr = r.days || [];
+        const daysMap = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        daysArr.forEach((d, idx) => {
+          shifts[daysMap[idx] || `day_${idx}`] = d.shift || 'off';
+        });
+        return {
+          employeeId: r.employeeId,
+          employeeName: r.employee?.name,
+          shifts,
+        };
+      })
+    );
+
+    res.json({
+      ok: true,
+      weekStart: targetWeekStart,
+      rosters,
+      conflicts: conflictEval.conflicts,
+      dailyHeadcount: conflictEval.dailyHeadcount,
+      lineBalanceScore: Math.max(80, Math.round(100 - conflictEval.conflicts.length * 5)),
+    });
   } catch (err) {
     next(err);
   }
@@ -1530,6 +1562,182 @@ router.post('/integrations/reconciliation/resolve', requireAdmin, (req, res) => 
   }
 });
 
+router.get('/integrations/export/schema', requireAdmin, (req, res) => {
+  try {
+    const system = (req.query.system || req.query.provider || 'sap').toLowerCase().trim();
+    const entity = (req.query.entity || req.query.domain || 'employees').toLowerCase().trim();
+    const tenantId = req.query.tenantId || req.tenantId || req.admin?.tenantId || 'elaraby';
+    const database = db();
+
+    if (!['sap', 'oracle'].includes(system)) {
+      return res.status(400).json({ error: 'invalid_system', message: `System must be 'sap' or 'oracle', got '${system}'` });
+    }
+
+    if (!['employees', 'attendance', 'payroll'].includes(entity)) {
+      return res.status(400).json({ error: 'invalid_entity', message: `Entity must be 'employees', 'attendance', or 'payroll', got '${entity}'` });
+    }
+
+    let records = [];
+    if (entity === 'employees') {
+      records = (database.employees || []).filter((e) => {
+        const eTenant = e.tenantId || (e.workEmail && e.workEmail.includes('elsewedy') ? 'elsewedy' : e.workEmail && e.workEmail.includes('tmg') ? 'tmg' : 'elaraby');
+        return (eTenant === tenantId || req.admin?.role === 'superadmin') && checkScope(req.admin, e);
+      });
+    } else if (entity === 'attendance') {
+      const allowedEmployees = new Set(
+        (database.employees || [])
+          .filter((e) => {
+            const eTenant = e.tenantId || (e.workEmail && e.workEmail.includes('elsewedy') ? 'elsewedy' : e.workEmail && e.workEmail.includes('tmg') ? 'tmg' : 'elaraby');
+            return (eTenant === tenantId || req.admin?.role === 'superadmin') && checkScope(req.admin, e);
+          })
+          .map((e) => e.id)
+      );
+      records = (database.attendanceRecords || []).filter((r) => {
+        const rTenant = r.tenantId || 'elaraby';
+        return (rTenant === tenantId || req.admin?.role === 'superadmin') && (allowedEmployees.size === 0 || allowedEmployees.has(r.employeeId));
+      });
+    } else if (entity === 'payroll') {
+      const allowedEmployees = new Set(
+        (database.employees || [])
+          .filter((e) => {
+            const eTenant = e.tenantId || (e.workEmail && e.workEmail.includes('elsewedy') ? 'elsewedy' : e.workEmail && e.workEmail.includes('tmg') ? 'tmg' : 'elaraby');
+            return (eTenant === tenantId || req.admin?.role === 'superadmin') && checkScope(req.admin, e);
+          })
+          .map((e) => e.id)
+      );
+      records = (database.payroll || []).filter((p) => {
+        return allowedEmployees.size === 0 || allowedEmployees.has(p.employeeId);
+      });
+    }
+
+    const exported = erp.exportSchema(system, entity, records, tenantId);
+
+    res.json({
+      ok: true,
+      system: exported.system,
+      entity: exported.entity,
+      count: exported.count,
+      schemaVersion: exported.schemaVersion,
+      records: exported.records,
+    });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/integrations/reconciliation/payroll', requireAdmin, (req, res) => {
+  try {
+    const { externalPayroll, externalSummaries } = req.body || {};
+    const externalRecords = Array.isArray(req.body)
+      ? req.body
+      : (Array.isArray(externalPayroll) ? externalPayroll : (Array.isArray(externalSummaries) ? externalSummaries : []));
+
+    const tenantId = req.query.tenantId || req.tenantId || req.admin?.tenantId || 'elaraby';
+    const database = db();
+
+    const allowedEmployees = new Set(
+      (database.employees || [])
+        .filter((e) => {
+          const eTenant = e.tenantId || (e.workEmail && e.workEmail.includes('elsewedy') ? 'elsewedy' : e.workEmail && e.workEmail.includes('tmg') ? 'tmg' : 'elaraby');
+          return (eTenant === tenantId || req.admin?.role === 'superadmin') && checkScope(req.admin, e);
+        })
+        .map((e) => e.id)
+    );
+
+    const internalPayroll = (database.payroll || []).filter((p) => {
+      return allowedEmployees.size === 0 || allowedEmployees.has(p.employeeId);
+    });
+
+    const result = reconcilePayroll(externalRecords, internalPayroll);
+
+    auditService.recordAuditLog(database, {
+      actor: req.admin?.sub || req.admin?.username || 'admin',
+      role: req.admin?.role || 'superadmin',
+      action: 'ERP_RECONCILIATION_PAYROLL',
+      entity: 'payroll',
+      entityId: `rec_pay_${Date.now()}`,
+      details: `Payroll reconciliation: ${result.matchedCount} matched, ${result.mismatchCount} discrepancies, ${result.missingInInternalCount} missing in internal.`,
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+      tenantId,
+    });
+    save();
+
+    const auditLogId = database.auditLogs?.[0]?.id || `audit_${Date.now()}`;
+
+    res.json({
+      ok: true,
+      matchedCount: result.matchedCount,
+      mismatchCount: result.mismatchCount,
+      discrepancies: result.discrepancies,
+      auditLogId,
+      totalCompared: result.totalExternal,
+      isSynchronized: result.isSynchronized,
+      missingInInternal: result.missingInInternal,
+      missingInExternal: result.missingInExternal,
+    });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/integrations/reconciliation/attendance', requireAdmin, (req, res) => {
+  try {
+    const { externalAttendance, externalPunches } = req.body || {};
+    const externalRecords = Array.isArray(req.body)
+      ? req.body
+      : (Array.isArray(externalAttendance) ? externalAttendance : (Array.isArray(externalPunches) ? externalPunches : []));
+
+    const tenantId = req.query.tenantId || req.tenantId || req.admin?.tenantId || 'elaraby';
+    const database = db();
+
+    const allowedEmployees = new Set(
+      (database.employees || [])
+        .filter((e) => {
+          const eTenant = e.tenantId || (e.workEmail && e.workEmail.includes('elsewedy') ? 'elsewedy' : e.workEmail && e.workEmail.includes('tmg') ? 'tmg' : 'elaraby');
+          return (eTenant === tenantId || req.admin?.role === 'superadmin') && checkScope(req.admin, e);
+        })
+        .map((e) => e.id)
+    );
+
+    const internalAttendance = (database.attendanceRecords || []).filter((r) => {
+      const rTenant = r.tenantId || 'elaraby';
+      return (rTenant === tenantId || req.admin?.role === 'superadmin') && (allowedEmployees.size === 0 || allowedEmployees.has(r.employeeId));
+    });
+
+    const result = reconcileAttendance(externalRecords, internalAttendance);
+
+    auditService.recordAuditLog(database, {
+      actor: req.admin?.sub || req.admin?.username || 'admin',
+      role: req.admin?.role || 'superadmin',
+      action: 'ERP_RECONCILIATION_ATTENDANCE',
+      entity: 'attendance',
+      entityId: `rec_att_${Date.now()}`,
+      details: `Attendance reconciliation: ${result.matchedCount} matched, ${result.mismatchCount} discrepancies, ${result.missingInInternalCount} missing in internal.`,
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+      tenantId,
+    });
+    save();
+
+    const auditLogId = database.auditLogs?.[0]?.id || `audit_${Date.now()}`;
+
+    res.json({
+      ok: true,
+      matchedCount: result.matchedCount,
+      mismatchCount: result.mismatchCount,
+      discrepancies: result.discrepancies,
+      auditLogId,
+      totalCompared: result.totalExternal,
+      isSynchronized: result.isSynchronized,
+      missingInInternal: result.missingInInternal,
+      missingInExternal: result.missingInExternal,
+    });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
 // ---------- Automated Manager Alerts & Notification Engine ----------
 router.get('/alerts', requireAdmin, (req, res) => {
   try {
@@ -1553,6 +1761,61 @@ router.post('/alerts/mark-all-read', requireAdmin, (req, res) => {
   try {
     const result = alertService.markAllAlertsAsRead(req.admin, req.body || req.query);
     res.json(result);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+// ---------- AI Predictive Rostering & Smart Balancing ----------
+router.post('/rosters/auto-generate', requireAdmin, (req, res) => {
+  try {
+    const { factory, department, weekStart, lineQuotas } = req.body || {};
+    const tenantId = req.query.tenantId || req.tenantId || req.admin?.tenantId || 'elaraby';
+    const result = shiftService.generateSmartRoster({
+      tenantId,
+      factory,
+      department,
+      weekStart,
+      lineQuotas,
+    });
+    res.json({
+      ok: true,
+      generatedRosters: result.rosters,
+      conflictsResolved: result.conflictsResolved,
+      remainingConflicts: result.remainingConflicts,
+      lineBalanceScore: result.lineBalanceScore,
+      dailyHeadcount: result.dailyHeadcount,
+    });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/rosters/optimize', requireAdmin, (req, res) => {
+  try {
+    const { rosters, lineQuotas, weekStart } = req.body || {};
+    const result = shiftService.optimizeRoster({ rosters, lineQuotas, weekStart });
+    res.json({
+      ok: true,
+      optimizedRosters: result.optimizedRosters,
+      adjustmentsMade: result.adjustmentsMade,
+      totalConflictsRemaining: result.totalConflictsRemaining,
+      remainingConflicts: result.remainingConflicts,
+      lineBalanceScore: result.lineBalanceScore,
+    });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.put('/rosters/bulk', requireAdmin, (req, res) => {
+  try {
+    const { rosters } = req.body || {};
+    const result = shiftService.bulkSaveRosters(req.admin, rosters, {
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+    res.json({ ok: true, updatedCount: result.updatedCount });
   } catch (err) {
     res.status(err.statusCode || 500).json({ error: err.message });
   }

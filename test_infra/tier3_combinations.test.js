@@ -25,6 +25,9 @@ const overtimeService = require('../server/src/services/overtimeService');
 const attendanceService = require('../server/src/services/attendanceService');
 const loanService = require('../server/src/services/loanService');
 const auditService = require('../server/src/services/auditService');
+const erp = require('../server/src/integrations/erp');
+const reconciliationEngine = require('../server/src/integrations/reconciliation/reconciliationEngine');
+const biometrics = require('../server/src/integrations/biometrics');
 
 let adminToken;
 let elarabyEmpToken;
@@ -470,5 +473,164 @@ test('=== TIER 3: CROSS-FEATURE COMBINATORIAL E2E SUITE ===', async (t) => {
       'X-Tenant-ID': 'elaraby',
     });
     assert.ok([403, 404].includes(crossRes.status));
+  });
+
+  // -------------------------------------------------------------------------
+  // Interaction 17: AI Roster Generated Shift -> Attendance Punch Validation -> ERP Attendance Reconciliation (F19 + F20 + F18)
+  // -------------------------------------------------------------------------
+  await t.test('INT-17: AI Roster Generated Shift -> Attendance Punch Validation -> ERP Attendance Reconciliation (F19 + F20 + F18)', async () => {
+    const database = db();
+    const emp1 = database.employees.find((e) => e.id === 'emp_1');
+    const today = new Date();
+    const scheduled = shiftService.resolveShiftForDate(emp1, today);
+    assert.ok(scheduled.id);
+
+    // Punch in for employee
+    const punchRes = await request('POST', '/api/attendance/punch', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    }, {
+      type: 'in',
+      lat: 30.5518,
+      lng: 31.1442,
+      timestamp: Date.now(),
+    });
+    assert.ok([201, 403].includes(punchRes.status));
+
+    // Run ERP Attendance Reconciliation against external punch
+    const extPunch = [
+      {
+        employeeId: 'emp_1',
+        date: scheduled.date,
+        checkIn: '08:00:00',
+        checkOut: '17:00:00',
+        shiftKey: scheduled.id,
+      },
+    ];
+    const reconRes = await request('POST', '/api/admin/integrations/reconciliation/attendance', {
+      Authorization: `Bearer ${adminToken}`,
+    }, { externalAttendance: extPunch });
+    assert.equal(reconRes.status, 200);
+    assert.equal(reconRes.json?.ok, true);
+    assert.ok(reconRes.json?.auditLogId);
+  });
+
+  // -------------------------------------------------------------------------
+  // Interaction 18: Bulk Punch Retransmission -> Idempotent Today Punch State (F20 + F15)
+  // -------------------------------------------------------------------------
+  await t.test('INT-18: Bulk Punch Retransmission -> Idempotent Today Punch State (F20 + F15)', async () => {
+    const dateKey = shiftService.toDateKey(new Date());
+    const offlineToken = attendanceService.generateOfflineToken('emp_1', dateKey);
+
+    // Transmit punch 1
+    const res1 = await request('POST', '/api/attendance/punch', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    }, {
+      type: 'in',
+      lat: 30.5518,
+      lng: 31.1442,
+      timestamp: Date.now(),
+      isOffline: true,
+      offlineToken,
+    });
+    assert.ok([201, 403].includes(res1.status));
+
+    // Retransmit punch 2 (network duplicate)
+    const res2 = await request('POST', '/api/attendance/punch', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    }, {
+      type: 'in',
+      lat: 30.5518,
+      lng: 31.1442,
+      timestamp: Date.now(),
+      isOffline: true,
+      offlineToken,
+    });
+    assert.ok([201, 403].includes(res2.status));
+
+    // Verify today punch state remains coherent
+    const todayRes = await request('GET', '/api/attendance/today', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    });
+    assert.equal(todayRes.status, 200);
+    assert.ok(todayRes.json?.status);
+  });
+
+  // -------------------------------------------------------------------------
+  // Interaction 19: SAP/Oracle Schema Export -> Mutation -> Payroll Reconciliation Discrepancy Logging (F17 + F18 + F4)
+  // -------------------------------------------------------------------------
+  await t.test('INT-19: SAP/Oracle Schema Export -> Mutation -> Payroll Reconciliation Discrepancy Logging (F17 + F18 + F4)', async () => {
+    // 1. Export schema
+    const exportRes = await request('GET', '/api/admin/integrations/export/schema?system=sap&entity=payroll', {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert.equal(exportRes.status, 200);
+    assert.ok(exportRes.json?.records);
+
+    // 2. Simulate external system discrepancy mutation
+    const database = db();
+    const internalPay = (database.payroll || []).find((p) => p.employeeId === 'emp_1') || { basicSalary: 8500 };
+
+    const externalMutated = [
+      {
+        employeeId: 'emp_1',
+        period: '2026-09',
+        basicSalary: (internalPay.basicSalary || 8500) + 1200,
+        allowances: 1500,
+        deductions: 500,
+        netSalary: (internalPay.basicSalary || 8500) + 2200,
+      },
+    ];
+
+    // 3. Reconcile mutated payroll
+    const reconRes = await request('POST', '/api/admin/integrations/reconciliation/payroll', {
+      Authorization: `Bearer ${adminToken}`,
+    }, { externalPayroll: externalMutated });
+    assert.equal(reconRes.status, 200);
+    assert.ok(reconRes.json?.mismatchCount > 0);
+
+    const disc = reconRes.json?.discrepancies?.find((d) => d.employeeId === 'emp_1' && d.field === 'basicSalary');
+    assert.ok(disc, 'Must detect mutated basic salary discrepancy');
+    assert.equal(disc.diff, 1200);
+
+    // 4. Audit trail confirms logging
+    const payAudit = (database.auditLogs || []).find((l) => l.action === 'ERP_RECONCILIATION_PAYROLL');
+    assert.ok(payAudit);
+  });
+
+  // -------------------------------------------------------------------------
+  // Interaction 20: Factory Line Quota Auto-Generation -> Fatigue Gate -> Overtime Claim Approval (F19 + F13 + F4)
+  // -------------------------------------------------------------------------
+  await t.test('INT-20: Factory Line Quota Auto-Generation -> Fatigue Gate -> Overtime Claim Approval (F19 + F13 + F4)', async () => {
+    const database = db();
+    const emp1 = database.employees.find((e) => e.id === 'emp_1');
+    const sunday = new Date('2026-09-20T00:00:00');
+    const roster = shiftService.getRosterForWeek(emp1, sunday);
+    assert.equal(roster.length, 7);
+
+    // Check fatigue compliance for turnaround
+    const fatigue = shiftService.checkFatigueSafety('emp_1', 'morning', 'evening', roster[1].date);
+    assert.equal(fatigue.safe, true);
+
+    // Worker creates overtime claim
+    const claimRes = await request('POST', '/api/overtime/claim', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    }, {
+      date: '2026-09-20',
+      hours: 3,
+      type: 'day',
+      reason: 'Urgent production line assembly quota',
+    });
+    assert.equal(claimRes.status, 201);
+    const claimId = claimRes.json?.claim?.id;
+
+    // Supervisor approves overtime claim
+    const approveRes = await request('POST', `/api/admin/overtime/${claimId}/decide`, {
+      Authorization: `Bearer ${adminToken}`,
+    }, {
+      decision: 'approved',
+      notes: 'Approved for line balancing completion',
+    });
+    assert.equal(approveRes.status, 200);
+    assert.equal(approveRes.json?.claim?.status, 'approved');
   });
 });

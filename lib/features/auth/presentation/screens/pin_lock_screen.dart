@@ -1,8 +1,7 @@
-import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
-import 'package:local_auth/local_auth.dart';
 import '../../../../core/localization/app_locale.dart';
 import '../../../../core/network/backend.dart';
+import '../../../../core/services/biometric_service.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
@@ -11,23 +10,27 @@ import '../../../../core/navigation/app_router.dart';
 import '../widgets/numeric_keypad.dart';
 
 /// Lock screen shown at launch once onboarding is complete: the stored PIN
-/// must be verified before the app opens. When "Fingerprint Login" is enabled
+/// must be verified before the app opens. When biometric authentication is enabled
 /// in settings and the device supports biometrics, a biometric prompt is
 /// offered alongside the PIN.
 class PinLockScreen extends StatefulWidget {
-  const PinLockScreen({super.key});
+  final BiometricService? biometricService;
+
+  const PinLockScreen({super.key, this.biometricService});
 
   @override
   State<PinLockScreen> createState() => _PinLockScreenState();
 }
 
 class _PinLockScreenState extends State<PinLockScreen> {
-  final LocalAuthentication _auth = LocalAuthentication();
+  BiometricService get _biometricService =>
+      widget.biometricService ?? BiometricService.instance;
 
   String _pin = '';
   bool _wrong = false;
   String? _lockedMessage;
   bool _biometricAvailable = false;
+  BiometricCapability? _biometricCapability;
 
   @override
   void initState() {
@@ -36,15 +39,16 @@ class _PinLockScreenState extends State<PinLockScreen> {
   }
 
   Future<void> _checkBiometrics() async {
-    if (Platform.environment.containsKey('FLUTTER_TEST')) return;
     final enabled =
         LocalStore.instance.getSetting('fingerprint', defaultValue: true);
     if (!enabled) return;
     try {
-      final canCheck = await _auth.canCheckBiometrics;
-      final isDeviceSupported = await _auth.isDeviceSupported();
-      if (mounted && canCheck && isDeviceSupported) {
-        setState(() => _biometricAvailable = true);
+      final capability = await _biometricService.checkCapability();
+      if (mounted && capability.canAuthenticate) {
+        setState(() {
+          _biometricAvailable = true;
+          _biometricCapability = capability;
+        });
         _authenticateBiometric();
       }
     } on Exception catch (e) {
@@ -55,12 +59,8 @@ class _PinLockScreenState extends State<PinLockScreen> {
 
   Future<void> _authenticateBiometric() async {
     try {
-      final ok = await _auth.authenticate(
-        localizedReason: AppLocale.tr('biometric_prompt'),
-        options: const AuthenticationOptions(
-          biometricOnly: true,
-          stickyAuth: true,
-        ),
+      final ok = await _biometricService.authenticate(
+        reason: AppLocale.tr('biometric_prompt'),
       );
       if (!mounted) return;
       if (ok) {
@@ -250,10 +250,15 @@ class _PinLockScreenState extends State<PinLockScreen> {
                 Center(
                   child: TextButton.icon(
                     onPressed: _authenticateBiometric,
-                    icon: Icon(Icons.fingerprint_rounded,
-                        color: AppColors.primary, size: 22),
+                    icon: Icon(
+                      _biometricCapability?.icon ?? Icons.fingerprint_rounded,
+                      color: AppColors.primary,
+                      size: 22,
+                    ),
                     label: Text(
-                      AppLocale.tr('biometric_button'),
+                      _biometricCapability
+                              ?.buttonLabel(AppLocale.instance.isArabic) ??
+                          AppLocale.tr('biometric_button'),
                       style: AppTypography.fontBase.copyWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,

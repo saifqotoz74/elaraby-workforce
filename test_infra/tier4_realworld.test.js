@@ -26,6 +26,9 @@ const attendanceService = require('../server/src/services/attendanceService');
 const loanService = require('../server/src/services/loanService');
 const auditService = require('../server/src/services/auditService');
 const realtimeService = require('../server/src/services/realtimeService');
+const erp = require('../server/src/integrations/erp');
+const reconciliationEngine = require('../server/src/integrations/reconciliation/reconciliationEngine');
+const biometrics = require('../server/src/integrations/biometrics');
 
 let adminToken;
 let elarabyEmpToken;
@@ -374,5 +377,174 @@ test('=== TIER 4: REAL-WORLD ENTERPRISE SCENARIOS ===', async (t) => {
       const header = rows[0];
       assert.ok(header.some((col) => col.includes('National ID') || col.includes('Employee Code')));
     }
+  });
+
+  // =========================================================================
+  // SCENARIO 9: Factory Line Multi-Shift Roster Balancing -> Multi-Worker Bulk Sync -> ERP Payroll Reconciliation Audit
+  // Features: F17, F18, F19, F20, F4, F7
+  // =========================================================================
+  await t.test('SCENARIO 9: Factory Line Multi-Shift Roster Balancing -> Multi-Worker Bulk Sync -> ERP Payroll Reconciliation Audit', async () => {
+    // 1. Production planner queries weekly roster
+    const rosterRes = await request('GET', '/api/admin/rosters', {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert.equal(rosterRes.status, 200);
+    assert.ok(Array.isArray(rosterRes.json?.rosters));
+    assert.ok(rosterRes.json.rosters.length >= 1);
+
+    // 2. Verify balanced 7-day schedule with mandatory rest days honoring Egyptian Labor Law
+    const lineRosters = rosterRes.json.rosters;
+    for (const r of lineRosters.slice(0, 5)) {
+      assert.equal(r.days.length, 7);
+      const hasOff = r.days.some((d) => d.shift === 'off');
+      assert.ok(hasOff, 'Each line operator must have at least one weekly rest day');
+    }
+
+    // 3. Shift operators punch in en-masse through Biometrics terminal ingestion
+    const bulkPunches = [
+      {
+        badge_id: 'B_QSN_101',
+        terminal_id: 'TERM_QSN_LINE_A',
+        time: new Date().toISOString(),
+        type: 'CHECK_IN',
+      },
+      {
+        badge_id: 'B_QSN_102',
+        terminal_id: 'TERM_QSN_LINE_A',
+        time: new Date().toISOString(),
+        type: 'CHECK_IN',
+      },
+      {
+        badge_id: 'B_QSN_103',
+        terminal_id: 'TERM_QSN_LINE_B',
+        time: new Date().toISOString(),
+        type: 'CHECK_IN',
+      },
+    ];
+    const ingestRes = await biometrics.ingest(bulkPunches);
+    assert.equal(ingestRes.accepted, 3);
+    assert.equal(ingestRes.status, 'queued');
+
+    // 4. Monthly close: Export payroll to SAP SuccessFactors
+    const sapExportRes = await request('GET', '/api/admin/integrations/export/schema?system=sap&entity=payroll', {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert.equal(sapExportRes.status, 200);
+    assert.equal(sapExportRes.json?.system, 'sap');
+    assert.ok(sapExportRes.json.records.length >= 1);
+
+    // 5. Audit reconciliation: Corporate audit compares SAP figures with internal slips
+    const database = db();
+    const p1 = (database.payroll || []).find((p) => p.employeeId === 'emp_1') || { basicSalary: 8500, allowances: 1500, deductions: 500, netSalary: 9500 };
+    const externalAuditData = [
+      {
+        employeeId: 'emp_1',
+        period: '2026-09',
+        basicSalary: p1.basicSalary,
+        allowances: p1.allowances,
+        deductions: p1.deductions,
+        netSalary: p1.netSalary,
+      },
+      {
+        employeeId: 'emp_audited_diff',
+        period: '2026-09',
+        basicSalary: 6000,
+        allowances: 1000,
+        deductions: 200,
+        netSalary: 6800,
+      },
+    ];
+
+    const reconRes = await request('POST', '/api/admin/integrations/reconciliation/payroll', {
+      Authorization: `Bearer ${adminToken}`,
+    }, { externalPayroll: externalAuditData });
+    assert.equal(reconRes.status, 200);
+    assert.equal(reconRes.json?.ok, true);
+    assert.ok(reconRes.json.auditLogId);
+
+    // 6. Confirm tamper-proof audit log entry
+    const auditRes = await request('GET', '/api/admin/audit-logs?action=ERP_RECONCILIATION_PAYROLL', {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert.equal(auditRes.status, 200);
+    const logs = auditRes.json?.auditLogs || auditRes.json || [];
+    assert.ok(logs.some((l) => l.action === 'ERP_RECONCILIATION_PAYROLL'));
+  });
+
+  // =========================================================================
+  // SCENARIO 10: High-Concurrency Disaster Recovery & Cross-Tenant Punch Retransmission Storm
+  // Features: F20, F6, F7, F8, F15
+  // =========================================================================
+  await t.test('SCENARIO 10: High-Concurrency Disaster Recovery & Cross-Tenant Punch Retransmission Storm', async () => {
+    // 1. Prepare offline tokens for Elaraby and Elsewedy employees
+    const dateKey = shiftService.toDateKey(new Date());
+    const elarabyOfflineToken = attendanceService.generateOfflineToken('emp_1', dateKey);
+    const elsewedyOfflineToken = attendanceService.generateOfflineToken('emp_elsewedy_scen', dateKey);
+
+    // 2. High-concurrency reconnection burst: multiple simultaneous punches
+    const punchPromises = [
+      // Elaraby punch 1
+      request('POST', '/api/attendance/punch', {
+        Authorization: `Bearer ${elarabyEmpToken}`,
+      }, {
+        type: 'in',
+        lat: 30.5518,
+        lng: 31.1442,
+        timestamp: Date.now(),
+        isOffline: true,
+        offlineToken: elarabyOfflineToken,
+      }),
+      // Elaraby punch 1 retransmission (jitter duplicate)
+      request('POST', '/api/attendance/punch', {
+        Authorization: `Bearer ${elarabyEmpToken}`,
+      }, {
+        type: 'in',
+        lat: 30.5518,
+        lng: 31.1442,
+        timestamp: Date.now(),
+        isOffline: true,
+        offlineToken: elarabyOfflineToken,
+      }),
+      // Elsewedy punch
+      request('POST', '/api/attendance/punch', {
+        Authorization: `Bearer ${elsewedyEmpToken}`,
+      }, {
+        type: 'in',
+        lat: 30.2981,
+        lng: 31.7428,
+        timestamp: Date.now(),
+        isOffline: true,
+        offlineToken: elsewedyOfflineToken,
+      }),
+    ];
+
+    const punchResults = await Promise.all(punchPromises);
+    for (const r of punchResults) {
+      assert.ok([201, 403].includes(r.status));
+    }
+
+    // 3. Admin verifies Live Attendance monitor for Elaraby tenant
+    const liveAttendanceRes = await request('GET', '/api/admin/attendance/today?tenantId=elaraby', {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert.equal(liveAttendanceRes.status, 200);
+    assert.ok(liveAttendanceRes.json?.ok !== undefined || liveAttendanceRes.json?.stats !== undefined);
+
+    // 4. Cross-tenant isolation verification: Elsewedy HR officer cannot access Elaraby employee data
+    const elsewedyAdminToken = getAdminToken({ role: ROLES.HR_OFFICER, tenantId: 'elsewedy' });
+    const crossTenantEmp = await request('GET', '/api/admin/employees/emp_1', {
+      Authorization: `Bearer ${elsewedyAdminToken}`,
+      'X-Tenant-ID': 'elsewedy',
+    });
+    assert.ok([403, 404].includes(crossTenantEmp.status));
+
+    // Elsewedy HR officer queries own attendance without leakage
+    const elsewedyAttendance = await request('GET', '/api/admin/attendance/today', {
+      Authorization: `Bearer ${elsewedyAdminToken}`,
+      'X-Tenant-ID': 'elsewedy',
+    });
+    assert.equal(elsewedyAttendance.status, 200);
+    const records = elsewedyAttendance.json?.records || [];
+    assert.ok(records.every((r) => r.tenantId !== 'elaraby'));
   });
 });

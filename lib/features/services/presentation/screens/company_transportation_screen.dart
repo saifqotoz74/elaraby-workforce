@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/localization/app_locale.dart';
@@ -6,6 +7,7 @@ import '../../../../core/theme/app_typography.dart';
 import '../controllers/transport_controller.dart';
 import 'package:elaraby_workforce/features/services/data/transport_model.dart';
 import '../../../../core/navigation/app_navigation.dart';
+import '../../domain/transit_telemetry_simulator.dart';
 import 'apply_route_transfer_sheet.dart';
 import '../widgets/interactive_fleet_map.dart';
 
@@ -24,17 +26,71 @@ class _CompanyTransportationScreenState
   String _selectedFactoryFilter = 'all';
   final TextEditingController _searchCtrl = TextEditingController();
 
+  TransitTelemetrySimulator? _simulator;
+  StreamSubscription<SimulatedTransitUpdate>? _simSubscription;
+  bool _isSimulating = false;
+  SimulatedTransitUpdate? _lastSimUpdate;
+  Timer? _countdownTicker;
+  int _displaySeconds = 0;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _countdownTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      if (_displaySeconds > 0) {
+        setState(() {
+          _displaySeconds--;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
+    _countdownTicker?.cancel();
+    _simSubscription?.cancel();
+    _simulator?.dispose();
     _tabController.dispose();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  void _toggleLiveSimulation(BusRoute route, BusStop selectedStop) {
+    setState(() {
+      _isSimulating = !_isSimulating;
+    });
+
+    if (_isSimulating) {
+      _simulator?.dispose();
+      _simulator = TransitTelemetrySimulator();
+      _simSubscription = _simulator!.updateStream.listen((update) {
+        if (!mounted) return;
+        setState(() {
+          _lastSimUpdate = update;
+          _displaySeconds = update.etaSecondsRemaining;
+        });
+      });
+      _simulator!.startSimulation(
+        route: route,
+        targetStopId: selectedStop.id,
+      );
+    } else {
+      _simSubscription?.cancel();
+      _simSubscription = null;
+      _simulator?.stopSimulation();
+      setState(() {
+        _lastSimUpdate = null;
+      });
+    }
+  }
+
+  String _formatCountdown(int totalSeconds) {
+    if (totalSeconds <= 0) return '00:00';
+    final mins = (totalSeconds ~/ 60).toString().padLeft(2, '0');
+    final secs = (totalSeconds % 60).toString().padLeft(2, '0');
+    return '$mins:$secs';
   }
 
   @override
@@ -140,6 +196,14 @@ class _CompanyTransportationScreenState
       orElse: () => route.stops.first,
     );
 
+    final effectiveTelemetry = (_isSimulating && _lastSimUpdate != null)
+        ? _lastSimUpdate!.telemetry
+        : telemetry;
+
+    if (_displaySeconds == 0 && effectiveTelemetry != null && !_isSimulating) {
+      _displaySeconds = effectiveTelemetry.etaMinutes * 60;
+    }
+
     return RefreshIndicator(
       color: AppColors.primary,
       onRefresh: () => ref.read(myCommuteProvider.notifier).loadCommute(),
@@ -187,13 +251,40 @@ class _CompanyTransportationScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        route.localizedName(isAr),
-                        style: AppTypography.labelBold.copyWith(color: Colors.white, fontSize: 14),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              route.localizedName(isAr),
+                              style: AppTypography.labelBold.copyWith(color: Colors.white, fontSize: 14),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (_isSimulating) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF22C55E).withValues(alpha: 0.25),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: const Color(0xFF22C55E), width: 0.8),
+                              ),
+                              child: Text(
+                                isAr ? 'بث حي' : 'LIVE',
+                                style: const TextStyle(
+                                  color: Color(0xFF4ADE80),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        telemetry?.localizedStatus(isAr) ?? (isAr ? 'الحافلة تعمل في مسارها الطبيعي' : 'On route'),
+                        effectiveTelemetry?.localizedStatus(isAr) ??
+                            (isAr ? 'الحافلة تعمل في مسارها الطبيعي' : 'On route'),
                         style: AppTypography.bodySmall.copyWith(color: const Color(0xFF38BDF8)),
                       ),
                     ],
@@ -217,13 +308,18 @@ class _CompanyTransportationScreenState
           const SizedBox(height: 16),
 
           // ETA Countdown & Distance Card
-          if (telemetry != null)
+          if (effectiveTelemetry != null)
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(
+                  color: _isSimulating
+                      ? const Color(0xFF0284C7).withValues(alpha: 0.4)
+                      : Colors.grey.shade200,
+                  width: _isSimulating ? 1.5 : 1.0,
+                ),
               ),
               child: Row(
                 children: [
@@ -231,9 +327,24 @@ class _CompanyTransportationScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          AppLocale.tr('eta_countdown'),
-                          style: AppTypography.bodySmall,
+                        Row(
+                          children: [
+                            Text(
+                              AppLocale.tr('eta_countdown'),
+                              style: AppTypography.bodySmall,
+                            ),
+                            if (_isSimulating) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF0284C7),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Row(
@@ -241,17 +352,24 @@ class _CompanyTransportationScreenState
                           textBaseline: TextBaseline.alphabetic,
                           children: [
                             Text(
-                              '${telemetry.etaMinutes}',
+                              _formatCountdown(_displaySeconds),
                               style: AppTypography.welcomeTitle.copyWith(
-                                fontSize: 32,
-                                color: AppColors.primary,
+                                fontSize: 26,
+                                color: effectiveTelemetry.isApproaching
+                                    ? const Color(0xFFEAB308)
+                                    : AppColors.primary,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              AppLocale.tr('minutes_abbr'),
-                              style: AppTypography.labelBold.copyWith(color: AppColors.primary),
+                              isAr ? 'د:ث' : 'm:s',
+                              style: AppTypography.labelBold.copyWith(
+                                color: effectiveTelemetry.isApproaching
+                                    ? const Color(0xFFEAB308)
+                                    : AppColors.primary,
+                                fontSize: 11,
+                              ),
                             ),
                           ],
                         ),
@@ -275,7 +393,7 @@ class _CompanyTransportationScreenState
                             textBaseline: TextBaseline.alphabetic,
                             children: [
                               Text(
-                                '${telemetry.distanceKm}',
+                                '${effectiveTelemetry.distanceKm}',
                                 style: AppTypography.welcomeTitle.copyWith(fontSize: 24),
                               ),
                               const SizedBox(width: 4),
@@ -300,7 +418,7 @@ class _CompanyTransportationScreenState
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${telemetry.speedKmh} كم/س',
+                          '${effectiveTelemetry.speedKmh} ${isAr ? "كم/س" : "km/h"}',
                           style: AppTypography.labelBold.copyWith(color: const Color(0xFF16A34A)),
                         ),
                       ],
@@ -312,7 +430,7 @@ class _CompanyTransportationScreenState
           const SizedBox(height: 16),
 
           // Interactive Route Vector Visualizer / Map
-          _buildInteractiveRouteMap(route, telemetry, selectedStop, isAr),
+          _buildInteractiveRouteMap(route, effectiveTelemetry, selectedStop, isAr),
           const SizedBox(height: 16),
 
           // Selected Pickup Stop Card with Change Action
@@ -1287,6 +1405,78 @@ class _CompanyTransportationScreenState
                         ),
                         behavior: SnackBarBehavior.floating,
                         backgroundColor: val ? AppColors.warning : AppColors.statusGreen,
+                      ),
+                    );
+                  }
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Divider(height: 1, color: Colors.grey.shade100),
+          const SizedBox(height: 12),
+
+          // Simulate Live Transit Stream Toggle
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: (_isSimulating ? const Color(0xFF0284C7) : AppColors.primary)
+                      .withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _isSimulating
+                      ? Icons.play_circle_filled_rounded
+                      : Icons.play_circle_outline_rounded,
+                  color: _isSimulating ? const Color(0xFF0284C7) : AppColors.primary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isAr ? 'محاكاة البث الحي للحافلة' : 'Simulate Live Transit Stream',
+                      style: AppTypography.labelBold.copyWith(fontSize: 13),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isAr
+                          ? 'بث إحداثيات GPS للسائق كل 1.5 ثانية وتحديث الخريطة'
+                          : 'Stream driver GPS telemetry every 1500ms on live map',
+                      style: AppTypography.bodySmall.copyWith(fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              Switch.adaptive(
+                value: _isSimulating,
+                activeColor: const Color(0xFF0284C7),
+                onChanged: (val) {
+                  if (commute.route != null) {
+                    final selectedStop = commute.route!.stops.firstWhere(
+                      (s) => s.id == commute.assignment?.selectedStopId,
+                      orElse: () => commute.route!.stops.first,
+                    );
+                    _toggleLiveSimulation(commute.route!, selectedStop);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          val
+                              ? (isAr
+                                  ? 'تم بدء بث المحاكاة الحية للحافلة'
+                                  : 'Live transit simulation started')
+                              : (isAr
+                                  ? 'تم إيقاف محاكاة البث الحي'
+                                  : 'Live transit simulation stopped'),
+                        ),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
                       ),
                     );
                   }
