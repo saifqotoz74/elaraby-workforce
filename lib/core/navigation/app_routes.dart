@@ -37,6 +37,7 @@ abstract class AppRoutes {
   // ---- Home Feature Routes ----
   static const String announcementDetail = '/announcement-detail';
   static const String companyNews = '/company-news';
+  static const String hseHome = '/hse';
 
   // ---- Benefits Feature Routes ----
   static const String benefitDetail = '/benefit-detail';

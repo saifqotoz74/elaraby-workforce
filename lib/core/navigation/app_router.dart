@@ -41,6 +41,7 @@ import '../../features/kiosk/presentation/screens/kiosk_qr_screen.dart';
 import '../../features/home/data/home_content.dart';
 import '../../features/home/presentation/screens/announcement_detail_screen.dart';
 import '../../features/home/presentation/screens/company_news_screen.dart';
+import '../../features/hse/presentation/screens/hse_home_screen.dart';
 
 // Benefits Screens
 import '../../features/benefits/presentation/screens/benefit_detail_screen.dart';
@@ -284,6 +285,10 @@ GoRouter createAppRouter({
           }
           return const CompanyNewsScreen();
         },
+      ),
+      GoRoute(
+        path: AppRoutes.hseHome,
+        builder: (context, state) => const HseHomeScreen(),
       ),
 
       // ---- Benefits Feature Routes ----

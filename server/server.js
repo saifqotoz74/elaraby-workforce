@@ -246,6 +246,15 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin', 'index.html'));
 });
 
+// Employee Self-Service (ESS Web) Portal
+app.use('/ess', express.static(path.join(__dirname, 'ess')));
+app.get('/ess', (req, res) => {
+  res.redirect(301, '/ess/');
+});
+app.get('/ess/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'ess', 'index.html'));
+});
+
 // Structured JSON error handler
 app.use(errorHandler);
 

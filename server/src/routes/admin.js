@@ -31,6 +31,8 @@ const accessControl = require('../integrations/access_control');
 const predictiveAnalytics = require('../services/predictiveAnalyticsService');
 const analyticsAggregationService = require('../services/analyticsAggregationService');
 const rosterSolverService = require('../services/rosterSolverService');
+const hseService = require('../services/hseService');
+const incentivesDeductionsService = require('../services/incentivesDeductionsService');
 const { BUILTIN_TENANTS } = require('./tenant');
 
 const router = express.Router();
@@ -2171,6 +2173,104 @@ router.get('/roster/export', requireAdmin, async (req, res) => {
     } else {
       res.json({ success: true, data: entries });
     }
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ---------- HSE Safety Admin Routes ----------
+router.get('/hse/summary', requireAdmin, async (req, res) => {
+  try {
+    const tenantId = req.admin?.tenantId || req.tenantId || 'elaraby';
+    const summary = hseService.getHseSummary(tenantId);
+    res.json({ success: true, data: summary });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.get('/hse/permits', requireAdmin, async (req, res) => {
+  try {
+    const tenantId = req.admin?.tenantId || req.tenantId || 'elaraby';
+    const permits = hseService.listPermits(tenantId, req.query);
+    res.json({ success: true, data: permits });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/hse/permits/:id/decide', requireAdmin, async (req, res) => {
+  try {
+    const { decision, reason } = req.body;
+    const reviewer = req.admin?.sub || 'HSE Officer';
+    const updated = hseService.decidePermit(req.params.id, decision, { reviewer, reason });
+    res.json({ success: true, data: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.get('/hse/incidents', requireAdmin, async (req, res) => {
+  try {
+    const tenantId = req.admin?.tenantId || req.tenantId || 'elaraby';
+    const incidents = hseService.listIncidents(tenantId);
+    res.json({ success: true, data: incidents });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/hse/ppe-inspection', requireAdmin, async (req, res) => {
+  try {
+    const tenantId = req.admin?.tenantId || req.tenantId || 'elaraby';
+    const { line, checklist } = req.body;
+    const record = hseService.submitPpeInspection(tenantId, line, checklist);
+    res.json({ success: true, data: record });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ---------- Incentives & Deductions Admin Routes ----------
+router.get('/incentives-deductions/summary', requireAdmin, async (req, res) => {
+  try {
+    const tenantId = req.admin?.tenantId || req.tenantId || 'elaraby';
+    const database = db();
+    const employees = (database.employees || []).filter(e => (e.tenantId || 'elaraby') === tenantId);
+    const adjustmentsList = employees.map(emp => {
+      const basicSalary = emp.basicSalary || 6000;
+      return {
+        employeeId: emp.id,
+        employeeCode: emp.employeeCode,
+        name: emp.name,
+        department: emp.department,
+        ...incentivesDeductionsService.calculateMonthlyAdjustments(tenantId, emp.id, {
+          basicSalary,
+          tardinessCount: 0,
+          unexcusedAbsenceDays: 0,
+          ppeViolationsCount: 0,
+          lineTargetAchieved: true,
+        }),
+      };
+    });
+    res.json({ success: true, data: adjustmentsList });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/incentives-deductions/calculate', requireAdmin, async (req, res) => {
+  try {
+    const tenantId = req.admin?.tenantId || req.tenantId || 'elaraby';
+    const { employeeId, basicSalary, tardinessCount, unexcusedAbsenceDays, ppeViolationsCount, lineTargetAchieved } = req.body;
+    const result = incentivesDeductionsService.calculateMonthlyAdjustments(tenantId, employeeId, {
+      basicSalary: Number(basicSalary) || 6000,
+      tardinessCount: Number(tardinessCount) || 0,
+      unexcusedAbsenceDays: Number(unexcusedAbsenceDays) || 0,
+      ppeViolationsCount: Number(ppeViolationsCount) || 0,
+      lineTargetAchieved: !!lineTargetAchieved,
+    });
+    res.json({ success: true, data: result });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

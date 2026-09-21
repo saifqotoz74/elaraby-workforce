@@ -24,6 +24,8 @@ import { TransportView } from './views/TransportView.js';
 import { ReportsView } from './views/ReportsView.js';
 import { AnalyticsView } from './views/AnalyticsView.js';
 import { RosterView } from './views/RosterView.js';
+import { HseView } from './views/HseView.js';
+import { IncentivesView } from './views/IncentivesView.js';
 
 class App {
   constructor() {
@@ -131,6 +133,14 @@ class App {
 
     this.router.addRoute('/roster', () => {
       this.renderView(RosterView, 'AI Roster Solver', 'roster');
+    });
+
+    this.router.addRoute('/hse', () => {
+      this.renderView(HseView, 'Safety & HSE Management', 'hse');
+    });
+
+    this.router.addRoute('/incentives', () => {
+      this.renderView(IncentivesView, 'Incentives & Penalties', 'incentives');
     });
 
     // 3. Employees

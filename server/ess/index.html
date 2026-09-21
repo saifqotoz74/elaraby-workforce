@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>بوابة الموظف الذاتية — Elaraby Workforce OS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="ess.css">
+</head>
+<body>
+  <header>
+    <h1>بوابة الموظف الذاتية — Elaraby Workforce OS</h1>
+  </header>
+  
+  <div id="login-screen" class="screen">
+    <div class="card login-card">
+      <h2>تسجيل الدخول</h2>
+      <input type="text" id="employee-id" placeholder="الرقم القومي / كود الموظف">
+      <input type="password" id="pin-code" placeholder="رمز المرور (4 أرقام)">
+      <button id="login-btn">تسجيل الدخول</button>
+    </div>
+  </div>
+
+  <div id="dashboard-screen" class="screen hidden">
+    <div class="dashboard-header">
+      <h2>أهلاً بك، <span id="worker-name">محمد أحمد</span></h2>
+      <button id="logout-btn">تسجيل الخروج</button>
+    </div>
+
+    <div class="kpi-cards">
+      <div class="card">
+        <h3>رصيد الإجازات المتبقي</h3>
+        <p>14 يوم</p>
+      </div>
+      <div class="card">
+        <h3>الوردية القادمة</h3>
+        <p>الوردية الأولى (8 ص - 4 م)</p>
+      </div>
+      <div class="card">
+        <h3>صافي الراتب المستحق</h3>
+        <p>4,500 ج.م</p>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="tab-salary">مفردات المرتب</button>
+      <button class="tab-btn" data-tab="tab-leaves">طلبات الإجازات</button>
+      <button class="tab-btn" data-tab="tab-shifts">جدول الشيفتات</button>
+    </div>
+
+    <div class="tab-content active" id="tab-salary">
+      <div class="card">
+        <h3>تفاصيل الراتب</h3>
+        <p>الأساسي: 3000 ج.م</p>
+        <p>البدلات: 1000 ج.م</p>
+        <p>الحوافز: 500 ج.م</p>
+        <p>الاستقطاعات: 0 ج.م</p>
+        <p>الصافي: 4500 ج.م</p>
+        <button>طباعة قسيمة الراتب</button>
+      </div>
+    </div>
+
+    <div class="tab-content hidden" id="tab-leaves">
+      <div class="card">
+        <h3>طلبات الإجازات</h3>
+        <button id="new-leave-btn">طلب إجازة جديدة</button>
+        <table class="data-table">
+          <tr><th>التاريخ</th><th>النوع</th><th>الحالة</th></tr>
+          <tr><td>2023-10-15</td><td>اعتيادي</td><td>مقبول</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="tab-content hidden" id="tab-shifts">
+      <div class="card">
+        <h3>جدول الشيفتات</h3>
+        <table class="data-table">
+          <tr><th>اليوم</th><th>الوردية</th></tr>
+          <tr><td>الأحد</td><td>الأولى</td></tr>
+          <tr><td>الاثنين</td><td>الأولى</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="ess.js"></script>
+</body>
+</html>

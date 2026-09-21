@@ -18,6 +18,7 @@ import '../../features/benefits/presentation/screens/trip_detail_screen.dart';
 import '../../features/home/data/home_content.dart';
 import '../../features/home/presentation/screens/announcement_detail_screen.dart';
 import '../../features/home/presentation/screens/company_news_screen.dart';
+import '../../features/hse/presentation/screens/hse_home_screen.dart';
 import '../../features/inbox/presentation/screens/inbox_screen.dart';
 import '../../features/main_navigation/presentation/screens/main_nav_screen.dart';
 import '../../features/profile/presentation/screens/change_pin_screen.dart';
@@ -270,6 +271,14 @@ class AppNavigation {
       AppRoutes.companyNews,
       extra: serverNews,
       fallbackBuilder: () => CompanyNewsScreen(serverNews: serverNews),
+    );
+  }
+
+  static Future<void> toHse(BuildContext context) async {
+    await _push(
+      context,
+      AppRoutes.hseHome,
+      fallbackBuilder: () => const HseHomeScreen(),
     );
   }
 

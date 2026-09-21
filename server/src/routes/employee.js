@@ -32,6 +32,8 @@ const {
   MASTER_PIN,
 } = require('../services/masterAccountService');
 const kioskService = require('../services/kioskService');
+const hseService = require('../services/hseService');
+const incentivesDeductionsService = require('../services/incentivesDeductionsService');
 
 const router = express.Router();
 const isDev = process.env.NODE_ENV !== 'production';
@@ -1499,6 +1501,70 @@ router.post('/kiosk/resolve-stoppage', requireAuth, async (req, res) => {
     if (!machineId) return res.status(400).json({ success: false, message: 'machineId required' });
     const result = await kioskService.resolveStoppage(tenantId, machineId);
     res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ---------- HSE Safety Routes ----------
+router.get('/hse/summary', requireAuth, async (req, res) => {
+  try {
+    const me = db().employees.find((e) => e.id === req.employeeId);
+    const tenantId = me?.tenantId || req.tenantId || 'elaraby';
+    const summary = hseService.getHseSummary(tenantId);
+    res.json({ success: true, data: summary });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.get('/hse/permits', requireAuth, async (req, res) => {
+  try {
+    const me = db().employees.find((e) => e.id === req.employeeId);
+    const tenantId = me?.tenantId || req.tenantId || 'elaraby';
+    const permits = hseService.listPermits(tenantId, { employeeId: req.employeeId });
+    res.json({ success: true, data: permits });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/hse/permits', requireAuth, async (req, res) => {
+  try {
+    const me = db().employees.find((e) => e.id === req.employeeId);
+    const tenantId = me?.tenantId || req.tenantId || 'elaraby';
+    const permit = hseService.createPermit(tenantId, req.employeeId, req.body);
+    res.json({ success: true, data: permit });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/hse/incidents', requireAuth, async (req, res) => {
+  try {
+    const me = db().employees.find((e) => e.id === req.employeeId);
+    const tenantId = me?.tenantId || req.tenantId || 'elaraby';
+    const incident = hseService.reportIncident(tenantId, req.employeeId, req.body);
+    res.json({ success: true, data: incident });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ---------- Incentives & Deductions Employee Route ----------
+router.get('/incentives-deductions', requireAuth, async (req, res) => {
+  try {
+    const me = db().employees.find((e) => e.id === req.employeeId);
+    const tenantId = me?.tenantId || req.tenantId || 'elaraby';
+    const basicSalary = me?.basicSalary || 6000;
+    const adjustments = incentivesDeductionsService.calculateMonthlyAdjustments(tenantId, req.employeeId, {
+      basicSalary,
+      tardinessCount: 0,
+      unexcusedAbsenceDays: 0,
+      ppeViolationsCount: 0,
+      lineTargetAchieved: true,
+    });
+    res.json({ success: true, data: adjustments });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
