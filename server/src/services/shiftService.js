@@ -17,6 +17,7 @@ function save() {
 const SHIFTS = {
   morning: {
     id: 'morning',
+    code: 'morning',
     nameEn: 'Morning Shift (1st)',
     nameAr: 'الوردية الأولى (صباحية)',
     timeEn: '07:00 AM – 03:00 PM',
@@ -27,6 +28,7 @@ const SHIFTS = {
   },
   evening: {
     id: 'evening',
+    code: 'evening',
     nameEn: 'Evening Shift (2nd)',
     nameAr: 'الوردية الثانية (مسائية)',
     timeEn: '03:00 PM – 11:00 PM',
@@ -37,6 +39,7 @@ const SHIFTS = {
   },
   night: {
     id: 'night',
+    code: 'night',
     nameEn: 'Night Shift (3rd)',
     nameAr: 'الوردية الثالثة (ليلية)',
     timeEn: '11:00 PM – 07:00 AM',
@@ -47,6 +50,7 @@ const SHIFTS = {
   },
   regular: {
     id: 'regular',
+    code: 'regular',
     nameEn: 'Office Regular Hours',
     nameAr: 'دوام إداري منتظم',
     timeEn: '08:00 AM – 04:30 PM',
@@ -57,6 +61,7 @@ const SHIFTS = {
   },
   off: {
     id: 'off',
+    code: 'off',
     nameEn: 'Rest Day',
     nameAr: 'عطلة أسبوعية',
     timeEn: 'Off Duty',

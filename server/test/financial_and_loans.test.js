@@ -4,6 +4,7 @@ const { seed } = require('../src/seed');
 const payrollService = require('../src/services/payrollService');
 const loanService = require('../src/services/loanService');
 
+db().payroll = (db().payroll || []).filter((p) => p.period !== '2026-09');
 db().loans = (db().loans || []).filter((l) => l.employeeId !== 'emp_2');
 seed(db());
 

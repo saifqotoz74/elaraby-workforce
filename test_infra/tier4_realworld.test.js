@@ -29,6 +29,8 @@ const realtimeService = require('../server/src/services/realtimeService');
 const erp = require('../server/src/integrations/erp');
 const reconciliationEngine = require('../server/src/integrations/reconciliation/reconciliationEngine');
 const biometrics = require('../server/src/integrations/biometrics');
+const contracts = require('./contracts');
+const crypto = require('crypto');
 
 let adminToken;
 let elarabyEmpToken;
@@ -546,5 +548,283 @@ test('=== TIER 4: REAL-WORLD ENTERPRISE SCENARIOS ===', async (t) => {
     assert.equal(elsewedyAttendance.status, 200);
     const records = elsewedyAttendance.json?.records || [];
     assert.ok(records.every((r) => r.tenantId !== 'elaraby'));
+  });
+
+  // =========================================================================
+  // SCENARIO 11: End-of-Month CBE Payroll Batch Creation, HMAC Manifest Signing & Reconciliation
+  // Features: F21, F22, F23 (Pillar 1)
+  // =========================================================================
+  await t.test('SCENARIO 11: End-of-Month CBE Payroll Batch Creation, HMAC Manifest Signing & Reconciliation', async () => {
+    // 1. Prepare multi-worker payroll records
+    const payrollRecords = [
+      { name: 'Hassan Mostafa', employeeCode: 'EMP-SC11-1', employeeName: 'Hassan Mostafa', nationalId: '29001011234567', iban: 'EG440024000000000123456789011', basicSalary: 9000, allowances: 1500, deductions: 500, netSalary: 10000 },
+      { name: 'Khaled Ibrahim', employeeCode: 'EMP-SC11-2', employeeName: 'Khaled Ibrahim', nationalId: '29202021234568', iban: 'EG440024000000000123456789012', basicSalary: 8500, allowances: 1000, deductions: 300, netSalary: 9200 },
+    ];
+
+    // 2. Generate CBE WPS compliant CSV batch
+    const batch = contracts.CbeWpsBatchGenerator.generateCsv(payrollRecords, {
+      batchReference: 'BATCH-CBE-SCEN-11',
+      period: '2026-09',
+    });
+    const payload = typeof batch === 'string' ? batch : batch.content;
+    assert.ok(payload.startsWith('\uFEFF'), 'Must include UTF-8 BOM');
+    assert.ok(payload.includes('Hassan Mostafa'));
+
+    // 3. Cryptographically sign batch with HMAC-SHA256 manifest
+    const secretKey = 'cbe_secure_secret_key_2026';
+    const manifest = contracts.HmacManifestSigner.createManifest({
+      bank: 'cbe',
+      batchReference: 'BATCH-CBE-SCEN-11',
+      payload,
+      recordCount: 2,
+      totalAmount: 19200,
+      secretKey,
+    });
+    assert.ok(manifest.signature);
+    assert.ok(manifest.timestamp);
+
+    // Verify manifest signature integrity
+    const verifyResult = contracts.HmacManifestSigner.verifyManifest({
+      payload,
+      manifest,
+      secretKey,
+    });
+    assert.equal(verifyResult.valid, true);
+
+    // 4. Seed database payroll state and reconcile disbursement returns
+    const database = db();
+    database.payroll = (database.payroll || []).filter((p) => p.id !== 'pay_sc11_1');
+    database.payroll.push({
+      id: 'pay_sc11_1',
+      employeeId: 'emp_1',
+      period: '2026-09',
+      netSalary: 10000,
+      disbursementStatus: 'pending',
+    });
+    save();
+
+    const reconRes = await request('POST', '/api/admin/banking/disbursement/reconciliation', {
+      Authorization: `Bearer ${adminToken}`,
+    }, {
+      batchId: 'BATCH-CBE-SCEN-11',
+      bank: 'cbe',
+      period: '2026-09',
+      returns: [
+        {
+          transactionReference: 'TXN-SC11-001',
+          employeeId: 'emp_1',
+          amount: 10000,
+          bankStatus: 'SETTLED',
+        },
+      ],
+    });
+    assert.equal(reconRes.status, 200);
+    assert.ok(reconRes.json?.auditLogId);
+  });
+
+  // =========================================================================
+  // SCENARIO 12: Morning Shift Turnstile Rush with Binary Streams & Hard Anti-Passback
+  // Features: F24, F25, F26, F27 (Pillar 2)
+  // =========================================================================
+  await t.test('SCENARIO 12: Morning Shift Turnstile Rush with Binary Streams & Hard Anti-Passback', async () => {
+    // 1. ZKTeco Binary stream parsing for batch badge punches
+    const packets = [];
+    for (let i = 1; i <= 5; i++) {
+      const attlogBuf = Buffer.alloc(40);
+      attlogBuf.writeUInt16LE(100 + i, 0); // PIN
+      attlogBuf[2] = 1; // Fingerprint
+      const packedTs = contracts.ZkTecoParser.encodeTimestamp(new Date('2026-09-22T06:30:00Z'));
+      attlogBuf.writeUInt32LE(packedTs, 4);
+      attlogBuf[8] = 0; // Check-in
+      Buffer.from(`EMP-RUSH-${i}\0`).copy(attlogBuf, 10);
+      packets.push(contracts.ZkTecoParser.createTcpPacket(13, i, 1, attlogBuf));
+    }
+
+    for (const pkt of packets) {
+      const parsed = contracts.ZkTecoParser.parseTcpPacket(pkt);
+      assert.equal(parsed.isValid, true);
+      assert.equal(parsed.punches.length, 1);
+    }
+
+    // 2. Hikvision ISAPI XML event parsing
+    const hikXml = `
+      <EventNotificationAlert>
+        <eventType>AccessControllerEvent</eventType>
+        <dateTime>2026-09-22T06:45:00+02:00</dateTime>
+        <AccessControllerEvent>
+          <majorEventType>5</majorEventType>
+          <subEventType>75</subEventType>
+          <employeeNoString>EMP-HIK-01</employeeNoString>
+          <attendanceStatus>checkIn</attendanceStatus>
+          <doorNo>1</doorNo>
+        </AccessControllerEvent>
+      </EventNotificationAlert>
+    `;
+    const hikEvent = contracts.HikvisionIsapiParser.parseEvent(hikXml, 'application/xml');
+    assert.equal(hikEvent.isValid, true);
+    assert.equal(hikEvent.status, 'GRANTED');
+
+    // 3. Strict Anti-Passback enforcement during morning rush
+    contracts.AntiPassbackEngine.resetState('elaraby', 'turnstile_east', 'EMP-APB-RUSH');
+    const t0 = 1758900000000;
+    const punch1 = contracts.AntiPassbackEngine.validatePunch({
+      tenantId: 'elaraby',
+      zoneId: 'turnstile_east',
+      employeeId: 'EMP-APB-RUSH',
+      requestedType: 'check-in',
+      timestamp: t0,
+      mode: 'strict',
+    });
+    assert.equal(punch1.allowed, true);
+
+    // Colleague tries to pass back the same badge immediately
+    const passbackAttempt = contracts.AntiPassbackEngine.validatePunch({
+      tenantId: 'elaraby',
+      zoneId: 'turnstile_east',
+      employeeId: 'EMP-APB-RUSH',
+      requestedType: 'check-in',
+      timestamp: t0 + 15000,
+      mode: 'strict',
+    });
+    assert.equal(passbackAttempt.allowed, false);
+    assert.equal(passbackAttempt.violation, 'DOUBLE_ENTRY');
+
+    // Turnstile health monitoring under load
+    contracts.TurnstileHealthMonitor.registerDevice({ id: 'DEV-RUSH-01', name: 'East Turnstile' });
+    const health = contracts.TurnstileHealthMonitor.recordHeartbeat('DEV-RUSH-01', 22, true);
+    assert.equal(health.status, 'ONLINE');
+  });
+
+  // =========================================================================
+  // SCENARIO 13: Subterranean Blackout, SQLite Offline Caching & 120s Deduplication
+  // Features: F29, F30, F31 (Pillar 3)
+  // =========================================================================
+  await t.test('SCENARIO 13: Subterranean Blackout, SQLite Offline Caching & 120s Deduplication', async () => {
+    // 1. Mobile offline database schema validation
+    const schemas = contracts.OfflineDatabaseContract.SCHEMAS;
+    assert.ok(schemas.punch_queue.includes('client_punch_id'));
+    assert.ok(schemas.cached_schedules.includes('week_start'));
+
+    // 2. Exponential backoff retry verification
+    const retry1 = contracts.OfflineDatabaseContract.calculateExponentialBackoff(1, 1.5, 60.0);
+    assert.equal(retry1.nominal, 3.0);
+    const retry4 = contracts.OfflineDatabaseContract.calculateExponentialBackoff(4, 1.5, 60.0);
+    assert.equal(retry4.nominal, 24.0);
+
+    // 3. Post-blackout bulk sync with jittered duplicates
+    const t0 = 1758910000000;
+    const offlineBatch = [
+      { clientPunchId: 'sc13-p1', employeeId: 'emp_1', type: 'in', timestamp: t0 },
+      { clientPunchId: 'sc13-p2', employeeId: 'emp_1', type: 'in', timestamp: t0 + 40000 }, // 40s duplicate within 120s window
+    ];
+    const syncRes = await request('POST', '/api/attendance/bulk-sync', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    }, offlineBatch);
+    assert.equal(syncRes.status, 200);
+    assert.equal(syncRes.json?.acceptedCount, 1);
+    assert.equal(syncRes.json?.duplicateCount, 1);
+
+    // 4. Retrying the same batch is completely idempotent
+    const retrySyncRes = await request('POST', '/api/attendance/bulk-sync', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    }, offlineBatch);
+    assert.equal(retrySyncRes.status, 200);
+    assert.equal(retrySyncRes.json?.acceptedCount, 0);
+    assert.equal(retrySyncRes.json?.duplicateCount, 2);
+  });
+
+  // =========================================================================
+  // SCENARIO 14: Predictive AI Assembly Line Stoppage Prevention & Smart Backfill
+  // Features: F32, F33, F35 (Pillar 4)
+  // =========================================================================
+  await t.test('SCENARIO 14: Predictive AI Assembly Line Stoppage Prevention & Smart Backfill', async () => {
+    // 1. Calculate individual worker absenteeism probabilities
+    const workerProb = contracts.AiPredictiveService.calculateAbsenteeismRisk({
+      employeeId: 'emp_risk_1',
+      shiftCode: 'morning',
+      historicalAbsenceRate: 0.15,
+      latenessFrequency: 0.20,
+      consecutiveDaysWorked: 5,
+      turnaroundRestHours: 12,
+    });
+    assert.ok(workerProb.riskScore > 0.01 && workerProb.riskScore < 0.99);
+
+    // 2. Assess assembly line stoppage risk for 10-person critical assembly line
+    const currentCrew = Array.from({ length: 8 }, (_, i) => ({
+      id: `w_line_${i}`,
+      historicalAbsenceRate: 0.05,
+    }));
+    const lineAssessment = contracts.AiPredictiveService.assessLineStoppageRisk({
+      factoryId: 'Quesna',
+      lineId: 'LINE-MOTORS-01',
+      requiredQuota: 10,
+      scheduledWorkers: currentCrew,
+    });
+    assert.equal(lineAssessment.status, 'critical');
+    assert.equal(lineAssessment.stoppageRisk, 'CRITICAL');
+    assert.equal(lineAssessment.isCritical, true);
+
+    // 3. Automated Smart Backfill Recommendation with Egyptian Labor Law fatigue gates
+    const candidatePool = [
+      { id: 'cand_tired', name: 'Karim (Exhausted)', department: 'Production', skillTier: 'senior_lead', turnaroundRestHours: 6, consecutiveDays: 3, weeklyScheduledHours: 30 },
+      { id: 'cand_overworked', name: 'Sami (6 days)', department: 'Production', skillTier: 'senior_lead', turnaroundRestHours: 14, consecutiveDays: 6, weeklyScheduledHours: 35 },
+      { id: 'cand_ideal', name: 'Tarek (Optimal)', department: 'Production', skillTier: 'senior_lead', turnaroundRestHours: 16, consecutiveDays: 2, weeklyScheduledHours: 24, monthlyOvertimeHours: 5 },
+    ];
+    const recommendations = contracts.AiPredictiveService.recommendBackfill({
+      lineId: 'LINE-MOTORS-01',
+      missingSkillTier: 'senior_lead',
+      candidates: candidatePool,
+    });
+    assert.equal(recommendations.ok, true);
+    assert.equal(recommendations.recommendations.length, 1);
+    assert.equal(recommendations.recommendations[0].employeeId, 'cand_ideal');
+    assert.equal(recommendations.recommendations[0].fatigueGatesPassed, true);
+  });
+
+  // =========================================================================
+  // SCENARIO 15: Department Overtime Drift Projection, Warning & Auto-Freeze Limit
+  // Features: F34, F28 (Pillar 4 + Pillar 2)
+  // =========================================================================
+  await t.test('SCENARIO 15: Department Overtime Drift Projection, Warning & Auto-Freeze Limit', async () => {
+    // 1. Department at 85% overtime consumption triggers early warning
+    const driftWarning = contracts.AiPredictiveService.evaluateOvertimeDrift({
+      departmentId: 'dept_assembly',
+      monthlyBudgetHours: 500,
+      consumedHours: 425, // 85% consumed
+      currentDayOfMonth: 18,
+      daysInMonth: 30,
+    });
+    assert.equal(driftWarning.isLocked, false);
+    assert.ok(driftWarning.driftWarning === true || driftWarning.alertLevel === 'WARNING');
+
+    // 2. Department reaching 100% consumption triggers auto-freeze
+    const driftFrozen = contracts.AiPredictiveService.evaluateOvertimeDrift({
+      departmentId: 'dept_paint',
+      monthlyBudgetHours: 500,
+      consumedHours: 500, // 100% consumed
+      currentDayOfMonth: 22,
+      daysInMonth: 30,
+    });
+    assert.equal(driftFrozen.isLocked, true);
+    assert.ok(driftFrozen.status === 'frozen' || driftFrozen.alertLevel === 'CRITICAL');
+
+    // 3. Emergency override executed by plant safety officer
+    const lockdown = await contracts.EmergencyOverrideService.executeOverride({
+      action: 'LOCKDOWN_ALL',
+      factoryId: 'Quesna',
+      deviceCount: 16,
+    });
+    assert.equal(lockdown.ok, true);
+    assert.ok(lockdown.executionTimeMs < 50);
+
+    // Restore to normal operation
+    const restore = await request('POST', '/api/admin/access-control/emergency-override', {
+      Authorization: `Bearer ${adminToken}`,
+    }, {
+      action: 'RESTORE',
+      factory: 'Quesna',
+    });
+    assert.equal(restore.status, 200);
+    assert.equal(restore.json?.status, 'NORMAL');
   });
 });

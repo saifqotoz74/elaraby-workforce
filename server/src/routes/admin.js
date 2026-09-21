@@ -26,6 +26,9 @@ const biometrics = require('../integrations/biometrics');
 const { reconcileEmployees, reconcilePayroll, reconcileAttendance } = require('../integrations/reconciliation/reconciliationEngine');
 const pdfService = require('../services/pdfService');
 const alertService = require('../services/alertService');
+const { BankingGateway, BankingReconciliationEngine } = require('../integrations/banking');
+const accessControl = require('../integrations/access_control');
+const predictiveAnalytics = require('../services/predictiveAnalyticsService');
 const { BUILTIN_TENANTS } = require('./tenant');
 
 const router = express.Router();
@@ -1336,10 +1339,16 @@ router.get('/reports/analytics', requireAdmin, (req, res) => {
   }
 });
 
-// ---------- Bank Payroll File Generator (WPS / CBE / NBE / Misr / CIB) ----------
+// ---------- Bank Payroll File Generator (WPS / CBE / NBE / Misr / CIB / QNB) ----------
 router.get('/reports/bank-export', requireAdmin, (req, res) => {
   try {
-    const { format = 'wps_cbe', period = new Date().toISOString().slice(0, 7), facilityCode = 'EGY-CORP-01' } = req.query || {};
+    const {
+      format = 'wps_cbe',
+      fileType,
+      period = new Date().toISOString().slice(0, 7),
+      facilityCode = 'EGY-CORP-01',
+    } = req.query || {};
+
     const tenantId = req.query.tenantId || req.tenantId || 'elaraby';
     const database = db();
 
@@ -1349,48 +1358,143 @@ router.get('/reports/bank-export', requireAdmin, (req, res) => {
     });
 
     const payrollRecords = database.payroll || [];
-    const corporateIban = 'EG440003000000000123456789012';
+    const corporateIban = req.query.corporateIban || 'EG440003000000000123456789012';
 
-    let output = '';
-    const nowStr = new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14);
+    // Normalize employee & payroll records for BankingGateway
+    const normalizedRecords = employees.map((emp, idx) => {
+      const p = payrollRecords.find((pr) => pr.employeeId === emp.id && (!period || pr.period === period)) ||
+                payrollRecords.find((pr) => pr.employeeId === emp.id) || {};
+      const basic = Number(p.basicSalary !== undefined ? p.basicSalary : (p.baseSalary || 7500));
+      const allowances = Number(p.allowances?.total !== undefined ? p.allowances.total : (typeof p.allowances === 'number' ? p.allowances : Math.round(basic * 0.22)));
+      const deductions = Number(p.deductions?.total !== undefined ? p.deductions.total : (typeof p.deductions === 'number' ? p.deductions : Math.round(basic * 0.08)));
+      const net = Number(p.netSalary !== undefined ? p.netSalary : (basic + allowances - deductions));
+      const fakeIban = `EG${String(99000000000000000000000000 + idx).slice(0, 27)}`;
 
-    if (format === 'wps_cbe') {
-      // CBE Wages Protection System standard format
-      let totalAmount = 0;
-      const rows = employees.map((emp, idx) => {
-        const p = payrollRecords.find((pr) => pr.employeeId === emp.id) || {};
-        const basic = Number(p.basicSalary !== undefined ? p.basicSalary : (p.baseSalary || 7500));
-        const net = Number(p.netSalary !== undefined ? p.netSalary : Math.round(basic * 1.14));
-        totalAmount += net;
-        const fakeIban = `EG${String(99000000000000000000000000 + idx).slice(0, 27)}`;
-        return `02|${emp.nationalId || '29801011234567'}|${emp.iban || fakeIban}|${emp.name}|${basic}|${Math.round(basic * 0.22)}|${Math.round(basic * 0.08)}|${net}|EGP|SALARY`;
-      });
-      const header = `01|${facilityCode}|${corporateIban}|${period}|${employees.length}|${totalAmount}|EGP|${nowStr}`;
-      output = [header, ...rows].join('\r\n');
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="WPS_CBE_${tenantId}_${period}.txt"`);
-    } else {
-      // Standard Corporate CSV for NBE / Banque Misr / CIB
-      const bankName = format === 'nbe' ? 'National Bank of Egypt (NBE)' : format === 'misr' ? 'Banque Misr' : format === 'cib' ? 'CIB Egypt' : 'Commercial Banking';
-      const header = 'Employee Code,National ID,Employee Name,Department,Bank Name,IBAN / Account,Currency,Basic Salary,Allowances,Deductions,Net Salary,Payment Period';
-      const rows = employees.map((emp, idx) => {
-        const p = payrollRecords.find((pr) => pr.employeeId === emp.id) || {};
-        const basic = Number(p.basicSalary !== undefined ? p.basicSalary : (p.baseSalary || 7500));
-        const allowances = Number(p.allowances?.total || Math.round(basic * 0.22));
-        const deductions = Number(p.deductions?.total || Math.round(basic * 0.08));
-        const net = Number(p.netSalary !== undefined ? p.netSalary : (basic + allowances - deductions));
-        const fakeIban = `EG${String(99000000000000000000000000 + idx).slice(0, 27)}`;
-        return `"${emp.employeeCode || ('EMP-' + (1000 + idx))}","${emp.nationalId || '29801011234567'}","${emp.name}","${emp.department || 'Operations'}","${bankName}","${emp.iban || fakeIban}","EGP",${basic},${allowances},${deductions},${net},"${period}"`;
-      });
-      // Add UTF-8 BOM for Excel Arabic character compatibility
-      output = '\uFEFF' + [header, ...rows].join('\r\n');
-      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="Payroll_${format.toUpperCase()}_${tenantId}_${period}.csv"`);
+      return {
+        id: emp.id,
+        employeeCode: emp.employeeCode || `EMP-${1000 + idx}`,
+        nationalId: emp.nationalId || '29801011234567',
+        name: emp.name || `Employee ${idx + 1}`,
+        department: emp.department || 'Operations',
+        factory: emp.factory || 'Main Facility',
+        iban: emp.iban || fakeIban,
+        accountNumber: emp.bankAccount || fakeIban.slice(15),
+        basicSalary: basic,
+        allowances,
+        deductions,
+        netSalary: net,
+        currency: 'EGP',
+        period,
+      };
+    });
+
+    // Delegate batch generation to BankingGateway facade
+    const batchResult = BankingGateway.generateBatch({
+      bankCode: format,
+      fileType,
+      records: normalizedRecords,
+      period,
+      facilityCode,
+      corporateIban,
+      tenantId,
+      actor: req.admin?.sub || 'admin',
+    });
+
+    // Attach Tamper-Evident Cryptographic Manifest Headers
+    if (batchResult.manifest) {
+      res.setHeader('X-Payload-Hash', batchResult.manifest.payloadHash);
+      res.setHeader('X-HMAC-Signature', batchResult.manifest.hmacSignature);
+      res.setHeader('X-Batch-Reference', batchResult.manifest.batchReference);
+      res.setHeader('X-Record-Count', String(batchResult.manifest.lineCount));
+      res.setHeader('X-Total-Amount', batchResult.manifest.totalAmount.toFixed(2));
     }
 
-    res.send(output);
+    // If JSON manifest explicitly requested, return manifest payload
+    if (req.query.manifest === 'true' && req.query.format === 'manifest') {
+      return res.json({ ok: true, manifest: batchResult.manifest });
+    }
+
+    res.setHeader('Content-Type', batchResult.contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${batchResult.filename}"`);
+    return res.send(batchResult.rawContent);
   } catch (err) {
     res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+// ---------- Banking Feedback Ingestion & Reconciliation Auditing ----------
+// POST /api/admin/banking/disbursement/reconciliation
+// Guarded by requireAdmin
+router.post('/banking/disbursement/reconciliation', requireAdmin, (req, res) => {
+  try {
+    const {
+      batchReference,
+      batchId,
+      bankCode,
+      bank,
+      feedbackRecords,
+      returns,
+      period,
+    } = req.body || {};
+
+    const resolvedBatch = batchReference || batchId;
+    if (!resolvedBatch || typeof resolvedBatch !== 'string' || !resolvedBatch.trim()) {
+      return res.status(400).json({
+        error: 'missing_batch_reference',
+        message: 'batchReference is required and must be a non-empty string',
+      });
+    }
+
+    const resolvedBank = bankCode || bank;
+    if (!resolvedBank || typeof resolvedBank !== 'string' || !resolvedBank.trim()) {
+      return res.status(400).json({
+        error: 'missing_bank_code',
+        message: 'bankCode is required (e.g. cib, nbe, qnb, misr, cbe_wps)',
+      });
+    }
+
+    const records = feedbackRecords !== undefined ? feedbackRecords : (returns !== undefined ? returns : []);
+    if (!Array.isArray(records)) {
+      return res.status(400).json({
+        error: 'invalid_feedback_records',
+        message: 'feedbackRecords must be an array',
+      });
+    }
+
+    // Resolve ambient tenant context
+    const tenantId = req.query.tenantId || req.tenantId || req.admin?.tenantId || 'elaraby';
+
+    // Execute transactional reconciliation
+    const result = BankingReconciliationEngine.reconcileDisbursementBatch({
+      batchReference: resolvedBatch.trim(),
+      bankCode: resolvedBank.trim(),
+      feedbackRecords: records,
+      period,
+      tenantId,
+      admin: req.admin,
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+
+    // Real-time broadcast of reconciliation outcome
+    if (realtimeService && realtimeService.broadcast) {
+      realtimeService.broadcast('banking.disbursement.reconciled', {
+        batchReference: result.batchReference,
+        bankCode: result.bankCode,
+        matchedCount: result.matchedCount,
+        rejectedCount: result.rejectedCount,
+        invalidAccountCount: result.invalidAccountCount,
+        discrepancyCount: result.discrepancyCount,
+        timestamp: Date.now(),
+      }, { tenantId });
+    }
+
+    return res.status(200).json(result);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({
+      error: err.code || 'reconciliation_failed',
+      message: err.message,
+    });
   }
 });
 
@@ -1816,6 +1920,170 @@ router.put('/rosters/bulk', requireAdmin, (req, res) => {
       userAgent: req.headers['user-agent'],
     });
     res.json({ ok: true, updatedCount: result.updatedCount });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+// ---------- Access Control & IoT Turnstiles ----------
+router.get('/access-control/devices', requireAdmin, (req, res) => {
+  try {
+    const tenantId = req.query.tenantId || req.tenantId || req.admin?.tenantId || 'elaraby';
+    const devices = accessControl.getDevices(req.admin?.role === 'superadmin' ? null : tenantId);
+    res.json({ ok: true, devices });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/access-control/devices/:id/heartbeat', requireAdmin, (req, res) => {
+  try {
+    const { latencyMs = 15, isSuccess = true } = req.body || {};
+    const updated = accessControl.recordHeartbeat(req.params.id, latencyMs, isSuccess);
+    if (!updated) return res.status(404).json({ error: 'Device not found' });
+    res.json({ ok: true, device: updated });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/access-control/emergency-override', requireAdmin, (req, res) => {
+  try {
+    const { factory = 'all', action = 'UNLOCK_ALL' } = req.body || {};
+    const tenantId = req.body.tenantId || req.tenantId || req.admin?.tenantId || 'elaraby';
+    const result = accessControl.emergencyOverride({
+      tenantId,
+      factory,
+      action,
+      adminId: req.admin?.sub || req.admin?.username || 'admin',
+    });
+
+    auditService.recordAuditLog(db(), {
+      actor: req.admin?.sub || req.admin?.username || 'admin',
+      role: req.admin?.role || 'superadmin',
+      action: `ACCESS_CONTROL_OVERRIDE_${action}`,
+      entity: 'access_control',
+      details: `Emergency override ${action} executed for factory ${factory} across ${result.affectedDeviceCount} devices. Execution: ${result.executionLatencyMs}ms.`,
+    });
+
+    res.json(result);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.get('/access-control/emergency-state', requireAdmin, (req, res) => {
+  try {
+    const tenantId = req.query.tenantId || req.tenantId || req.admin?.tenantId || 'elaraby';
+    const state = accessControl.getEmergencyState(tenantId);
+    res.json({ ok: true, state });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/access-control/apb/validate', requireAdmin, (req, res) => {
+  try {
+    const { employeeId, direction = 'IN', gateId = 'GATE_1', mode = 'strict', timestamp } = req.body || {};
+    const tenantId = req.body.tenantId || req.tenantId || req.admin?.tenantId || 'elaraby';
+    const result = accessControl.validateAntiPassback({
+      tenantId,
+      employeeId,
+      direction,
+      gateId,
+      mode,
+      timestamp,
+    });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/access-control/apb/reset', requireAdmin, (req, res) => {
+  try {
+    const { employeeId, resetState = 'OUT', reason = 'Manual Reset' } = req.body || {};
+    const tenantId = req.body.tenantId || req.tenantId || req.admin?.tenantId || 'elaraby';
+    const result = accessControl.resetAntiPassbackState(tenantId, employeeId, resetState, reason);
+
+    auditService.recordAuditLog(db(), {
+      actor: req.admin?.sub || req.admin?.username || 'admin',
+      role: req.admin?.role || 'superadmin',
+      action: 'ACCESS_CONTROL_APB_RESET',
+      entity: 'access_control',
+      details: `Reset APB state for ${employeeId} to ${resetState}. Reason: ${reason}`,
+    });
+
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.get('/access-control/apb/violations', requireAdmin, (req, res) => {
+  try {
+    const tenantId = req.query.tenantId || req.tenantId || req.admin?.tenantId || 'elaraby';
+    const violations = accessControl.getAntiPassbackViolations(req.admin?.role === 'superadmin' ? null : tenantId);
+    res.json({ ok: true, count: violations.length, violations });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/access-control/events/hikvision', (req, res) => {
+  try {
+    const parsed = accessControl.parseHikvisionJsonEvent(req.body);
+    res.json({ ok: true, received: true, event: parsed });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// ---------- AI Predictive Analytics ----------
+router.get('/analytics/predictive/absenteeism', requireAdmin, (req, res) => {
+  try {
+    const { factory = 'all', line = 'all', date } = req.query || {};
+    const tenantId = req.query.tenantId || req.tenantId || req.admin?.tenantId || 'elaraby';
+    const forecast = predictiveAnalytics.predictShiftAbsenteeism({
+      tenantId,
+      factory,
+      line,
+      targetDate: date || new Date().toISOString().split('T')[0],
+    });
+    res.json(forecast);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.get('/analytics/predictive/overtime-drift', requireAdmin, (req, res) => {
+  try {
+    const { month, budgetLimit } = req.query || {};
+    const tenantId = req.query.tenantId || req.tenantId || req.admin?.tenantId || 'elaraby';
+    const drift = predictiveAnalytics.forecastOvertimeDrift({
+      tenantId,
+      month: month || new Date().toISOString().substring(0, 7),
+      budgetLimitEgp: budgetLimit ? Number(budgetLimit) : 150000,
+    });
+    res.json(drift);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.post('/analytics/predictive/recommend-backfill', requireAdmin, (req, res) => {
+  try {
+    const { factory = 'all', line = 'all', shift = 'morning', date, requiredCount = 2 } = req.body || {};
+    const tenantId = req.body.tenantId || req.tenantId || req.admin?.tenantId || 'elaraby';
+    const recommendations = predictiveAnalytics.recommendCrewBackfill({
+      tenantId,
+      factory,
+      line,
+      shift,
+      date: date || new Date().toISOString().split('T')[0],
+      requiredCount: Number(requiredCount),
+    });
+    res.json(recommendations);
   } catch (err) {
     res.status(err.statusCode || 500).json({ error: err.message });
   }

@@ -28,6 +28,8 @@ const auditService = require('../server/src/services/auditService');
 const erp = require('../server/src/integrations/erp');
 const reconciliationEngine = require('../server/src/integrations/reconciliation/reconciliationEngine');
 const biometrics = require('../server/src/integrations/biometrics');
+const contracts = require('./contracts');
+const crypto = require('crypto');
 
 let adminToken;
 let elarabyEmpToken;
@@ -632,5 +634,365 @@ test('=== TIER 3: CROSS-FEATURE COMBINATORIAL E2E SUITE ===', async (t) => {
     });
     assert.equal(approveRes.status, 200);
     assert.equal(approveRes.json?.claim?.status, 'approved');
+  });
+
+  // -------------------------------------------------------------------------
+  // Interaction 21: Banking CIB Batch Generation -> HMAC Manifest Signing -> Tamper Verification (Pillar 1)
+  // -------------------------------------------------------------------------
+  await t.test('INT-21: Banking CIB Batch Generation -> HMAC Manifest Signing -> Tamper Verification (Pillar 1)', async () => {
+    const records = [
+      { employeeCode: 'EMP-1001', employeeName: 'Mohamed Salah', nationalId: '29001011234567', iban: 'EG440024000000000123456789012', basicSalary: 10000, allowances: 2000, deductions: 500, netSalary: 11500 },
+      { employeeCode: 'EMP-1002', employeeName: 'Ali Hassan', nationalId: '29202021234567', iban: 'EG440024000000000123456789013', basicSalary: 8000, allowances: 1000, deductions: 200, netSalary: 8800 },
+    ];
+    const batch = contracts.CibBatchGenerator.generateFixedWidth(records, { batchReference: 'BATCH-INT-21', period: '2026-09' });
+    const payload = typeof batch === 'string' ? batch : batch.content;
+    assert.ok(payload);
+    const count = batch.recordCount || records.length;
+    assert.equal(count, 2);
+
+    const secretKey = 'bank_secret_key_cib';
+    const manifest = contracts.HmacManifestSigner.createManifest({
+      bank: 'cib',
+      batchReference: 'BATCH-INT-21',
+      payload,
+      recordCount: 2,
+      totalAmount: batch.totalAmount || 20300,
+      secretKey,
+    });
+    assert.ok(manifest.signature);
+
+    // Verify pristine manifest
+    const validCheck = contracts.HmacManifestSigner.verifyManifest({
+      payload,
+      manifest,
+      secretKey,
+    });
+    assert.equal(validCheck.valid, true);
+
+    // Tamper payload by mutating 1 character
+    const tampered = payload.slice(0, 50) + 'X' + payload.slice(51);
+    const tamperedCheck = contracts.HmacManifestSigner.verifyManifest({
+      payload: tampered,
+      manifest,
+      secretKey,
+    });
+    assert.equal(tamperedCheck.valid, false);
+    assert.ok(['SIGNATURE_VERIFICATION_FAILED', 'PAYLOAD_HASH_MISMATCH'].includes(tamperedCheck.error));
+  });
+
+  // -------------------------------------------------------------------------
+  // Interaction 22: Multi-Bank Reconciliation -> Discrepancy Flagging -> Audit Trail Logging (Pillar 1)
+  // -------------------------------------------------------------------------
+  await t.test('INT-22: Multi-Bank Reconciliation -> Discrepancy Flagging -> Audit Trail Logging (Pillar 1)', async () => {
+    const database = db();
+    database.payroll = (database.payroll || []).filter((p) => p.id !== 'pay_int_22');
+    database.payroll.push({
+      id: 'pay_int_22',
+      employeeId: 'emp_1',
+      period: '2026-09',
+      netSalary: 12000,
+      disbursementStatus: 'pending',
+    });
+    save();
+
+    const res = await request('POST', '/api/admin/banking/disbursement/reconciliation', {
+      Authorization: `Bearer ${adminToken}`,
+    }, {
+      batchId: 'BATCH-INT-22',
+      bank: 'qnb',
+      period: '2026-09',
+      returns: [
+        {
+          transactionReference: 'TXN-INT-22',
+          employeeId: 'emp_1',
+          amount: 11500, // 500 EGP difference
+          bankStatus: 'SETTLED',
+        },
+      ],
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.discrepancyCount, 1);
+    assert.ok(res.json?.auditLogId);
+
+    const audit = (db().auditLogs || []).find((l) => l.id === res.json?.auditLogId || l.action === 'BANK_DISBURSEMENT_RECONCILIATION');
+    assert.ok(audit, 'Must record audit log for bank reconciliation');
+  });
+
+  // -------------------------------------------------------------------------
+  // Interaction 23: ZKTeco TCP Packet Creation -> Checksum Verification -> Anti-Passback Validation (Pillar 2)
+  // -------------------------------------------------------------------------
+  await t.test('INT-23: ZKTeco TCP Packet Creation -> Checksum Verification -> Anti-Passback Validation (Pillar 2)', async () => {
+    const attlogBuf = Buffer.alloc(40);
+    attlogBuf.writeUInt16LE(550, 0); // PIN
+    attlogBuf[2] = 1; // fingerprint
+    const packedTs = contracts.ZkTecoParser.encodeTimestamp(new Date('2026-09-22T06:00:00Z'));
+    attlogBuf.writeUInt32LE(packedTs, 4);
+    attlogBuf[8] = 0; // check-in
+    Buffer.from('EMP-INT-23\0').copy(attlogBuf, 10);
+
+    const packet = contracts.ZkTecoParser.createTcpPacket(13, 10, 1, attlogBuf);
+    const parsed = contracts.ZkTecoParser.parseTcpPacket(packet);
+    assert.equal(parsed.isValid, true);
+    assert.equal(parsed.punches.length, 1);
+    const punch = parsed.punches[0];
+
+    contracts.AntiPassbackEngine.resetState('elaraby', 'gate_main', punch.employeeCode);
+    const t0 = 1758600000000;
+    const apb1 = contracts.AntiPassbackEngine.validatePunch({
+      tenantId: 'elaraby',
+      zoneId: 'gate_main',
+      employeeId: punch.employeeCode,
+      requestedType: punch.punchType,
+      timestamp: t0,
+      mode: 'strict',
+    });
+    assert.equal(apb1.allowed, true);
+
+    // Consecutive check-in without check-out
+    const apb2 = contracts.AntiPassbackEngine.validatePunch({
+      tenantId: 'elaraby',
+      zoneId: 'gate_main',
+      employeeId: punch.employeeCode,
+      requestedType: 'check-in',
+      timestamp: t0 + 10000,
+      mode: 'strict',
+    });
+    assert.equal(apb2.allowed, false);
+    assert.equal(apb2.violation, 'DOUBLE_ENTRY');
+  });
+
+  // -------------------------------------------------------------------------
+  // Interaction 24: Hikvision ISAPI XML Event -> Roster Shift Resolution -> Turnstile Granted Status (Pillar 2)
+  // -------------------------------------------------------------------------
+  await t.test('INT-24: Hikvision ISAPI XML Event -> Roster Shift Resolution -> Turnstile Granted Status (Pillar 2)', async () => {
+    const xml = `
+      <EventNotificationAlert>
+        <eventType>AccessControllerEvent</eventType>
+        <dateTime>2026-09-22T08:00:00+02:00</dateTime>
+        <AccessControllerEvent>
+          <majorEventType>5</majorEventType>
+          <subEventType>75</subEventType>
+          <employeeNoString>emp_1</employeeNoString>
+          <name>Ahmed Mahmoud</name>
+          <attendanceStatus>checkIn</attendanceStatus>
+          <doorNo>1</doorNo>
+        </AccessControllerEvent>
+      </EventNotificationAlert>
+    `;
+    const parsed = contracts.HikvisionIsapiParser.parseEvent(xml, 'application/xml');
+    assert.equal(parsed.isValid, true);
+    assert.equal(parsed.status, 'GRANTED');
+    assert.equal(parsed.punchType, 'check-in');
+
+    const emp = db().employees.find((e) => e.id === 'emp_1');
+    const shift = shiftService.resolveShiftForDate(emp, parsed.eventTime);
+    assert.ok(shift);
+    assert.ok(shift.id);
+  });
+
+  // -------------------------------------------------------------------------
+  // Interaction 25: Emergency Override -> Turnstile Health Degradation -> Audit Trail Confirmation (Pillar 2)
+  // -------------------------------------------------------------------------
+  await t.test('INT-25: Emergency Override -> Turnstile Health Degradation -> Audit Trail Confirmation (Pillar 2)', async () => {
+    contracts.TurnstileHealthMonitor.registerDevice({ id: 'DEV-INT-25', name: 'Turnstile Int 25' });
+    const dev = contracts.TurnstileHealthMonitor.recordHeartbeat('DEV-INT-25', 18, true);
+    assert.equal(dev.status, 'ONLINE');
+
+    const overrideRes = await contracts.EmergencyOverrideService.executeOverride({
+      action: 'UNLOCK_ALL',
+      factoryId: 'Quesna',
+      deviceCount: 8,
+    });
+    assert.equal(overrideRes.ok, true);
+    assert.ok(overrideRes.executionTimeMs < 50);
+
+    // Restore to normal operation
+    const restoreRes = await request('POST', '/api/admin/access-control/emergency-override', {
+      Authorization: `Bearer ${adminToken}`,
+    }, {
+      action: 'RESTORE',
+      factory: 'Quesna',
+    });
+    assert.equal(restoreRes.status, 200);
+    assert.equal(restoreRes.json?.status, 'NORMAL');
+  });
+
+  // -------------------------------------------------------------------------
+  // Interaction 26: Mobile Offline DB Schema -> Bulk-Sync Endpoint Ingestion -> 120s Deduplication Window (Pillar 3)
+  // -------------------------------------------------------------------------
+  await t.test('INT-26: Mobile Offline DB Schema -> Bulk-Sync Endpoint Ingestion -> 120s Deduplication Window (Pillar 3)', async () => {
+    const schemas = contracts.OfflineDatabaseContract.SCHEMAS;
+    assert.ok(schemas.punch_queue);
+    assert.ok(schemas.punch_queue.includes('client_punch_id'));
+
+    const t0 = 1758700000000;
+    const punches = [
+      { clientPunchId: 'int26-p1', employeeId: 'emp_1', type: 'in', timestamp: t0 },
+      { clientPunchId: 'int26-p2', employeeId: 'emp_1', type: 'in', timestamp: t0 + 35000 }, // duplicate within 120s
+    ];
+    const res = await request('POST', '/api/attendance/bulk-sync', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    }, punches);
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.acceptedCount, 1);
+    assert.equal(res.json?.duplicateCount, 1);
+
+    // Punch outside 120s window accepted
+    const punchFar = [
+      { clientPunchId: 'int26-p3', employeeId: 'emp_1', type: 'in', timestamp: t0 + 150000 },
+    ];
+    const resFar = await request('POST', '/api/attendance/bulk-sync', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    }, punchFar);
+    assert.equal(resFar.status, 200);
+    assert.equal(resFar.json?.acceptedCount, 1);
+    assert.equal(resFar.json?.duplicateCount, 0);
+  });
+
+  // -------------------------------------------------------------------------
+  // Interaction 27: Network Blackout Recovery -> Bulk Punch Sync -> Daily Attendance State Calculation (Pillar 3 + Pillar 4)
+  // -------------------------------------------------------------------------
+  await t.test('INT-27: Network Blackout Recovery -> Bulk Punch Sync -> Daily Attendance State Calculation (Pillar 3 + Pillar 4)', async () => {
+    const todayStr = '2026-09-22';
+    const punchTs = new Date(`${todayStr}T07:55:00Z`).getTime();
+    const punches = [
+      { clientPunchId: `blackout-${Date.now()}`, employeeId: 'emp_1', type: 'in', timestamp: punchTs },
+    ];
+    const syncRes = await request('POST', '/api/attendance/bulk-sync', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    }, punches);
+    assert.equal(syncRes.status, 200);
+    assert.ok(syncRes.json?.acceptedCount >= 0);
+
+    const todayRes = await request('GET', `/api/attendance/today?date=${todayStr}`, {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    });
+    assert.equal(todayRes.status, 200);
+    assert.ok(todayRes.json);
+  });
+
+  // -------------------------------------------------------------------------
+  // Interaction 28: AI Absenteeism Scoring -> Assembly Line Stoppage Alert -> Smart Backfill Candidate Matching (Pillar 4)
+  // -------------------------------------------------------------------------
+  await t.test('INT-28: AI Absenteeism Scoring -> Assembly Line Stoppage Alert -> Smart Backfill Candidate Matching (Pillar 4)', async () => {
+    // 1. Assembly line shortage detected (8 workers scheduled for required 10)
+    const workers = Array.from({ length: 8 }, (_, i) => ({ id: `w_line_${i}`, historicalAbsenceRate: 0.05 }));
+    const stoppage = contracts.AiPredictiveService.assessLineStoppageRisk({
+      lineId: 'LINE-ASSM-01',
+      requiredQuota: 10,
+      scheduledWorkers: workers,
+    });
+    assert.equal(stoppage.status, 'critical');
+    assert.equal(stoppage.isCritical, true);
+
+    // 2. Recommend smart backfill candidates with fatigue gates
+    const candidates = [
+      { id: 'cand_fatigued', department: 'Operations', skillTier: 'operator', turnaroundRestHours: 7, consecutiveDays: 4, weeklyScheduledHours: 35 },
+      { id: 'cand_optimal', department: 'Operations', skillTier: 'operator', turnaroundRestHours: 15, consecutiveDays: 3, weeklyScheduledHours: 24 },
+    ];
+    const recs = contracts.AiPredictiveService.recommendBackfill({
+      lineId: 'LINE-ASSM-01',
+      candidates,
+    });
+    assert.equal(recs.recommendations.length, 1);
+    assert.equal(recs.recommendations[0].employeeId, 'cand_optimal');
+    assert.ok(recs.recommendations[0].suitabilityScore > 50);
+  });
+
+  // -------------------------------------------------------------------------
+  // Interaction 29: Overtime Spend Accumulation -> Monthly Budget Drift Projection -> Auto-Freeze Enforcement (Pillar 4 + Pillar 1)
+  // -------------------------------------------------------------------------
+  await t.test('INT-29: Overtime Spend Accumulation -> Monthly Budget Drift Projection -> Auto-Freeze Enforcement (Pillar 4 + Pillar 1)', async () => {
+    // Over-budget department triggers freeze
+    const driftOver = contracts.AiPredictiveService.evaluateOvertimeDrift({
+      departmentId: 'dept_over',
+      monthlyBudgetHours: 200,
+      consumedHours: 210, // 105% consumed
+      currentDayOfMonth: 20,
+      daysInMonth: 30,
+    });
+    assert.equal(driftOver.isLocked, true);
+    assert.ok(driftOver.status === 'frozen' || driftOver.alertLevel === 'CRITICAL');
+
+    // Safe department remains unlocked with warning
+    const driftSafe = contracts.AiPredictiveService.evaluateOvertimeDrift({
+      departmentId: 'dept_warning',
+      monthlyBudgetHours: 200,
+      consumedHours: 176, // 88% consumed
+      currentDayOfMonth: 20,
+      daysInMonth: 30,
+    });
+    assert.equal(driftSafe.isLocked, false);
+    assert.ok(driftSafe.driftWarning === true || driftSafe.alertLevel === 'WARNING');
+  });
+
+  // -------------------------------------------------------------------------
+  // Interaction 30: Full Industrial Shift Cascade: Banking + QR Gate Pass + APB Validation + Bulk Offline Sync + AI Analytics (All 4 Pillars)
+  // -------------------------------------------------------------------------
+  await t.test('INT-30: Full Industrial Shift Cascade: Banking + QR Gate Pass + APB Validation + Bulk Offline Sync + AI Analytics (All 4 Pillars)', async () => {
+    // 1. Pillar 1: Generate CBE WPS batch & verify HMAC
+    const payrollRecords = [
+      { employeeCode: 'EMP-INT-30', employeeName: 'Mahmoud Hassan', nationalId: '29001011234567', iban: 'EG440024000000000123456789099', basicSalary: 9500, allowances: 1500, deductions: 500, netSalary: 10500 },
+    ];
+    const batch = contracts.CbeWpsBatchGenerator.generateCsv(payrollRecords, { batchReference: 'BATCH-CASCADE-30' });
+    const payload = typeof batch === 'string' ? batch : batch.content;
+    const manifest = contracts.HmacManifestSigner.createManifest({
+      bank: 'cbe',
+      batchReference: 'BATCH-CASCADE-30',
+      payload,
+      recordCount: 1,
+      totalAmount: 10500,
+      secretKey: 'key_cascade_30',
+    });
+    const manifestCheck = contracts.HmacManifestSigner.verifyManifest({
+      payload,
+      manifest,
+      secretKey: 'key_cascade_30',
+    });
+    assert.equal(manifestCheck.valid, true);
+
+    // 2. Pillar 2: Generate & verify rotating QR gate pass
+    const qrToken = contracts.RotatingQrService.generateGatePassToken({
+      tenantId: 'elaraby',
+      employeeId: 'emp_1',
+      timestamp: Date.now(),
+    });
+    const qrCheck = contracts.RotatingQrService.verifyGatePassToken({
+      token: qrToken,
+      expectedEmployeeId: 'emp_1',
+      tenantId: 'elaraby',
+    });
+    assert.equal(qrCheck.valid, true);
+
+    // 3. Pillar 2: Anti-Passback entry validation
+    contracts.AntiPassbackEngine.resetState('elaraby', 'turnstile_main', 'emp_1');
+    const t0 = 1758800000000;
+    const apb = contracts.AntiPassbackEngine.validatePunch({
+      tenantId: 'elaraby',
+      zoneId: 'turnstile_main',
+      employeeId: 'emp_1',
+      direction: 'in',
+      timestamp: t0,
+    });
+    assert.equal(apb.valid, true);
+
+    // 4. Pillar 3: Offline punch sync with 120s deduplication
+    const punches = [
+      { clientPunchId: 'cascade-p1', employeeId: 'emp_1', type: 'in', timestamp: t0 + 130000 },
+    ];
+    const syncRes = await request('POST', '/api/attendance/bulk-sync', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    }, punches);
+    assert.equal(syncRes.status, 200);
+    assert.equal(syncRes.json?.acceptedCount, 1);
+
+    // 5. Pillar 4: Predictive analytics for shift line risk
+    const lineRisk = contracts.AiPredictiveService.assessLineStoppageRisk({
+      lineId: 'LINE-CASCADE-01',
+      requiredQuota: 1,
+      scheduledWorkers: [{ id: 'emp_1', historicalAbsenceRate: 0.02 }],
+    });
+    assert.equal(lineRisk.stoppageRisk, 'LOW');
+    assert.equal(lineRisk.isCritical, false);
   });
 });

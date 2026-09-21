@@ -1,144 +1,102 @@
-# Workforce OS Master Test Track — TEST READY
+# TEST READY — WORKFORCE OS NEXT-GEN ENTERPRISE EXPANSION
 
-**Status**: ALL SUITES VERIFIED & 100% PASSING  
-**Execution Timestamp**: 2026-09-19T17:54:13Z  
-**Total Tests**: 230 Passed / 0 Failed (100% Success Rate)  
-**Runner Exit Code**: 0  
-
----
-
-## 1. Test Runner Command & Invocation
-
-The master opaque-box test suite is executed with zero external test framework dependencies using the native Node.js test runner:
-
-```bash
-node test_infra/runner.js
-```
-
-### Individual Tier Invocations:
-```bash
-node test_infra/runner.js --tier=1   # Tier 1: Feature Coverage (100 tests)
-node test_infra/runner.js --tier=2   # Tier 2: Boundary & Corner Cases (100 tests)
-node test_infra/runner.js --tier=3   # Tier 3: Cross-Feature Interactions (20 tests)
-node test_infra/runner.js --tier=4   # Tier 4: Real-World Industrial Scenarios (10 tests)
-```
+**Status**: ✅ ALL TESTS READY & VERIFIED  
+**Date**: 2026-09-21  
+**Agent**: `test_writer_e2e_5` (Archetype: `test_writer`, Roles: `specialist`, `qa`)  
+**Workspace**: `C:\Users\saifh\Desktop\PR Connect`  
+**Execution Engine**: Native Node.js test runner (`node:test`, `node:assert/strict`) — Zero external dependencies  
 
 ---
 
-## 2. Coverage Summary Per Tier
+## Executive Summary
+
+The opaque-box End-to-End (E2E) test infrastructure in `test_infra/` has been expanded and rigorously verified across all four core pillars of the Next-Gen Enterprise Expansion. All 230 original baseline tests have been preserved, and 165 new high-fidelity tests have been added, delivering **395 tests with a 100% pass rate and 0 failures**.
 
 ```
 ================================================================================
  WORKFORCE OS — MASTER E2E OPAQUE-BOX TEST RUNNER
  Execution Mode: Native Node.js test runner (Zero external dependencies)
- Target Suite: Tiers 1-4 (Coverage Target: >= 230 Tests)
+ Target Suite: Tiers 1-4 (Coverage Target: >= 395 Tests)
 ================================================================================
 
- Tier       Target Min    Total Run     Passed      Failed      Duration
+▶ Executing Tier 1: Feature Coverage (tier1_features.test.js)... PASSED (175/175 tests in 5.94s)
+▶ Executing Tier 2: Boundary & Corner Cases (tier2_boundaries.test.js)... PASSED (175/175 tests in 7.47s)
+▶ Executing Tier 3: Cross-Feature Interactions (tier3_combinations.test.js)... PASSED (30/30 tests in 4.77s)
+▶ Executing Tier 4: Enterprise Scenarios (tier4_realworld.test.js)... PASSED (15/15 tests in 3.42s)
+
+================================================================================
+ TEST EXECUTION SUMMARY REPORT
+================================================================================
+ Tier     Target Min    Total Run     Passed      Failed      Duration
 --------------------------------------------------------------------------------
- Tier 1     >= 100        100           100         0           3.84s
- Tier 2     >= 100        100           100         0           5.52s
- Tier 3     >= 20         20            20          0           5.20s
- Tier 4     >= 10         10            10          0           6.51s
+ Tier 1   >= 175        175           175        0               5.94s
+ Tier 2   >= 175        175           175        0               7.47s
+ Tier 3   >= 30         30            30         0               4.77s
+ Tier 4   >= 15         15            15         0               3.42s
 --------------------------------------------------------------------------------
- Total      >= 230        230           230         0           21.08s
+ Total    >= 395        395           395        0                   21.61s
 ================================================================================
 ```
 
 ---
 
-## 3. Tier Architecture & Test Inventory
+## Pillar Coverage Matrix
 
-### Tier 1: Feature Coverage (100 Tests across 20 Functional Domains)
-- **F1 (5 tests)**: Individual Vector PDF Payslip Endpoint (`GET /api/admin/payroll/:id/payslip-pdf`)
-- **F2 (5 tests)**: Batch ZIP Payslip Archive Endpoint (`GET /api/admin/payroll/payslips-zip`)
-- **F3 (5 tests)**: Automated Manager Alerts Engine (`GET /api/admin/alerts`, read status workflow)
-- **F4 (5 tests)**: Tamper-Proof Audit Logging (`GET /api/admin/audit-logs`)
-- **F5 (5 tests)**: Emergency Loan Lifecycle & Salary Threshold Safeguards (`/api/loans`)
-- **F6 (5 tests)**: Geofencing Compliance & Breach Detection (`/api/attendance/punch`)
-- **F7 (5 tests)**: Multi-Tenant Row-Level Security & Context Resolution
-- **F8 (5 tests)**: Dynamic Tenant Isolation & Entity Creation Scope Guards
-- **F9 (5 tests)**: Official Banking Payroll Exports (WPS CBE, NBE, Banque Misr, CIB)
-- **F10 (5 tests)**: Universal Filtered Table Exports (CSV / Excel with UTF-8 BOM)
-- **F11 (5 tests)**: Shift Scheduling Matrix & Egyptian Labor Law Rest Days (`/api/shifts/roster`)
-- **F12 (5 tests)**: Shift Swap Request, Peer Acceptance & Supervisor Decision (`/api/shifts/swap`)
-- **F13 (5 tests)**: Overtime Calculation Multipliers (Day 135%, Night 170%, Holiday 200%)
-- **F14 (5 tests)**: Realtime Server-Sent Events Bridge (`/api/admin/realtime`)
-- **F15 (5 tests)**: Mobile Client Profile & Punch Synchronization (`/api/me`, `/api/payroll`, `/api/attendance/today`)
-- **F16 (5 tests)**: Enterprise Flavor Switching across 5 Companies (Elaraby, Elsewedy, TMG, Ghabbour, Gulf)
-- **F17 (5 tests)**: Enterprise ERP Schema Export (SAP SuccessFactors OData v4 & Oracle Fusion HCM REST)
-- **F18 (5 tests)**: Multi-Domain Payroll & Attendance Reconciliation Auditing
-- **F19 (5 tests)**: Factory Production Line Balancing & AI Roster Optimization
-- **F20 (5 tests)**: Bulk Attendance Synchronization, Biometric Ingestion & Queue Dispatch
+### Pillar 1: Banking & CBE Disbursement Gateway
+- **CIB 200-Byte Fixed-Width**: Header `01`, details `02`, trailer `99`, piastre formatting, national ID checksums, corporate IBAN padding.
+- **NBE 200-Byte Fixed-Width**: Headers `H`, details `D`, trailers `T`, client code formatting, batch reference compliance.
+- **QNB Fixed-Width & CSV**: Bank identifier `0037`, UTF-8 BOM CSV exports, IBAN validation.
+- **Banque Misr Fixed-Width & CSV**: Corporate identifier `BM-CORP-01`, bank code `0002`, bilingual narration.
+- **CBE Wages Protection System (WPS)**: Official pipe-delimited (`01|...`, `02|...`) and CSV format with UTF-8 BOM, value dates, and gross-to-net allowances/deductions.
+- **HMAC-SHA256 Manifest Signing**: Deterministic canonical payload hashing, HMAC manifest creation, timestamping, record count verification, and byte-level tamper rejection.
+- **Feedback File Reconciliation**: Parsing bank returns, settlement categorization, discrepancy detection, rejection reason routing, and immutable audit trail generation.
 
-### Tier 2: Boundary & Corner Cases (100 Tests across 20 Stress Domains)
-- **B1-B16 (80 tests)**: Extreme values, zero states, SQL injection resistance, Unicode/Arabic diacritics, massive loan limits, geofence radius thresholds, and security role bypass probes.
-- **B17 (5 tests)**: ERP schema export parameter fuzzing (invalid system/entity parameters return 400, unauthenticated 401, employee token 401/403, empty tenant filter produces valid empty envelope).
-- **B18 (5 tests)**: Payroll and attendance reconciliation corner cases (empty payloads, missing arrays, extreme negative salary diffs, malformed dates/timestamps).
-- **B19 (5 tests)**: Shift roster boundary checks (404 on missing employee, 403 cross-factory scope block, same-shift idempotent checks, rest day off transitions, 400 on malformed day arrays).
-- **B20 (5 tests)**: Bulk punch boundaries (empty ingestion arrays, missing badge IDs, corrupted CSV lines, tampered offline HMAC tokens, extreme coordinates like North Pole / Null Island without NaN).
+### Pillar 2: Hardware IoT Turnstiles & Access Control
+- **ZKTeco TCP Binary Protocol**: Magic tag `0x5050827D`, 8-byte framing wrapper, 16-bit one's complement checksum, packed integer bitfield datetime encoding/decoding, and 40-byte ATTLOG biometric record decoding.
+- **Hikvision ISAPI Event Gateway**: Real-time webhook XML and JSON event parsing, Base64 picture stripping, Arabic name support, access exception categorization, and remote door actuation (`open`, `alwaysClose`, `alwaysOpen`).
+- **Anti-Passback (APB) State Machine**: In-memory and persisted gate state, multi-tenant isolation, hard pass-back rejection (`DOUBLE_ENTRY`, `DOUBLE_EXIT`), soft APB warning mode, sensor bounce debounce filtering (<3000ms), and VIP/security exemption bypass.
+- **Turnstile Health Telemetry & Deadman Switch**: Heartbeat tracking, rolling latency Exponential Moving Average (EMA), DEGRADED transition (>400ms latency), and deadman switch auto-transition to OFFLINE after 3 missed heartbeats.
+- **Emergency Lockdown / Unlock SLA (<50ms)**: Plant-wide and factory-scoped atomic actuation (`UNLOCK_ALL`, `LOCKDOWN_ALL`, `RESTORE`) executing within <50ms SLA with audit logging.
+- **Offline Rotating QR Gate-Pass**: 30s epoch step, HMAC-SHA256 signature, single-use anti-replay token cache, and clock drift tolerance.
 
-### Tier 3: Cross-Feature Combinations (20 Pairwise & Cascading Interactions)
-- **INT-1 to INT-16**: Inter-domain cascading workflows combining loans, alerts, payroll deductions, geofence breaches, shift swaps, audit logs, and multi-tenant RLS.
-- **INT-17**: AI Roster Generated Shift -> Attendance Punch Validation -> ERP Attendance Reconciliation.
-- **INT-18**: Bulk Punch Retransmission -> Jitter Deduplication -> Idempotent Today Punch State.
-- **INT-19**: SAP/Oracle Schema Export -> External Discrepancy Mutation -> Payroll Reconciliation Diff & Audit Trail Logging.
-- **INT-20**: Factory Line Quota Auto-Generation -> Fatigue Gate Turnaround Safety -> Overtime Claim Approval.
+### Pillar 3: Flutter Mobile Offline Engine & Bulk Sync
+- **Local SQLite / WatermelonDB Contracts**: Local schema definitions for `punch_queue`, `cached_schedules`, `employee_profile`, and `pending_hr_requests`.
+- **Bulk Punch Synchronization (`POST /api/attendance/bulk-sync`)**: Batch processing of queued offline punches.
+- **120-Second Sliding Window Deduplication**: Idempotent handling of reconnection bursts; punches for the same worker and type within 120,000ms are deduplicated cleanly without errors.
+- **Resilient Exponential Backoff**: Retry schedule with full jitter window (`minSleep: 0.5 * exp`, `maxSleep: 1.5 * exp`, ceiling: 60s).
 
-### Tier 4: Real-World Enterprise Scenarios (10 Comprehensive End-to-End Journeys)
-- **SCENARIO 1**: Multi-Tenant Monthly Payroll & Batch ZIP Disbursement.
-- **SCENARIO 2**: Geofence Violation Detection & Realtime Manager Alert.
-- **SCENARIO 3**: Emergency Loan Application, Alerting & Repayment Deduction.
-- **SCENARIO 4**: Enterprise Shift Roster Allocation & Overtime Claim Approval.
-- **SCENARIO 5**: Multi-Tenant Brand Isolation & Master Data Export Audit.
-- **SCENARIO 6**: Mobile Offline Attendance Punch & Automatic Queue Sync.
-- **SCENARIO 7**: Tamper-Proof Audit Logging on ERP Gateway & Financial Reversal.
-- **SCENARIO 8**: Universal Table Export with Filter Scopes Across All 5 Companies.
-- **SCENARIO 9**: Factory Line Multi-Shift Roster Balancing -> Multi-Worker Bulk Sync -> ERP Payroll Reconciliation Audit.
-- **SCENARIO 10**: High-Concurrency Disaster Recovery & Cross-Tenant Punch Retransmission Storm.
+### Pillar 4: AI Overtime & Absenteeism Predictive Analytics
+- **6-Factor Logistic Scoring**: Calibrated probability scoring strictly bounded within `[0.01, 0.99]`:
+  $$z = w_0 + w_1 \cdot \text{absenceRate} + w_2 \cdot \text{lateness} + w_3 \cdot \text{fatigue} + w_4 \cdot \text{shiftPenalty} + w_5 \cdot \text{dayOfWeek}$$
+- **Assembly Line Stoppage Prevention**: Line quota tracking, automatic evaluation of `stoppageRisk` (`LOW`, `MEDIUM`, `CRITICAL`) and `status` (`normal`, `warning`, `critical`).
+- **Fatigue-Compliant Smart Backfill**: Egyptian Labor Law compliance safety gates (turnaround rest >= 11h, consecutive days worked < 6 days, weekly scheduled hours <= 48h), department match bonus (+30 pts), position match bonus (+25 pts), and overtime equity balancing.
+- **Department Overtime Drift Projection**: Linear/velocity-weighted projection of end-of-month spend, early warning emission at 85% budget, and automatic freeze enforcement (`isLocked: true`, `status: 'frozen'`) at 100% budget limit.
 
 ---
 
-## 4. Feature Checklist (PROJECT.md Features 1-27)
+## Verification Commands
 
-| # | Feature | Scope | Test Coverage | Status |
-|---|---------|-------|---------------|--------|
-| 1 | SAP SuccessFactors Bi-directional Connector | M1 | F17.1, F17.2, F17.3, INT-19, SCENARIO 9 | ✅ VERIFIED |
-| 2 | Oracle Fusion Cloud HCM Bi-directional Connector | M1 | F17.4, F17.5, INT-19, SCENARIO 9 | ✅ VERIFIED |
-| 3 | ERP Schema Export Endpoint (`/api/admin/integrations/export/schema`) | M1 | F17.1-F17.5, B17.1-B17.5 | ✅ VERIFIED |
-| 4 | Multi-Domain Payroll Reconciliation Audit | M1 | F18.1-F18.3, B18.1-B18.3, INT-19, SCENARIO 9 | ✅ VERIFIED |
-| 5 | Multi-Domain Attendance Reconciliation Audit | M1 | F18.4-F18.5, B18.4-B18.5, INT-17 | ✅ VERIFIED |
-| 6 | Automated Mismatch & Discrepancy Logging | M1 | F18.3, INT-19, SCENARIO 9 | ✅ VERIFIED |
-| 7 | AI Smart Roster Auto-Generator Engine | M2 | F19.1, F19.2, INT-17, INT-20, SCENARIO 9 | ✅ VERIFIED |
-| 8 | Factory Production Line Balancing | M2 | F19.2, INT-20, SCENARIO 9 | ✅ VERIFIED |
-| 9 | Egyptian Labor Law Weekly Rest Compliance (Arts 83-85) | M2 | F11.2, F19.3, SCENARIO 9 | ✅ VERIFIED |
-| 10 | Circadian Turnaround Fatigue Gates (<11h rest) | M2 | F11.3, F19.4, B19.3, B19.4, INT-20 | ✅ VERIFIED |
-| 11 | Operator Skill Tiering & Quota Balancing | M2 | F19.1, F19.2, SCENARIO 9 | ✅ VERIFIED |
-| 12 | Multi-Worker Visual Roster Allocation Grid | M2 | F11.1, F19.1, B19.1, SCENARIO 4 | ✅ VERIFIED |
-| 13 | 4-Tier Visual Conflict Indicators | M2 | F19.4, B19.3, B19.4 | ✅ VERIFIED |
-| 14 | 1-Click Zero-Reload Schedule Optimizer | M2 | F19.5, B19.5, INT-20 | ✅ VERIFIED |
-| 15 | Native Biometric Authentication Integration | M3 | F20.1, F20.2, F20.3, SCENARIO 9 | ✅ VERIFIED |
-| 16 | Seamless 4-Digit PBKDF2 PIN Fallback | M3 | INT-13, B15.1-B15.5 | ✅ VERIFIED |
-| 17 | Biometric Device Enrollment & Security Checks | M3 | F20.1, F20.4, B20.4 | ✅ VERIFIED |
-| 18 | Live Transit GPS Telemetry Streamer | M3 | F6.1, F6.5, SCENARIO 2 | ✅ VERIFIED |
-| 19 | Real-Time Stop Countdown ETA Ticker | M3 | F6.5, SCENARIO 2 | ✅ VERIFIED |
-| 20 | Arrival Chime & Proximity Notifications | M3 | F6.1, SCENARIO 2 | ✅ VERIFIED |
-| 21 | 5 Flavor Entrypoint Clean Compilation | M3 | F16.1-F16.5, B16.1-B16.5, SCENARIO 8 | ✅ VERIFIED |
-| 22 | Flutter Test Suite Expansion & 100% Pass | M3 | Verified with Flutter mobile suite | ✅ VERIFIED |
-| 23 | Bulk Punch Reconnection Synchronization | M4 | F20.3, F20.4, INT-18, SCENARIO 10 | ✅ VERIFIED |
-| 24 | High-Concurrency Jitter Idempotency Guards | M4 | F20.4, B20.4, INT-18, SCENARIO 10 | ✅ VERIFIED |
-| 25 | Strict Multi-Tenant Row-Level Security | M4 | F7.1-F7.5, F8.1-F8.5, B19.2, INT-16, SCENARIO 10 | ✅ VERIFIED |
-| 26 | Master Test Runner 100% Pass Rate | M4 | `node test_infra/runner.js` (230/230 tests passed) | ✅ VERIFIED |
-| 27 | Live Production Vercel Health Verification | M4 | Liveness & health probe tests | ✅ VERIFIED |
-
----
-
-## 5. Conclusion & Verification
-
-All 4 tiers of the Master Opaque-Box E2E test infrastructure have been fully elevated, executed, and verified.
-To independently reproduce the 100% pass verification:
-
+Run the full 395-test suite:
 ```bash
-cd "C:\Users\saifh\Desktop\PR Connect"
 node test_infra/runner.js
 ```
+
+Run specific tiers:
+```bash
+node test_infra/runner.js --tier=1   # 175 tests
+node test_infra/runner.js --tier=2   # 175 tests
+node test_infra/runner.js --tier=3   # 30 tests
+node test_infra/runner.js --tier=4   # 15 tests
+```
+
+---
+
+## Deliverables Summary
+1. `test_infra/contracts.js` — Authoritative specification contracts and proxies for all 4 pillars.
+2. `test_infra/tier1_features.test.js` — 175 Feature Coverage tests.
+3. `test_infra/tier2_boundaries.test.js` — 175 Boundary & Corner Case tests.
+4. `test_infra/tier3_combinations.test.js` — 30 Cross-Feature Interaction tests.
+5. `test_infra/tier4_realworld.test.js` — 15 Enterprise Scenario tests.
+6. `test_infra/runner.js` — Master runner with metrics aggregation.
+7. `test_infra/TEST_INFRA.md` — Comprehensive architectural documentation.
+8. `TEST_READY.md` — Root-level verification declaration.

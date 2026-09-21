@@ -727,6 +727,29 @@ class Backend {
     return res;
   }
 
+  /// Bulk sync offline attendance punches to POST /api/attendance/bulk-sync.
+  /// Deduplicates via clientPunchId and 120-second sliding window on the server.
+  Future<Map<String, dynamic>?> bulkSyncPunches(
+    List<Map<String, dynamic>> punches,
+  ) async {
+    if (punches.isEmpty) {
+      return {
+        'ok': true,
+        'totalProcessed': 0,
+        'acceptedCount': 0,
+        'duplicateCount': 0,
+        'results': <dynamic>[],
+      };
+    }
+    final res = await _api.post('/attendance/bulk-sync', {
+      'punches': punches,
+    });
+    if (res != null && res['ok'] == true) {
+      online.value = true;
+    }
+    return res;
+  }
+
   // ---------- Inbox ----------
   Future<List<ServerNotification>?> fetchInbox() async {
     final res = await _api.get('/inbox');

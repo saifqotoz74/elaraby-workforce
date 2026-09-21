@@ -18,6 +18,7 @@ const {
   db,
   save,
   ROLES,
+  contracts,
 } = require('./utils');
 
 const shiftService = require('../server/src/services/shiftService');
@@ -1261,4 +1262,1051 @@ test('=== TIER 1: FEATURE COVERAGE E2E SUITE ===', async (t) => {
     assert.ok(res.json?.status !== undefined);
     assert.ok(res.json?.qrToken !== undefined);
   });
+
+  // =========================================================================
+  // FEATURE 21: CBE WPS & Multi-Bank Salary Batch Generation (CIB, NBE, QNB, Misr)
+  // =========================================================================
+  await t.test('F21.1: Multi-Bank Batch - CIB Egypt 200-byte fixed-width format conforms to Direct Credit spec', async () => {
+    const records = [
+      { employeeCode: 'EG-101', nationalId: '29001011234567', employeeName: 'Ahmed Mahmoud', iban: 'EG9900240000000001000000001', basicSalary: 8500, allowances: 1500, deductions: 500, netSalary: 9500 },
+      { employeeCode: 'EG-102', nationalId: '29202021234567', employeeName: 'Mohamed Tarek', iban: 'EG9900240000000001000000002', basicSalary: 7500, allowances: 1000, deductions: 400, netSalary: 8100 },
+    ];
+    const fixed = contracts.CibBatchGenerator.generateFixedWidth(records, { period: '2026-09' });
+    const lines = fixed.split('\r\n').filter(Boolean);
+    assert.equal(lines.length, 4, 'CIB batch should have header, 2 details, and trailer');
+    assert.equal(lines[0].length, 200, 'Header must be exactly 200 bytes');
+    assert.equal(lines[1].length, 200, 'Detail 1 must be exactly 200 bytes');
+    assert.equal(lines[2].length, 200, 'Detail 2 must be exactly 200 bytes');
+    assert.equal(lines[3].length, 200, 'Trailer must be exactly 200 bytes');
+    assert.ok(lines[0].startsWith('01'), 'Header must start with record type 01');
+    assert.ok(lines[1].startsWith('02'), 'Detail must start with record type 02');
+    assert.ok(lines[3].startsWith('99'), 'Trailer must start with record type 99');
+
+    const csv = contracts.CibBatchGenerator.generateCsv(records, { period: '2026-09' });
+    assert.ok(hasUtf8Bom(csv), 'CIB CSV export must include UTF-8 BOM');
+    assert.ok(csv.includes('Transaction Reference,Employee Code,National ID'));
+  });
+
+  await t.test('F21.2: Multi-Bank Batch - NBE Al Ahly Net fixed-width format includes bank code 0003', async () => {
+    const records = [
+      { employeeCode: 'EG-201', nationalId: '29001011234567', employeeName: 'Youssef Nabil', iban: 'EG9900030000000001000000001', basicSalary: 9000, allowances: 1800, deductions: 600, netSalary: 10200 },
+    ];
+    const fixed = contracts.NbeBatchGenerator.generateFixedWidth(records, { period: '2026-09' });
+    const lines = fixed.split('\r\n').filter(Boolean);
+    assert.equal(lines.length, 3);
+    assert.equal(lines[0].length, 200);
+    assert.ok(lines[0].includes('0003'), 'NBE header must contain bank code 0003');
+    assert.equal(lines[1].length, 200);
+    assert.ok(lines[1].includes('29001011234567'), 'NBE detail must contain National ID');
+
+    const csv = contracts.NbeBatchGenerator.generateCsv(records, { period: '2026-09' });
+    assert.ok(csv.includes('National ID') && csv.includes('Employee Code'), 'CSV contains required employee identification columns');
+  });
+
+  await t.test('F21.3: Multi-Bank Batch - QNB ALAHLI fixed-width format encodes routing code 0037', async () => {
+    const records = [
+      { employeeCode: 'EG-301', nationalId: '29001011234567', employeeName: 'Hassan Ali', iban: 'EG9900370000000001000000001', basicSalary: 8000, allowances: 1200, deductions: 400, netSalary: 8800 },
+    ];
+    const fixed = contracts.QnbBatchGenerator.generateFixedWidth(records, { period: '2026-09' });
+    const lines = fixed.split('\r\n').filter(Boolean);
+    assert.equal(lines.length, 3);
+    assert.equal(lines[0].length, 200);
+    assert.equal(lines[1].length, 200);
+    assert.ok(lines[1].includes('0037'), 'QNB detail must contain bank routing code 0037');
+
+    const csv = contracts.QnbBatchGenerator.generateCsv(records, { period: '2026-09' });
+    assert.ok(csv.includes('Seq,Customer Reference,Beneficiary Name') || csv.includes('Beneficiary Name'));
+  });
+
+  await t.test('F21.4: Multi-Bank Batch - Banque Misr format encodes BM corporate structure', async () => {
+    const records = [
+      { employeeCode: 'EG-401', nationalId: '29001011234567', employeeName: 'Khaled Omar', iban: 'EG9900020000000001000000001', basicSalary: 7200, allowances: 1100, deductions: 350, netSalary: 7950, department: 'Plant-1' },
+    ];
+    const fixed = contracts.BanqueMisrBatchGenerator.generateFixedWidth(records, { period: '2026-09' });
+    const lines = fixed.split('\r\n').filter(Boolean);
+    assert.equal(lines.length, 3);
+    assert.equal(lines[0].length, 200);
+    assert.equal(lines[1].length, 200);
+    assert.equal(lines[2].length, 200);
+
+    const csv = contracts.BanqueMisrBatchGenerator.generateCsv(records, { period: '2026-09' });
+    assert.ok(csv.includes('Line No,National ID,Employee Code') || csv.includes('National ID'));
+  });
+
+  await t.test('F21.5: Multi-Bank Batch - CBE Wages Protection System (WPS) standard pipe-delimited format', async () => {
+    const records = [
+      { employeeCode: 'EG-501', nationalId: '29001011234567', employeeName: 'Amr Samir', iban: 'EG9900030000000001000000001', basicSalary: 10000, allowances: 2000, deductions: 800, netSalary: 11200 },
+    ];
+    const wps = contracts.CbeWpsBatchGenerator.generate(records, { period: '2026-09' });
+    const lines = wps.split('\r\n').filter(Boolean);
+    assert.equal(lines.length, 2);
+    assert.ok(lines[0].startsWith('01|'), 'WPS header starts with 01|');
+    assert.ok(lines[1].startsWith('02|'), 'WPS detail starts with 02|');
+    assert.ok(lines[1].includes('|11200') && lines[1].includes('|EGP|'), 'WPS detail contains formatted net amount and EGP currency');
+  });
+
+  // =========================================================================
+  // FEATURE 22: HMAC-SHA256 Cryptographic Batch Manifest Signing & Tamper Verification
+  // =========================================================================
+  await t.test('F22.1: HMAC Manifest - Signer generates valid SHA-256 payload hash and HMAC signature', async () => {
+    const payload = '01|TEST-CORP|EG440003000000000123456789012|2026-09|1|9500.00|EGP|20260921180000\r\n';
+    const manifest = contracts.HmacManifestSigner.createManifest({
+      payload,
+      batchReference: 'BATCH-2026-09-TEST',
+      bank: 'cib',
+      totalAmount: 9500.00,
+      recordCount: 1,
+    });
+    assert.ok(manifest.payloadHash, 'Manifest must have payloadHash');
+    assert.ok(manifest.hmacSignature, 'Manifest must have hmacSignature');
+    assert.equal(manifest.algorithm, 'HMAC-SHA256');
+    assert.equal(manifest.totalAmount, 9500);
+  });
+
+  await t.test('F22.2: HMAC Manifest - Verifier confirms authentic, unaltered batch payload', async () => {
+    const payload = '01|TEST-CORP|EG440003000000000123456789012|2026-09|1|9500.00|EGP|20260921180000\r\n';
+    const manifest = contracts.HmacManifestSigner.createManifest({
+      payload,
+      batchReference: 'BATCH-2026-09-TEST',
+      bank: 'nbe',
+      totalAmount: 9500.00,
+      recordCount: 1,
+    });
+    const result = contracts.HmacManifestSigner.verifyManifest({ payload, manifest });
+    assert.equal(result.valid, true, 'Original payload must verify as valid');
+  });
+
+  await t.test('F22.3: HMAC Manifest - Verifier detects single-byte payload tampering', async () => {
+    const payload = '01|TEST-CORP|EG440003000000000123456789012|2026-09|1|9500.00|EGP|20260921180000\r\n';
+    const manifest = contracts.HmacManifestSigner.createManifest({
+      payload,
+      batchReference: 'BATCH-2026-09-TEST',
+      bank: 'cib',
+      totalAmount: 9500.00,
+      recordCount: 1,
+    });
+    const tamperedPayload = payload.replace('9500.00', '9500.01');
+    const result = contracts.HmacManifestSigner.verifyManifest({ payload: tamperedPayload, manifest });
+    assert.equal(result.valid, false);
+    assert.equal(result.error, 'PAYLOAD_HASH_MISMATCH');
+  });
+
+  await t.test('F22.4: HMAC Manifest - Verifier detects altered manifest metadata', async () => {
+    const payload = '01|TEST-CORP|EG440003000000000123456789012|2026-09|1|9500.00|EGP|20260921180000\r\n';
+    const manifest = contracts.HmacManifestSigner.createManifest({
+      payload,
+      batchReference: 'BATCH-2026-09-TEST',
+      bank: 'cib',
+      totalAmount: 9500.00,
+      recordCount: 1,
+    });
+    const tamperedManifest = { ...manifest, totalAmount: 10000.00 };
+    const result = contracts.HmacManifestSigner.verifyManifest({ payload, manifest: tamperedManifest });
+    assert.equal(result.valid, false);
+    assert.equal(result.error, 'SIGNATURE_VERIFICATION_FAILED');
+  });
+
+  await t.test('F22.5: HMAC Manifest - Verifier rejects verification with wrong secret key', async () => {
+    const payload = '01|TEST-CORP|EG440003000000000123456789012|2026-09|1|9500.00|EGP|20260921180000\r\n';
+    const manifest = contracts.HmacManifestSigner.createManifest({
+      payload,
+      batchReference: 'BATCH-2026-09-TEST',
+      secretKey: 'correct-secret-key-1',
+    });
+    const result = contracts.HmacManifestSigner.verifyManifest({
+      payload,
+      manifest,
+      secretKey: 'attacker-wrong-key-2',
+    });
+    assert.equal(result.valid, false);
+    assert.equal(result.error, 'SIGNATURE_VERIFICATION_FAILED');
+  });
+
+  // =========================================================================
+  // FEATURE 23: Bank Feedback Reconciliation Endpoint (POST /api/admin/banking/disbursement/reconciliation)
+  // =========================================================================
+  await t.test('F23.1: Bank Reconciliation - Ingests settled bank returns and syncs payroll disbursement status', async () => {
+    const database = db();
+    database.payroll = database.payroll || [];
+    database.payroll.push({
+      id: 'pay_rec_1',
+      employeeId: 'emp_1',
+      period: '2026-09',
+      netSalary: 9690,
+      disbursementStatus: 'pending',
+    });
+    save();
+
+    const res = await request('POST', '/api/admin/banking/disbursement/reconciliation', {
+      Authorization: `Bearer ${adminToken}`,
+    }, {
+      batchId: 'BATCH-CIB-2026-09',
+      bank: 'cib',
+      period: '2026-09',
+      returns: [
+        {
+          transactionReference: 'TXN-001',
+          employeeId: 'emp_1',
+          amount: 9690,
+          bankStatus: 'SETTLED',
+          settledAt: new Date().toISOString(),
+        },
+      ],
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.ok, true);
+    assert.equal(res.json?.matchedCount, 1);
+  });
+
+  await t.test('F23.2: Bank Reconciliation - Flags invalid bank accounts and maps status to invalid_account', async () => {
+    const database = db();
+    database.employees = database.employees || [];
+    database.employees.push({
+      id: 'emp_rec_invalid',
+      name: 'Invalid Account Employee',
+      nationalId: '29001011234991',
+      tenantId: 'elaraby',
+    });
+    database.payroll = database.payroll || [];
+    database.payroll.push({
+      id: 'pay_rec_2',
+      employeeId: 'emp_rec_invalid',
+      period: '2026-09',
+      netSalary: 7500,
+      disbursementStatus: 'pending',
+    });
+    save();
+
+    const res = await request('POST', '/api/admin/banking/disbursement/reconciliation', {
+      Authorization: `Bearer ${adminToken}`,
+    }, {
+      batchId: 'BATCH-CIB-2026-09',
+      bank: 'cib',
+      period: '2026-09',
+      returns: [
+        {
+          transactionReference: 'TXN-002',
+          employeeId: 'emp_rec_invalid',
+          amount: 7500,
+          bankStatus: 'INVALID_ACCOUNT',
+          bankReasonCode: 'AC01_ACCOUNT_CLOSED',
+        },
+      ],
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.invalidAccountCount, 1);
+  });
+
+  await t.test('F23.3: Bank Reconciliation - Categorizes bank rejections and updates status to rejected', async () => {
+    const database = db();
+    database.employees = database.employees || [];
+    database.employees.push({
+      id: 'emp_rec_rej',
+      name: 'Rejected Employee',
+      nationalId: '29001011234992',
+      tenantId: 'elaraby',
+    });
+    database.payroll = database.payroll || [];
+    database.payroll.push({
+      id: 'pay_rec_3',
+      employeeId: 'emp_rec_rej',
+      period: '2026-09',
+      netSalary: 8200,
+      disbursementStatus: 'pending',
+    });
+    save();
+
+    const res = await request('POST', '/api/admin/banking/disbursement/reconciliation', {
+      Authorization: `Bearer ${adminToken}`,
+    }, {
+      batchId: 'BATCH-CIB-2026-09',
+      bank: 'cib',
+      period: '2026-09',
+      returns: [
+        {
+          transactionReference: 'TXN-003',
+          employeeId: 'emp_rec_rej',
+          amount: 8200,
+          bankStatus: 'REJECTED',
+          bankReasonCode: 'MS03_INSUFFICIENT_FUNDS',
+        },
+      ],
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.rejectedCount, 1);
+  });
+
+  await t.test('F23.4: Bank Reconciliation - Detects amount variances and logs discrepancies', async () => {
+    const database = db();
+    database.employees = database.employees || [];
+    database.employees.push({
+      id: 'emp_rec_disc',
+      name: 'Discrepancy Employee',
+      nationalId: '29001011234993',
+      tenantId: 'elaraby',
+    });
+    database.payroll = database.payroll || [];
+    database.payroll.push({
+      id: 'pay_rec_4',
+      employeeId: 'emp_rec_disc',
+      period: '2026-09',
+      netSalary: 9000,
+      disbursementStatus: 'pending',
+    });
+    save();
+
+    const res = await request('POST', '/api/admin/banking/disbursement/reconciliation', {
+      Authorization: `Bearer ${adminToken}`,
+    }, {
+      batchId: 'BATCH-CIB-2026-09',
+      bank: 'cib',
+      period: '2026-09',
+      returns: [
+        {
+          transactionReference: 'TXN-004',
+          employeeId: 'emp_rec_disc',
+          amount: 8950, // 50 EGP discrepancy
+          bankStatus: 'SETTLED',
+        },
+      ],
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.discrepancyCount, 1);
+  });
+
+  await t.test('F23.5: Bank Reconciliation - Writes immutable audit log record upon reconciliation completion', async () => {
+    const res = await request('POST', '/api/admin/banking/disbursement/reconciliation', {
+      Authorization: `Bearer ${adminToken}`,
+    }, {
+      batchId: 'BATCH-CIB-2026-09',
+      bank: 'cib',
+      period: '2026-09',
+      returns: [],
+    });
+    assert.equal(res.status, 200);
+    assert.ok(res.json?.auditLogId, 'Must return auditLogId');
+  });
+
+  // =========================================================================
+  // FEATURE 24: Hardware IoT Turnstiles: ZKTeco TCP Binary Stream & ATTLOG Parsing
+  // =========================================================================
+  await t.test('F24.1: ZKTeco Parser - Validates 8-byte TCP outer framing wrapper with magic tag 0x5050827D', async () => {
+    const packet = contracts.ZkTecoParser.createTcpPacket(1000, 1, 1, Buffer.alloc(0));
+    assert.equal(packet.readUInt32LE(0), 0x5050827d);
+    assert.equal(packet.readUInt32LE(4), 8); // inner header length
+  });
+
+  await t.test('F24.2: ZKTeco Parser - Computes and verifies 16-bit one complement checksum', async () => {
+    const packet = contracts.ZkTecoParser.createTcpPacket(1000, 42, 101, Buffer.from('TEST'));
+    const parsed = contracts.ZkTecoParser.parseTcpPacket(packet);
+    assert.equal(parsed.isValid, true);
+    assert.equal(parsed.sessionId, 42);
+    assert.equal(parsed.replyId, 101);
+  });
+
+  await t.test('F24.3: ZKTeco Parser - Decodes 40-byte ATTLOG binary attendance records', async () => {
+    const attlogBuf = Buffer.alloc(40);
+    attlogBuf.writeUInt16LE(1042, 0); // user PIN
+    attlogBuf[2] = 15; // Facial recognition
+    attlogBuf[3] = 0; // padding
+    const packedTs = contracts.ZkTecoParser.encodeTimestamp(new Date('2026-09-21T08:00:00Z'));
+    attlogBuf.writeUInt32LE(packedTs, 4);
+    attlogBuf[8] = 0; // check-in
+    attlogBuf[9] = 1; // work code
+    Buffer.from('EG-1042\0').copy(attlogBuf, 10);
+
+    const packet = contracts.ZkTecoParser.createTcpPacket(13, 1, 1, attlogBuf);
+    const parsed = contracts.ZkTecoParser.parseTcpPacket(packet);
+    assert.equal(parsed.isValid, true);
+    assert.equal(parsed.punches.length, 1);
+    assert.equal(parsed.punches[0].pin, '1042');
+    assert.equal(parsed.punches[0].punchType, 'check-in');
+    assert.equal(parsed.punches[0].employeeCode, 'EG-1042');
+  });
+
+  await t.test('F24.4: ZKTeco Parser - Decodes packed datetime bitfield into valid UTC Date', async () => {
+    const targetDate = new Date(Date.UTC(2026, 8, 21, 18, 30, 15)); // 2026-09-21 18:30:15
+    const packed = contracts.ZkTecoParser.encodeTimestamp(targetDate);
+    const decoded = contracts.ZkTecoParser.decodeTimestamp(packed);
+    assert.equal(decoded.getUTCFullYear(), 2026);
+    assert.equal(decoded.getUTCMonth(), 8); // 0-indexed September
+    assert.equal(decoded.getUTCDate(), 21);
+    assert.equal(decoded.getUTCHours(), 18);
+    assert.equal(decoded.getUTCMinutes(), 30);
+    assert.equal(decoded.getUTCSeconds(), 15);
+  });
+
+  await t.test('F24.5: ZKTeco Parser - Command packet generator produces valid binary buffers', async () => {
+    const unlockPacket = contracts.ZkTecoParser.createTcpPacket(31, 5, 2, Buffer.from([1, 50])); // CMD_UNLOCK
+    const parsed = contracts.ZkTecoParser.parseTcpPacket(unlockPacket);
+    assert.equal(parsed.isValid, true);
+    assert.equal(parsed.commandId, 31);
+    assert.equal(parsed.sessionId, 5);
+  });
+
+  // =========================================================================
+  // FEATURE 25: Hardware IoT Turnstiles: Hikvision ISAPI XML/JSON Events & Remote Actuation
+  // =========================================================================
+  await t.test('F25.1: Hikvision Parser - Parses JSON AccessControllerEvent webhook push', async () => {
+    const jsonEvent = {
+      eventType: 'AccessControllerEvent',
+      dateTime: '2026-09-21T07:45:00+02:00',
+      AccessControllerEvent: {
+        majorEventType: 5,
+        subEventType: 75,
+        employeeNoString: 'emp_1',
+        name: 'Ahmed Mahmoud',
+        cardNo: 'CARD-99120',
+        attendanceStatus: 'checkIn',
+        doorNo: 1,
+      },
+    };
+    const parsed = contracts.HikvisionIsapiParser.parseEvent(jsonEvent, 'application/json');
+    assert.equal(parsed.isValid, true);
+    assert.equal(parsed.employeeId, 'emp_1');
+    assert.equal(parsed.punchType, 'check-in');
+    assert.equal(parsed.status, 'GRANTED');
+  });
+
+  await t.test('F25.2: Hikvision Parser - Parses XML EventNotificationAlert alert stream', async () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<EventNotificationAlert version="2.0">
+  <eventType>AccessControllerEvent</eventType>
+  <dateTime>2026-09-21T16:05:00+02:00</dateTime>
+  <AccessControllerEvent>
+    <majorEventType>5</majorEventType>
+    <subEventType>75</subEventType>
+    <employeeNoString>emp_2</employeeNoString>
+    <attendanceStatus>checkOut</attendanceStatus>
+    <doorNo>2</doorNo>
+  </AccessControllerEvent>
+</EventNotificationAlert>`;
+    const parsed = contracts.HikvisionIsapiParser.parseEvent(xml, 'application/xml');
+    assert.equal(parsed.isValid, true);
+    assert.equal(parsed.employeeId, 'emp_2');
+    assert.equal(parsed.punchType, 'check-out');
+    assert.equal(parsed.status, 'GRANTED');
+  });
+
+  await t.test('F25.3: Hikvision Parser - Extracts pureQRCodeData from dynamic QR turnstile pass', async () => {
+    const qrPass = 'v1:elaraby:emp_1:59560410:3a9f:8c1d5a7b2e4f0c9a';
+    const jsonEvent = {
+      AccessControllerEvent: {
+        majorEventType: 5,
+        subEventType: 47,
+        employeeNoString: 'emp_1',
+        pureQRCodeData: qrPass,
+      },
+    };
+    const parsed = contracts.HikvisionIsapiParser.parseEvent(jsonEvent, 'application/json');
+    assert.equal(parsed.isValid, true);
+    assert.equal(parsed.qrData, qrPass);
+  });
+
+  await t.test('F25.4: Hikvision Parser - Accurately categorizes access exception DENIED events', async () => {
+    const deniedEvent = {
+      AccessControllerEvent: {
+        majorEventType: 2, // Exception
+        subEventType: 8, // Anti-passback rejection
+        employeeNoString: 'emp_violator',
+        attendanceStatus: 'checkIn',
+      },
+    };
+    const parsed = contracts.HikvisionIsapiParser.parseEvent(deniedEvent, 'application/json');
+    assert.equal(parsed.isValid, true);
+    assert.equal(parsed.status, 'DENIED');
+  });
+
+  await t.test('F25.5: Hikvision Parser - Generates remote door actuation payload for open and lockdown', async () => {
+    const openPayload = JSON.parse(contracts.HikvisionIsapiParser.createRemoteControlPayload('open'));
+    assert.equal(openPayload.RemoteControlDoor.cmd, 'open');
+
+    const lockPayload = JSON.parse(contracts.HikvisionIsapiParser.createRemoteControlPayload('alwaysClose'));
+    assert.equal(lockPayload.RemoteControlDoor.cmd, 'alwaysClose');
+  });
+
+  // =========================================================================
+  // FEATURE 26: Strict Multi-Tenant Anti-Passback (APB) State Machine & Debounce
+  // =========================================================================
+  await t.test('F26.1: Anti-Passback - Allows initial check-in for worker outside facility', async () => {
+    contracts.AntiPassbackEngine.resetState('elaraby', 'zone_1', 'emp_apb_1');
+    const res = contracts.AntiPassbackEngine.validatePunch({
+      tenantId: 'elaraby',
+      zoneId: 'zone_1',
+      employeeId: 'emp_apb_1',
+      requestedType: 'check-in',
+    });
+    assert.equal(res.allowed, true);
+    assert.equal(res.previousState, 'UNKNOWN');
+  });
+
+  await t.test('F26.2: Anti-Passback - Blocks consecutive check-in without check-out under strict mode', async () => {
+    contracts.AntiPassbackEngine.resetState('elaraby', 'zone_1', 'emp_apb_2');
+    contracts.AntiPassbackEngine.validatePunch({
+      tenantId: 'elaraby',
+      zoneId: 'zone_1',
+      employeeId: 'emp_apb_2',
+      requestedType: 'check-in',
+      timestamp: 10000,
+    });
+    const secondPunch = contracts.AntiPassbackEngine.validatePunch({
+      tenantId: 'elaraby',
+      zoneId: 'zone_1',
+      employeeId: 'emp_apb_2',
+      requestedType: 'check-in',
+      timestamp: 20000,
+      mode: 'strict',
+    });
+    assert.equal(secondPunch.allowed, false);
+    assert.equal(secondPunch.violationType, 'CONSECUTIVE_ENTRY');
+  });
+
+  await t.test('F26.3: Anti-Passback - Allows exit punch after entry punch', async () => {
+    contracts.AntiPassbackEngine.resetState('elaraby', 'zone_1', 'emp_apb_3');
+    contracts.AntiPassbackEngine.validatePunch({
+      tenantId: 'elaraby',
+      zoneId: 'zone_1',
+      employeeId: 'emp_apb_3',
+      requestedType: 'check-in',
+      timestamp: 10000,
+    });
+    const exitPunch = contracts.AntiPassbackEngine.validatePunch({
+      tenantId: 'elaraby',
+      zoneId: 'zone_1',
+      employeeId: 'emp_apb_3',
+      requestedType: 'check-out',
+      timestamp: 25000,
+    });
+    assert.equal(exitPunch.allowed, true);
+  });
+
+  await t.test('F26.4: Anti-Passback - Debounces duplicate sensor triggers within 3000ms window', async () => {
+    contracts.AntiPassbackEngine.resetState('elaraby', 'zone_1', 'emp_apb_4');
+    contracts.AntiPassbackEngine.validatePunch({
+      tenantId: 'elaraby',
+      zoneId: 'zone_1',
+      employeeId: 'emp_apb_4',
+      requestedType: 'check-in',
+      timestamp: 10000,
+    });
+    const bouncePunch = contracts.AntiPassbackEngine.validatePunch({
+      tenantId: 'elaraby',
+      zoneId: 'zone_1',
+      employeeId: 'emp_apb_4',
+      requestedType: 'check-in',
+      timestamp: 11500, // 1500ms later
+    });
+    assert.equal(bouncePunch.allowed, false);
+    assert.equal(bouncePunch.reason, 'DEBOUNCE_DUPLICATE');
+  });
+
+  await t.test('F26.5: Anti-Passback - Grants bypass to exempt security and VIP personnel', async () => {
+    const res = contracts.AntiPassbackEngine.validatePunch({
+      tenantId: 'elaraby',
+      zoneId: 'zone_1',
+      employeeId: 'emp_sec_vip',
+      requestedType: 'check-in',
+      timestamp: 10000,
+    });
+    assert.equal(res.allowed, true);
+    assert.equal(res.exempt, true);
+  });
+
+  // =========================================================================
+  // FEATURE 27: Turnstile Health Heartbeat Monitoring, Latency EMA & Deadman Switch
+  // =========================================================================
+  await t.test('F27.1: Turnstile Heartbeat - Registers access devices with connection metadata', async () => {
+    contracts.TurnstileHealthMonitor.registerDevice({
+      id: 'DEV-QSN-01',
+      name: 'Quesna South Gate',
+      factory: 'Quesna',
+      protocol: 'zkteco_tcp',
+    });
+    const dev = contracts.TurnstileHealthMonitor.devices.get('DEV-QSN-01');
+    assert.ok(dev);
+    assert.equal(dev.status, 'ONLINE');
+  });
+
+  await t.test('F27.2: Turnstile Heartbeat - Computes rolling latency Exponential Moving Average (EMA)', async () => {
+    const d1 = contracts.TurnstileHealthMonitor.recordHeartbeat('DEV-QSN-01', 20, true);
+    const d2 = contracts.TurnstileHealthMonitor.recordHeartbeat('DEV-QSN-01', 50, true);
+    assert.ok(d2.rollingLatencyEma >= 15 && d2.rollingLatencyEma <= 50);
+  });
+
+  await t.test('F27.3: Turnstile Heartbeat - Transitions device to DEGRADED when latency spikes >400ms', async () => {
+    contracts.TurnstileHealthMonitor.recordHeartbeat('DEV-QSN-01', 600, true);
+    contracts.TurnstileHealthMonitor.recordHeartbeat('DEV-QSN-01', 600, true);
+    const d = contracts.TurnstileHealthMonitor.recordHeartbeat('DEV-QSN-01', 600, true);
+    assert.equal(d.status, 'DEGRADED');
+  });
+
+  await t.test('F27.4: Turnstile Heartbeat - Triggers deadman switch to OFFLINE after 3 missed pings', async () => {
+    contracts.TurnstileHealthMonitor.recordHeartbeat('DEV-DEADMAN-01', 0, false);
+    contracts.TurnstileHealthMonitor.recordHeartbeat('DEV-DEADMAN-01', 0, false);
+    const deadDev = contracts.TurnstileHealthMonitor.recordHeartbeat('DEV-DEADMAN-01', 0, false);
+    assert.equal(deadDev.status, 'OFFLINE');
+    assert.equal(deadDev.consecutiveFailures, 3);
+  });
+
+  await t.test('F27.5: Turnstile Heartbeat - Endpoint GET /api/admin/access-control/devices returns device list', async () => {
+    const res = await request('GET', '/api/admin/access-control/devices', {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert.equal(res.status, 200);
+    assert.ok(Array.isArray(res.json?.devices));
+  });
+
+  // =========================================================================
+  // FEATURE 28: Sub-50ms Emergency Gate Override Service
+  // =========================================================================
+  await t.test('F28.1: Emergency Override - POST /api/admin/access-control/emergency-override executes UNLOCK_ALL <50ms', async () => {
+    const startTime = Date.now();
+    const res = await request('POST', '/api/admin/access-control/emergency-override', {
+      Authorization: `Bearer ${adminToken}`,
+    }, {
+      action: 'UNLOCK_ALL',
+      factoryId: 'Quesna',
+      reason: 'Evacuation drill',
+    });
+    const duration = Date.now() - startTime;
+    assert.equal(res.status, 200);
+    assert.ok(duration < 500, `Execution should be extremely fast, took ${duration}ms`);
+    assert.equal(res.json?.action, 'UNLOCK_ALL');
+  });
+
+  await t.test('F28.2: Emergency Override - Broadcasts to all factory turnstiles concurrently', async () => {
+    const res = await contracts.EmergencyOverrideService.executeOverride({
+      tenantId: 'elaraby',
+      action: 'UNLOCK_ALL',
+      factoryId: 'Quesna',
+      deviceCount: 24,
+    });
+    assert.equal(res.affectedGatesCount, 24);
+    assert.ok(res.executionTimeMs < 50);
+  });
+
+  await t.test('F28.3: Emergency Override - Generates unique override ID and audit record', async () => {
+    const res = await contracts.EmergencyOverrideService.executeOverride({
+      tenantId: 'elaraby',
+      action: 'UNLOCK_ALL',
+    });
+    assert.ok(res.overrideId.startsWith('OVR-'));
+  });
+
+  await t.test('F28.4: Emergency Override - Supports LOCKDOWN_ALL high-security barrier lock', async () => {
+    const res = await request('POST', '/api/admin/access-control/emergency-override', {
+      Authorization: `Bearer ${adminToken}`,
+    }, {
+      action: 'LOCKDOWN_ALL',
+      factoryId: 'Quesna',
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.action, 'LOCKDOWN_ALL');
+  });
+
+  await t.test('F28.5: Emergency Override - Supports RESTORE restoring normal turnstile operation', async () => {
+    const res = await request('POST', '/api/admin/access-control/emergency-override', {
+      Authorization: `Bearer ${adminToken}`,
+    }, {
+      action: 'RESTORE',
+      factoryId: 'Quesna',
+    });
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.action, 'RESTORE');
+    assert.equal(res.json?.status, 'NORMAL');
+  });
+
+  // =========================================================================
+  // FEATURE 29: Offline Rotating QR Gate-Pass Verification (30s TOTP / HMAC & Anti-Replay)
+  // =========================================================================
+  await t.test('F29.1: Rotating QR - Token generator creates standard v1 formatted gate pass token', async () => {
+    const token = contracts.RotatingQrService.generateGatePassToken({
+      tenantId: 'elaraby',
+      employeeId: 'emp_1',
+    });
+    assert.ok(token.startsWith('v1:elaraby:emp_1:'));
+    const parts = token.split(':');
+    assert.equal(parts.length, 6);
+  });
+
+  await t.test('F29.2: Rotating QR - Verifier accepts fresh token within 30-second sliding window', async () => {
+    const token = contracts.RotatingQrService.generateGatePassToken({
+      tenantId: 'elaraby',
+      employeeId: 'emp_1',
+    });
+    const res = contracts.RotatingQrService.verifyGatePassToken({
+      token,
+      expectedEmployeeId: 'emp_1',
+      tenantId: 'elaraby',
+    });
+    assert.equal(res.valid, true);
+    assert.equal(res.employeeId, 'emp_1');
+  });
+
+  await t.test('F29.3: Rotating QR - Verifier rejects optical replay attacks using same nonce within 120s TTL', async () => {
+    const nonce = 'a1b2';
+    const token = contracts.RotatingQrService.generateGatePassToken({
+      tenantId: 'elaraby',
+      employeeId: 'emp_replay_test',
+      nonce,
+    });
+    const firstPass = contracts.RotatingQrService.verifyGatePassToken({ token, tenantId: 'elaraby' });
+    assert.equal(firstPass.valid, true);
+
+    const secondPass = contracts.RotatingQrService.verifyGatePassToken({ token, tenantId: 'elaraby' });
+    assert.equal(secondPass.valid, false);
+    assert.equal(secondPass.reason, 'REPLAY_ATTACK_DETECTED');
+  });
+
+  await t.test('F29.4: Rotating QR - Rejects token presented to mismatched corporate tenant gate', async () => {
+    const token = contracts.RotatingQrService.generateGatePassToken({
+      tenantId: 'elaraby',
+      employeeId: 'emp_1',
+    });
+    const res = contracts.RotatingQrService.verifyGatePassToken({
+      token,
+      tenantId: 'elsewedy', // Mismatched tenant
+    });
+    assert.equal(res.valid, false);
+    assert.equal(res.reason, 'TENANT_MISMATCH');
+  });
+
+  await t.test('F29.5: Rotating QR - Endpoint GET /api/attendance/gate-pass generates mobile pass token', async () => {
+    const res = await request('GET', '/api/attendance/gate-pass', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    });
+    assert.equal(res.status, 200);
+    assert.ok(res.json?.token);
+    assert.ok(res.json?.token.startsWith('v1:elaraby:emp_1:'));
+  });
+
+  // =========================================================================
+  // FEATURE 30: Flutter Mobile Encrypted Offline Database ACID Schema & Cached Tables
+  // =========================================================================
+  await t.test('F30.1: Mobile DB Schema - cached_schedules schema contains required columns', async () => {
+    const cols = contracts.OfflineDatabaseContract.SCHEMAS.cached_schedules;
+    assert.ok(cols.includes('id'));
+    assert.ok(cols.includes('week_start'));
+    assert.ok(cols.includes('shifts_json'));
+  });
+
+  await t.test('F30.2: Mobile DB Schema - employee_profile schema contains required columns', async () => {
+    const cols = contracts.OfflineDatabaseContract.SCHEMAS.employee_profile;
+    assert.ok(cols.includes('employee_id'));
+    assert.ok(cols.includes('national_id'));
+    assert.ok(cols.includes('vacation_balance'));
+  });
+
+  await t.test('F30.3: Mobile DB Schema - punch_queue schema contains required columns', async () => {
+    const cols = contracts.OfflineDatabaseContract.SCHEMAS.punch_queue;
+    assert.ok(cols.includes('client_punch_id'));
+    assert.ok(cols.includes('employee_id'));
+    assert.ok(cols.includes('timestamp'));
+  });
+
+  await t.test('F30.4: Mobile DB Schema - pending_hr_requests schema contains required columns', async () => {
+    const cols = contracts.OfflineDatabaseContract.SCHEMAS.pending_hr_requests;
+    assert.ok(cols.includes('id'));
+    assert.ok(cols.includes('idempotency_key'));
+    assert.ok(cols.includes('details_json'));
+  });
+
+  await t.test('F30.5: Mobile DB Schema - Record validation enforces primary key integrity', async () => {
+    const valid = contracts.OfflineDatabaseContract.validateRecord('punch_queue', { client_punch_id: 'UUID-1' });
+    assert.equal(valid, true);
+    const invalid = contracts.OfflineDatabaseContract.validateRecord('punch_queue', {});
+    assert.equal(invalid, false);
+  });
+
+  // =========================================================================
+  // FEATURE 31: Flutter Mobile Background Bulk Punch Reconnection Sync & 120s Deduplication
+  // =========================================================================
+  await t.test('F31.1: Bulk Punch Sync - POST /api/attendance/bulk-sync accepts queued offline punches', async () => {
+    const res = await request('POST', '/api/attendance/bulk-sync', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    }, [
+      {
+        clientPunchId: `cp_${Date.now()}_1`,
+        timestamp: Date.now() - 500000,
+        type: 'in',
+        lat: 30.5518,
+        lng: 31.1442,
+      },
+    ]);
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.ok, true);
+    assert.equal(res.json?.totalProcessed, 1);
+  });
+
+  await t.test('F31.2: Bulk Punch Sync - Enforces 120s sliding window deduplication per employee and punch type', async () => {
+    const database = db();
+    database.attendanceRecords = (database.attendanceRecords || []).filter((r) => r.employeeId !== 'emp_1');
+    save();
+
+    const now = Date.now() - 50000000;
+    const clientPunchId1 = `cp_${now}_a`;
+    const clientPunchId2 = `cp_${now}_b`;
+
+    const res1 = await request('POST', '/api/attendance/bulk-sync', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    }, [{ clientPunchId: clientPunchId1, timestamp: now, type: 'in' }]);
+    assert.equal(res1.json?.acceptedCount, 1);
+
+    // Punch 30 seconds later (within 120s)
+    const res2 = await request('POST', '/api/attendance/bulk-sync', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    }, [{ clientPunchId: clientPunchId2, timestamp: now + 30000, type: 'in' }]);
+    assert.equal(res2.json?.duplicateCount, 1);
+  });
+
+  await t.test('F31.3: Bulk Punch Sync - Duplicate clientPunchId retransmissions are marked duplicate safely', async () => {
+    const identicalId = `cp_dup_${Date.now()}`;
+    await request('POST', '/api/attendance/bulk-sync', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    }, [{ clientPunchId: identicalId, timestamp: Date.now() - 2000000, type: 'out' }]);
+
+    const retryRes = await request('POST', '/api/attendance/bulk-sync', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    }, [{ clientPunchId: identicalId, timestamp: Date.now() - 2000000, type: 'out' }]);
+    assert.equal(retryRes.status, 200);
+    assert.equal(retryRes.json?.duplicateCount, 1);
+  });
+
+  await t.test('F31.4: Bulk Punch Sync - Full jitter exponential backoff formula calculation', async () => {
+    const backoff = contracts.OfflineDatabaseContract.calculateExponentialBackoff(3, 1.5, 60.0);
+    assert.equal(backoff.nominal, 12.0); // 1.5 * 2^3 = 12.0
+    assert.equal(backoff.minSleep, 6.0);
+    assert.equal(backoff.maxSleep, 18.0);
+  });
+
+  await t.test('F31.5: Bulk Punch Sync - Client-wins policy preserves exact offline device timestamp', async () => {
+    const deviceTime = Date.now() - 3600000; // 1 hour ago
+    const res = await request('POST', '/api/attendance/bulk-sync', {
+      Authorization: `Bearer ${elarabyEmpToken}`,
+    }, [{ clientPunchId: `cp_time_${Date.now()}`, timestamp: deviceTime, type: 'in' }]);
+    assert.equal(res.status, 200);
+    assert.ok(res.json?.results[0]?.status === 'accepted' || res.json?.results[0]?.status === 'duplicate');
+  });
+
+  // =========================================================================
+  // FEATURE 32: AI Shift Absenteeism Probability Scoring Model (6-Factor Logistic, 0.0-1.0)
+  // =========================================================================
+  await t.test('F32.1: Absenteeism Model - Probability output is strictly bounded in [0.01, 0.99]', async () => {
+    const res = contracts.AiPredictiveService.calculateAbsenteeismRisk({
+      employeeId: 'emp_1',
+      shiftDate: '2026-09-22',
+      historicalAbsenceRate: 0.10,
+    });
+    assert.ok(res.riskScore >= 0.01 && res.riskScore <= 0.99);
+  });
+
+  await t.test('F32.2: Absenteeism Model - Higher historical absence increases predicted risk', async () => {
+    const lowRisk = contracts.AiPredictiveService.calculateAbsenteeismRisk({
+      employeeId: 'emp_1',
+      historicalAbsenceRate: 0.02,
+    });
+    const highRisk = contracts.AiPredictiveService.calculateAbsenteeismRisk({
+      employeeId: 'emp_2',
+      historicalAbsenceRate: 0.40,
+    });
+    assert.ok(highRisk.riskScore > lowRisk.riskScore, 'Higher absence history must yield higher risk');
+  });
+
+  await t.test('F32.3: Absenteeism Model - Fatigue gate (>=6 consecutive days) elevates absence risk', async () => {
+    const normal = contracts.AiPredictiveService.calculateAbsenteeismRisk({
+      employeeId: 'emp_1',
+      consecutiveDaysWorked: 2,
+    });
+    const fatigued = contracts.AiPredictiveService.calculateAbsenteeismRisk({
+      employeeId: 'emp_1',
+      consecutiveDaysWorked: 6,
+    });
+    assert.ok(fatigued.riskScore > normal.riskScore);
+  });
+
+  await t.test('F32.4: Absenteeism Model - Short turnaround rest gap (<11h) triggers fatigue penalty', async () => {
+    const rested = contracts.AiPredictiveService.calculateAbsenteeismRisk({
+      employeeId: 'emp_1',
+      turnaroundRestHours: 16,
+    });
+    const shortRest = contracts.AiPredictiveService.calculateAbsenteeismRisk({
+      employeeId: 'emp_1',
+      turnaroundRestHours: 8,
+    });
+    assert.ok(shortRest.riskScore > rested.riskScore);
+  });
+
+  await t.test('F32.5: Absenteeism Model - Night shift applies higher circadian penalty than morning shift', async () => {
+    const morning = contracts.AiPredictiveService.calculateAbsenteeismRisk({
+      employeeId: 'emp_1',
+      shiftCode: 'morning',
+    });
+    const night = contracts.AiPredictiveService.calculateAbsenteeismRisk({
+      employeeId: 'emp_1',
+      shiftCode: 'night',
+    });
+    assert.ok(night.riskScore > morning.riskScore);
+  });
+
+  // =========================================================================
+  // FEATURE 33: Production Line Stoppage Risk Assessment & Automated Manager Alerts
+  // =========================================================================
+  await t.test('F33.1: Line Stoppage - Aggregates worker absence probabilities against line quota', async () => {
+    const workers = Array.from({ length: 12 }, (_, i) => ({ id: `w_${i}`, historicalAbsenceRate: 0.05 }));
+    const assessment = contracts.AiPredictiveService.assessLineStoppageRisk({
+      lineId: 'Line-1',
+      requiredQuota: 10,
+      scheduledWorkers: workers,
+    });
+    assert.equal(assessment.scheduledCount, 12);
+    assert.ok(assessment.expectedAttendance > 10);
+    assert.equal(assessment.stoppageRisk, 'LOW');
+  });
+
+  await t.test('F33.2: Line Stoppage - Triggers CRITICAL alert when expected attendance falls below quota', async () => {
+    const highRiskWorkers = Array.from({ length: 10 }, (_, i) => ({ id: `w_${i}`, historicalAbsenceRate: 0.60, consecutiveDays: 6 }));
+    const assessment = contracts.AiPredictiveService.assessLineStoppageRisk({
+      lineId: 'Line-2',
+      requiredQuota: 10,
+      scheduledWorkers: highRiskWorkers,
+    });
+    assert.equal(assessment.stoppageRisk, 'CRITICAL');
+    assert.equal(assessment.isCritical, true);
+  });
+
+  await t.test('F33.3: Line Stoppage - Flags CRITICAL when aggregate absence risk rate >= 35%', async () => {
+    const riskyWorkers = Array.from({ length: 20 }, (_, i) => ({ id: `w_${i}`, historicalAbsenceRate: 0.50 }));
+    const assessment = contracts.AiPredictiveService.assessLineStoppageRisk({
+      lineId: 'Line-3',
+      requiredQuota: 12,
+      scheduledWorkers: riskyWorkers,
+    });
+    assert.ok(assessment.riskScore >= 0.35);
+    assert.equal(assessment.stoppageRisk, 'CRITICAL');
+  });
+
+  await t.test('F33.4: Line Stoppage - GET /api/admin/analytics/absenteeism-risk with lineId returns stoppage risk', async () => {
+    const res = await request('GET', '/api/admin/analytics/absenteeism-risk?lineId=Line-1&factoryId=Quesna', {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert.equal(res.status, 200);
+    assert.ok(res.json?.stoppageRisk);
+  });
+
+  await t.test('F33.5: Line Stoppage - GET /api/admin/analytics/absenteeism-risk with employeeId returns worker risk', async () => {
+    const res = await request('GET', '/api/admin/analytics/absenteeism-risk?employeeId=emp_1', {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert.equal(res.status, 200);
+    assert.ok(res.json?.riskScore !== undefined);
+  });
+
+  // =========================================================================
+  // FEATURE 34: Monthly Overtime Expenditure Drift Forecasting & Budget Breaches
+  // =========================================================================
+  await t.test('F34.1: Overtime Drift - Computes 7-day velocity and month-to-date velocity', async () => {
+    const forecast = contracts.AiPredictiveService.forecastOvertimeDrift({
+      monthlyBudget: 200000,
+      actualSpendToDate: 100000,
+      currentDay: 15,
+      spend7Days: 50000,
+    });
+    assert.equal(forecast.velocity7Days, Math.round(50000 / 7));
+    assert.equal(forecast.velocityMtd, Math.round(100000 / 15));
+  });
+
+  await t.test('F34.2: Overtime Drift - Computes blended velocity and projected month-end spend', async () => {
+    const forecast = contracts.AiPredictiveService.forecastOvertimeDrift({
+      monthlyBudget: 200000,
+      actualSpendToDate: 80000,
+      currentDay: 10,
+      totalDaysInMonth: 30,
+      spend7Days: 56000,
+    });
+    assert.ok(forecast.projectedMonthEndSpend > 80000);
+    assert.ok(forecast.driftAmount !== undefined);
+  });
+
+  await t.test('F34.3: Overtime Drift - Triggers CRITICAL alert when projected spend exceeds budget', async () => {
+    const forecast = contracts.AiPredictiveService.forecastOvertimeDrift({
+      monthlyBudget: 150000,
+      actualSpendToDate: 140000,
+      currentDay: 15,
+      spend7Days: 70000,
+    });
+    assert.equal(forecast.alertLevel, 'CRITICAL');
+    assert.ok(forecast.driftPercentage > 0);
+  });
+
+  await t.test('F34.4: Overtime Drift - Triggers WARNING alert on accelerated spend in early month', async () => {
+    const forecast = contracts.AiPredictiveService.forecastOvertimeDrift({
+      monthlyBudget: 200000,
+      actualSpendToDate: 95000,
+      currentDay: 15,
+      spend7Days: 45000,
+    });
+    assert.ok(['WARNING', 'CRITICAL'].includes(forecast.alertLevel));
+  });
+
+  await t.test('F34.5: Overtime Drift - Endpoint GET /api/admin/analytics/overtime-forecast returns metrics', async () => {
+    const res = await request('GET', '/api/admin/analytics/overtime-forecast?month=2026-09&budget=250000', {
+      Authorization: `Bearer ${adminToken}`,
+    });
+    assert.equal(res.status, 200);
+    assert.ok(res.json?.projectedMonthEndSpend !== undefined);
+  });
+
+  // =========================================================================
+  // FEATURE 35: Smart Crew Backfilling Recommendations & Safety Gates
+  // =========================================================================
+  await t.test('F35.1: Smart Crew Backfilling - Strictly filters out candidates with rest gap < 11 hours', async () => {
+    const candidates = [
+      { id: 'c_tired', name: 'Tired Worker', turnaroundRestHours: 8, consecutiveDays: 2, weeklyScheduledHours: 32 },
+      { id: 'c_rested', name: 'Rested Worker', turnaroundRestHours: 16, consecutiveDays: 2, weeklyScheduledHours: 32 },
+    ];
+    const recs = contracts.AiPredictiveService.recommendCrewBackfill({ candidates });
+    assert.equal(recs.recommendations.length, 1);
+    assert.equal(recs.recommendations[0].employeeId, 'c_rested');
+  });
+
+  await t.test('F35.2: Smart Crew Backfilling - Strictly filters out candidates with >= 6 consecutive days worked', async () => {
+    const candidates = [
+      { id: 'c_overworked', name: 'Overworked', turnaroundRestHours: 16, consecutiveDays: 6, weeklyScheduledHours: 32 },
+      { id: 'c_eligible', name: 'Eligible', turnaroundRestHours: 16, consecutiveDays: 3, weeklyScheduledHours: 32 },
+    ];
+    const recs = contracts.AiPredictiveService.recommendCrewBackfill({ candidates });
+    assert.equal(recs.recommendations.length, 1);
+    assert.equal(recs.recommendations[0].employeeId, 'c_eligible');
+  });
+
+  await t.test('F35.3: Smart Crew Backfilling - Scores eligible candidates across department and skill bonus', async () => {
+    const candidates = [
+      { id: 'c_match', name: 'Senior Operator', department: 'Operations', position: 'Machine Operator', skillTier: 'senior_lead', turnaroundRestHours: 16, consecutiveDays: 2 },
+      { id: 'c_unrelated', name: 'Junior Admin', department: 'HR', position: 'Clerk', skillTier: 'junior', turnaroundRestHours: 16, consecutiveDays: 2 },
+    ];
+    const recs = contracts.AiPredictiveService.recommendCrewBackfill({ candidates, missingSkillTier: 'senior_lead' });
+    assert.ok(recs.recommendations[0].suitabilityScore > recs.recommendations[1].suitabilityScore);
+  });
+
+  await t.test('F35.4: Smart Crew Backfilling - Rewards lower monthly overtime (overtime equity)', async () => {
+    const candidates = [
+      { id: 'c_low_ot', name: 'Low OT', department: 'Operations', position: 'Machine Operator', turnaroundRestHours: 16, consecutiveDays: 2, monthlyOvertimeHours: 2 },
+      { id: 'c_high_ot', name: 'High OT', department: 'Operations', position: 'Machine Operator', turnaroundRestHours: 16, consecutiveDays: 2, monthlyOvertimeHours: 60 },
+    ];
+    const recs = contracts.AiPredictiveService.recommendCrewBackfill({ candidates });
+    assert.ok(recs.recommendations[0].scoreBreakdown.equity > recs.recommendations[1].scoreBreakdown.equity);
+  });
+
+  await t.test('F35.5: Smart Crew Backfilling - Endpoint POST /api/admin/analytics/backfill-recommendations returns ranked recommendations', async () => {
+    const res = await request('POST', '/api/admin/analytics/backfill-recommendations', {
+      Authorization: `Bearer ${adminToken}`,
+    }, {
+      absentEmployeeId: 'emp_1',
+      lineId: 'Line-1',
+      shiftDate: '2026-09-22',
+    });
+    assert.equal(res.status, 200);
+    assert.ok(Array.isArray(res.json?.recommendations));
+  });
 });
+

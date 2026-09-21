@@ -1,7 +1,12 @@
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/backend.dart';
+import '../../../../core/network/connectivity_service.dart';
+import '../../../../core/services/background_sync_service.dart';
 import '../../../../core/state/ui_state.dart';
+import '../../../../core/storage/local_store.dart';
+import '../../../../core/storage/offline_database.dart';
 import 'package:elaraby_workforce/features/services/data/shift_model.dart';
 
 // ---------- Multi-Week Roster Notifier ----------
@@ -16,15 +21,24 @@ class RosterNotifier extends StateNotifier<UiState<List<ShiftWeek>>> {
       final weeks = await Backend.instance.fetchMultiWeekRoster();
       if (weeks != null && weeks.isNotEmpty) {
         state = UiState.success(weeks);
-      } else {
-        // Generate fallback local 4-week pattern
-        final fallback = _generateFallbackWeeks();
-        state = UiState.success(fallback);
+        try {
+          await OfflineDatabase.instance.saveSchedules(weeks);
+        } catch (_) {}
+        return;
       }
-    } catch (_) {
-      final fallback = _generateFallbackWeeks();
-      state = UiState.success(fallback);
-    }
+    } catch (_) {}
+
+    // Read cached schedules from encrypted offline database
+    try {
+      final cached = await OfflineDatabase.instance.getCachedSchedules();
+      if (cached.isNotEmpty) {
+        state = UiState.success(cached);
+        return;
+      }
+    } catch (_) {}
+
+    final fallback = _generateFallbackWeeks();
+    state = UiState.success(fallback);
   }
 
   @visibleForTesting
@@ -84,12 +98,42 @@ class AttendanceNotifier extends StateNotifier<UiState<TodayPunchState>> {
       final punch = await Backend.instance.fetchTodayPunchState();
       if (punch != null) {
         state = UiState.success(punch);
-      } else {
-        state = UiState.success(_fallbackState());
+        return;
       }
-    } catch (_) {
-      state = UiState.success(_fallbackState());
-    }
+    } catch (_) {}
+
+    // Offline state recovery: check OfflineDatabase for any pending punch today
+    try {
+      final pending = await OfflineDatabase.instance.getPendingPunches();
+      if (pending.isNotEmpty) {
+        final last = pending.last;
+        final now = DateTime.now();
+        final dateKey =
+            '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+        final hour = now.hour;
+        final minute = now.minute.toString().padLeft(2, '0');
+        final period = hour >= 12 ? 'PM' : 'AM';
+        final displayHour = (hour % 12 == 0 ? 12 : hour % 12).toString().padLeft(2, '0');
+        final timeFormatted = '$displayHour:$minute $period';
+        final isPunchIn = last.type == 'in' || last.type == 'check-in';
+
+        state = UiState.success(TodayPunchState(
+          date: dateKey,
+          status: isPunchIn ? 'checked_in' : 'checked_out',
+          workingMinutes: isPunchIn ? 15 : 480,
+          punchInTime: isPunchIn ? timeFormatted : '08:00 AM',
+          punchOutTime: !isPunchIn ? timeFormatted : null,
+          punctuality: 'on_time',
+          delayMinutes: 0,
+          qrToken: last.qrToken ?? 'OFFLINE-QR-${now.millisecondsSinceEpoch}',
+          offlineToken: last.offlineToken ?? 'OFFLINE:emp_1:$dateKey:LOCAL-HMAC',
+          factoryName: 'مجمع العاشر من رمضان',
+        ));
+        return;
+      }
+    } catch (_) {}
+
+    state = UiState.success(_fallbackState());
   }
 
   TodayPunchState _fallbackState() {
@@ -106,11 +150,75 @@ class AttendanceNotifier extends StateNotifier<UiState<TodayPunchState>> {
   }
 
   Future<bool> punch(String type, {double? lat, double? lng}) async {
+    final isOnline = ConnectivityService.instance.isOnline;
+
+    if (isOnline) {
+      try {
+        final res = await Backend.instance.submitAttendancePunch(type: type, lat: lat, lng: lng);
+        if (res != null && res['ok'] == true) {
+          await loadToday();
+          return true;
+        }
+      } catch (e) {
+        debugPrint('AttendanceNotifier: Direct punch failed, falling back to offline queue: $e');
+      }
+    }
+
+    // Offline or network failure fallback: Enqueue locally in encrypted database
     try {
-      final res = await Backend.instance.submitAttendancePunch(type: type, lat: lat, lng: lng);
-      await loadToday();
-      return res != null && res['ok'] == true;
-    } catch (_) {
+      final now = DateTime.now();
+      final clientPunchId = 'punch_${now.millisecondsSinceEpoch}_${math.Random().nextInt(999999)}';
+      final empId = LocalStore.instance.profile.employeeCode;
+      final punchTypeNormalized = type.toLowerCase().contains('out') ? 'check-out' : 'check-in';
+      final offlineToken = 'OFFLINE-$empId-LOCAL-${now.millisecondsSinceEpoch}';
+
+      final offlinePunch = OfflinePunch(
+        clientPunchId: clientPunchId,
+        timestamp: now.toUtc().toIso8601String(),
+        type: punchTypeNormalized,
+        latitude: lat,
+        longitude: lng,
+        offlineToken: offlineToken,
+        status: 'pending',
+        employeeId: empId,
+        createdAt: now.toUtc().toIso8601String(),
+      );
+
+      await OfflineDatabase.instance.enqueuePunch(offlinePunch);
+
+      // Optimistic UI state update
+      final dateKey =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      final hour = now.hour;
+      final minute = now.minute.toString().padLeft(2, '0');
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = (hour % 12 == 0 ? 12 : hour % 12).toString().padLeft(2, '0');
+      final timeFormatted = '$displayHour:$minute $period';
+
+      final isPunchIn = punchTypeNormalized == 'check-in';
+      final current = state.data ?? _fallbackState();
+
+      state = UiState.success(TodayPunchState(
+        date: dateKey,
+        status: isPunchIn ? 'checked_in' : 'checked_out',
+        workingMinutes: current.workingMinutes,
+        punchInTime: isPunchIn ? timeFormatted : current.punchInTime,
+        punchOutTime: !isPunchIn ? timeFormatted : current.punchOutTime,
+        punctuality: current.punctuality,
+        delayMinutes: current.delayMinutes,
+        qrToken: current.qrToken,
+        offlineToken: offlineToken,
+        factoryName: current.factoryName,
+      ));
+
+      // Trigger background sync cycle if connected
+      if (ConnectivityService.instance.isOnline) {
+        BackgroundSyncService.instance.triggerSync();
+      }
+
+      return true;
+    } catch (e) {
+      debugPrint('AttendanceNotifier: Critical error enqueuing offline punch: $e');
       return false;
     }
   }

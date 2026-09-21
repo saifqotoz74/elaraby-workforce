@@ -8,7 +8,9 @@ import 'core/network/api_client.dart';
 import 'core/network/backend.dart';
 import 'core/network/connectivity_service.dart';
 import 'core/network/push_service.dart';
+import 'core/services/background_sync_service.dart';
 import 'core/storage/local_store.dart';
+import 'core/storage/offline_database.dart';
 import 'core/tenant/tenant_brand.dart';
 import 'core/theme/app_theme.dart';
 import 'features/benefits/data/benefits_content.dart';
@@ -31,6 +33,11 @@ Future<void> bootstrapApp({
 
   await ConnectivityService.instance.init();
   await LocalStore.instance.init();
+  try {
+    await OfflineDatabase.instance.initialize();
+  } catch (e) {
+    debugPrint('bootstrapApp: OfflineDatabase initialization warning: $e');
+  }
   await ApiClient.instance.init();
   await RequestsStore.instance.load();
   AppLocale.instance.loadFromStorage();
@@ -44,6 +51,7 @@ Future<void> bootstrapApp({
   }
 
   InboxIds.instance.load();
+  BackgroundSyncService.instance.start();
 
   // Reach out to the backend when available; the app stays fully usable offline either way.
   PushService.instance.init();
@@ -51,6 +59,7 @@ Future<void> bootstrapApp({
     if (online) {
       Backend.instance.syncProfile();
       Backend.instance.syncRequests();
+      BackgroundSyncService.instance.triggerSync();
       if (ApiClient.instance.token != null) {
         HomeContent.instance.load();
         BenefitsContent.instance.load();
