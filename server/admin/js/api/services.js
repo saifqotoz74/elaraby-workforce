@@ -133,4 +133,9 @@ export const analyticsApi = {
     `/api/admin/analytics/export/report?format=${encodeURIComponent(format)}&tenantId=${encodeURIComponent(tenantId || '')}`,
 };
 
+export const rosterSolverApi = {
+  solve: (data) => api.post('/api/admin/roster/solve', data),
+  getWeek: (weekStart) => api.get(`/api/admin/roster/week?weekStart=${encodeURIComponent(weekStart)}`),
+  getExportUrl: (weekStart, format = 'csv') => `/api/admin/roster/export?weekStart=${encodeURIComponent(weekStart)}&format=${encodeURIComponent(format)}`,
+};
 

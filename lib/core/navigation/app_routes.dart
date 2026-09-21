@@ -22,6 +22,7 @@ abstract class AppRoutes {
   static const String vacationBalance = '/vacation-balance';
   static const String requestLeave = '/request-leave';
   static const String shiftSchedule = '/shift-schedule';
+  static const String myRoster = '/my-roster';
   static const String transportation = '/transportation';
   static const String driverConsole = '/driver-console';
   static const String salarySlip = '/salary-slip';
@@ -30,6 +31,8 @@ abstract class AppRoutes {
   static const String employeeData = '/employee-data';
   static const String yourRequests = '/your-requests';
   static const String supervisorAnalytics = '/supervisor-analytics';
+  static const String kiosk = '/kiosk';
+  static const String kioskQr = '/kiosk/qr';
 
   // ---- Home Feature Routes ----
   static const String announcementDetail = '/announcement-detail';

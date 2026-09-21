@@ -31,6 +31,7 @@ const {
   MASTER_OTP,
   MASTER_PIN,
 } = require('../services/masterAccountService');
+const kioskService = require('../services/kioskService');
 
 const router = express.Router();
 const isDev = process.env.NODE_ENV !== 'production';
@@ -1458,6 +1459,49 @@ router.get('/realtime/stream', (req, res) => {
     return res.status(401).json({ error: 'unauthorized' });
   }
   subscribe(req, res, payload);
+});
+
+// ---------- Kiosk ----------
+// GET /api/employee/kiosk/overview
+router.get('/kiosk/overview', requireAuth, async (req, res) => {
+  try {
+    const me = db().employees.find((e) => e.id === req.employeeId);
+    const tenantId = me?.tenantId || req.tenantId || 'elaraby';
+    const employeeCode = me?.employeeCode || '';
+    const overview = await kioskService.getKioskOverview(tenantId, employeeCode);
+    res.json({ success: true, data: overview });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/employee/kiosk/stoppage
+router.post('/kiosk/stoppage', requireAuth, async (req, res) => {
+  try {
+    const me = db().employees.find((e) => e.id === req.employeeId);
+    const tenantId = me?.tenantId || req.tenantId || 'elaraby';
+    const employeeCode = me?.employeeCode || '';
+    const { machineId, reason } = req.body;
+    if (!machineId || !reason) return res.status(400).json({ success: false, message: 'machineId and reason required' });
+    const result = await kioskService.reportStoppage(tenantId, machineId, reason, employeeCode);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/employee/kiosk/resolve-stoppage
+router.post('/kiosk/resolve-stoppage', requireAuth, async (req, res) => {
+  try {
+    const me = db().employees.find((e) => e.id === req.employeeId);
+    const tenantId = me?.tenantId || req.tenantId || 'elaraby';
+    const { machineId } = req.body;
+    if (!machineId) return res.status(400).json({ success: false, message: 'machineId required' });
+    const result = await kioskService.resolveStoppage(tenantId, machineId);
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 module.exports = router;

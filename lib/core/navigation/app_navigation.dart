@@ -29,11 +29,14 @@ import '../../features/services/presentation/screens/raise_concern_screen.dart';
 import '../../features/services/presentation/screens/request_leave_screen.dart';
 import '../../features/services/presentation/screens/salary_slip_screen.dart';
 import '../../features/services/presentation/screens/shift_schedule_screen.dart';
+import '../../features/roster/presentation/screens/my_roster_screen.dart';
 import '../../features/services/presentation/screens/company_transportation_screen.dart';
 import '../../features/services/presentation/screens/driver_console_screen.dart';
 import '../../features/services/presentation/screens/vacation_balance_screen.dart';
 import '../../features/services/presentation/screens/your_requests_screen.dart';
 import '../../features/services/presentation/screens/supervisor_analytics_screen.dart';
+import '../../features/kiosk/presentation/screens/kiosk_screen.dart';
+import '../../features/kiosk/presentation/screens/kiosk_qr_screen.dart';
 
 /// Centralized navigation service eliminating scattered navigation logic across the app.
 class AppNavigation {
@@ -185,6 +188,11 @@ class AppNavigation {
         fallbackBuilder: () => const ShiftScheduleScreen());
   }
 
+  static Future<void> toMyRoster(BuildContext context) async {
+    await _push(context, AppRoutes.myRoster,
+        fallbackBuilder: () => const MyRosterScreen());
+  }
+
   static Future<void> toTransportation(BuildContext context) async {
     await _push(context, AppRoutes.transportation,
         fallbackBuilder: () => const CompanyTransportationScreen());
@@ -218,6 +226,16 @@ class AppNavigation {
   static Future<void> toSupervisorAnalytics(BuildContext context) async {
     await _push(context, AppRoutes.supervisorAnalytics,
         fallbackBuilder: () => const SupervisorAnalyticsScreen());
+  }
+
+  static Future<void> toKiosk(BuildContext context) async {
+    await _push(context, AppRoutes.kiosk,
+        fallbackBuilder: () => const KioskScreen());
+  }
+
+  static Future<void> toKioskQr(BuildContext context) async {
+    await _push(context, AppRoutes.kioskQr,
+        fallbackBuilder: () => const KioskQrScreen());
   }
 
   // ---- Home Feature ----

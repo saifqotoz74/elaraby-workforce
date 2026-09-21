@@ -30,6 +30,7 @@ const { BankingGateway, BankingReconciliationEngine } = require('../integrations
 const accessControl = require('../integrations/access_control');
 const predictiveAnalytics = require('../services/predictiveAnalyticsService');
 const analyticsAggregationService = require('../services/analyticsAggregationService');
+const rosterSolverService = require('../services/rosterSolverService');
 const { BUILTIN_TENANTS } = require('./tenant');
 
 const router = express.Router();
@@ -2117,6 +2118,61 @@ router.get('/analytics/export/report', requireAdmin, (req, res) => {
     res.send(csvData);
   } catch (err) {
     res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/roster/solve
+router.post('/roster/solve', requireAdmin, async (req, res) => {
+  try {
+    const tenantId = req.admin?.tenantId || req.tenantId || 'elaraby';
+    const { weekStart, includeOvertime = false, includeSaturday = false } = req.body;
+    if (!weekStart) return res.status(400).json({ success: false, message: 'weekStart required (ISO date)' });
+    const result = rosterSolverService.solveRoster(tenantId, weekStart, { includeOvertime, includeSaturday });
+    // Save to DB
+    const database = db();
+    database.roster = database.roster.filter(r => r.tenantId !== tenantId || !r.id.includes(weekStart.substring(0, 10)));
+    database.roster.push(...result.roster);
+    save();
+    res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/admin/roster/week?weekStart=2026-09-21
+router.get('/roster/week', requireAdmin, async (req, res) => {
+  try {
+    const tenantId = req.admin?.tenantId || req.tenantId || 'elaraby';
+    const { weekStart } = req.query;
+    if (!weekStart) return res.status(400).json({ success: false, message: 'weekStart query required' });
+    const database = db();
+    const weekPrefix = weekStart.substring(0, 10);
+    const entries = database.roster.filter(r => r.tenantId === tenantId && r.id.includes(weekPrefix));
+    res.json({ success: true, data: entries });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/admin/roster/export?weekStart=2026-09-21&format=csv
+router.get('/roster/export', requireAdmin, async (req, res) => {
+  try {
+    const tenantId = req.admin?.tenantId || req.tenantId || 'elaraby';
+    const { weekStart, format = 'csv' } = req.query;
+    const database = db();
+    const weekPrefix = weekStart.substring(0, 10);
+    const entries = database.roster.filter(r => r.tenantId === tenantId && r.id.includes(weekPrefix));
+    const employees = database.employees.filter(e => e.tenantId === tenantId || !e.tenantId);
+    if (format === 'csv') {
+      const csv = rosterSolverService.exportRosterToCsv(entries, employees);
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename=roster-${weekPrefix}.csv`);
+      res.send(csv);
+    } else {
+      res.json({ success: true, data: entries });
+    }
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 

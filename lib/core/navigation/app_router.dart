@@ -28,11 +28,14 @@ import '../../features/services/presentation/screens/raise_concern_screen.dart';
 import '../../features/services/presentation/screens/request_leave_screen.dart';
 import '../../features/services/presentation/screens/salary_slip_screen.dart';
 import '../../features/services/presentation/screens/shift_schedule_screen.dart';
+import '../../features/roster/presentation/screens/my_roster_screen.dart';
 import '../../features/services/presentation/screens/company_transportation_screen.dart';
 import '../../features/services/presentation/screens/driver_console_screen.dart';
 import '../../features/services/presentation/screens/vacation_balance_screen.dart';
 import '../../features/services/presentation/screens/your_requests_screen.dart';
 import '../../features/services/presentation/screens/supervisor_analytics_screen.dart';
+import '../../features/kiosk/presentation/screens/kiosk_screen.dart';
+import '../../features/kiosk/presentation/screens/kiosk_qr_screen.dart';
 
 // Home Screens
 import '../../features/home/data/home_content.dart';
@@ -213,6 +216,10 @@ GoRouter createAppRouter({
         builder: (context, state) => const ShiftScheduleScreen(),
       ),
       GoRoute(
+        path: AppRoutes.myRoster,
+        builder: (context, state) => const MyRosterScreen(),
+      ),
+      GoRoute(
         path: AppRoutes.transportation,
         builder: (context, state) => const CompanyTransportationScreen(),
       ),
@@ -246,6 +253,14 @@ GoRouter createAppRouter({
       GoRoute(
         path: AppRoutes.supervisorAnalytics,
         builder: (context, state) => const SupervisorAnalyticsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.kiosk,
+        builder: (context, state) => const KioskScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.kioskQr,
+        builder: (context, state) => const KioskQrScreen(),
       ),
 
       // ---- Home Feature Routes ----

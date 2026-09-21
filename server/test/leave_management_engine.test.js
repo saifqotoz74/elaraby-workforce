@@ -56,11 +56,11 @@ test.before(async () => {
   // Clean any leftover emp_zero_bal
   db().employees = db().employees.filter((e) => e.id !== 'emp_zero_bal');
 
-  const emp1 = db().employees[0];
+  const emp1 = db().employees.find((e) => e.id === 'emp_1') || db().employees[0];
   emp1.vacationBalance = 15;
   emp1.tokenVersion = 1;
 
-  const emp2 = db().employees[1];
+  const emp2 = db().employees.find((e) => e.id === 'emp_2') || db().employees[1];
   emp2.vacationBalance = 0;
   emp2.tokenVersion = 1;
   save();
@@ -185,7 +185,7 @@ test('3. Annual Leave Immediately Deducts Balance & Rejects if Exceeded', async 
   assert.strictEqual(failRes.json.error, 'exceeds_balance');
 
   // Should succeed for employee with 15 days balance and deduct 3 days
-  const emp1 = db().employees[0];
+  const emp1 = db().employees.find((e) => e.id === 'emp_1') || db().employees[0];
   const initialBal = emp1.vacationBalance;
   assert.ok(initialBal >= 5);
 
@@ -208,7 +208,7 @@ test('3. Annual Leave Immediately Deducts Balance & Rejects if Exceeded', async 
 });
 
 test('4. Transactional Refund of Annual Leave on HR Rejection', async () => {
-  const emp1 = db().employees[0];
+  const emp1 = db().employees.find((e) => e.id === 'emp_1') || db().employees[0];
   const balBefore = emp1.vacationBalance;
 
   // Submit 2 days annual leave
@@ -243,7 +243,7 @@ test('4. Transactional Refund of Annual Leave on HR Rejection', async () => {
 });
 
 test('5. Transactional Refund of Annual Leave on Employee Cancellation', async () => {
-  const emp1 = db().employees[0];
+  const emp1 = db().employees.find((e) => e.id === 'emp_1') || db().employees[0];
   const balBefore = emp1.vacationBalance;
 
   // Submit 4 days annual leave

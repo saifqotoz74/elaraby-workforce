@@ -23,6 +23,7 @@ import { TenantsView } from './views/TenantsView.js';
 import { TransportView } from './views/TransportView.js';
 import { ReportsView } from './views/ReportsView.js';
 import { AnalyticsView } from './views/AnalyticsView.js';
+import { RosterView } from './views/RosterView.js';
 
 class App {
   constructor() {
@@ -126,6 +127,10 @@ class App {
     // 2b. Executive BI Analytics & Statistics
     this.router.addRoute('/analytics', () => {
       this.renderView(AnalyticsView, 'Executive Analytics & BI', 'analytics');
+    });
+
+    this.router.addRoute('/roster', () => {
+      this.renderView(RosterView, 'AI Roster Solver', 'roster');
     });
 
     // 3. Employees

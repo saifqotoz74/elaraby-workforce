@@ -262,7 +262,28 @@ function createSwapRequest(requesterId, { targetEmployeeId, date, targetDate, re
     throw err;
   }
 
+  if (requesterId === targetEmployeeId) {
+    const err = new Error('Cannot swap shift with yourself');
+    err.statusCode = 422;
+    err.code = 'self_swap_not_allowed';
+    throw err;
+  }
+
   const shiftDate = date || targetDate;
+  if (!shiftDate) {
+    const err = new Error('Shift date is required');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  if (shiftDate < todayStr) {
+    const err = new Error('Cannot swap shift in the past');
+    err.statusCode = 422;
+    err.code = 'past_date_not_allowed';
+    throw err;
+  }
+
   const dateObj = new Date(shiftDate + 'T00:00:00');
 
   const myShift = resolveShiftForDate(me, dateObj);
