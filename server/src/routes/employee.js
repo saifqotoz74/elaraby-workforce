@@ -23,6 +23,7 @@ const shiftService = require('../services/shiftService');
 const overtimeService = require('../services/overtimeService');
 const attendanceService = require('../services/attendanceService');
 const transportService = require('../services/transportService');
+const analyticsAggregationService = require('../services/analyticsAggregationService');
 const { calculateWorkingDays } = require('../utils/holidays');
 const {
   isMasterIdentifier,
@@ -1088,6 +1089,7 @@ router.get('/overtime/preview', requireAuth, (req, res) => {
 router.post('/attendance/punch', requireAuth, (req, res) => {
   try {
     const punch = attendanceService.recordPunch(req.employeeId, req.body);
+    analyticsAggregationService.invalidateCache(req.tenantId || req.user?.tenantId);
     res.status(201).json({ ok: true, punch });
   } catch (err) {
     res.status(err.statusCode || 400).json({ error: err.message });
@@ -1098,6 +1100,7 @@ router.post('/attendance/bulk-sync', requireAuth, (req, res) => {
   try {
     const punches = Array.isArray(req.body) ? req.body : (req.body?.punches || []);
     const result = attendanceService.bulkSyncPunches(req.employeeId, punches);
+    analyticsAggregationService.invalidateCache(req.tenantId || req.user?.tenantId);
     res.status(200).json(result);
   } catch (err) {
     res.status(err.statusCode || 400).json({ error: err.message });

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/network/backend.dart';
 import '../../../../core/theme/tenant_theme_extension.dart';
+import '../../../../core/navigation/app_navigation.dart';
 import '../../data/home_content.dart';
 import '../widgets/announcement_card.dart';
 import '../widgets/company_news_card.dart';
@@ -89,6 +90,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         if (features.hasShifts) ...[
                           const SizedBox(height: 14),
                           const TodayShiftCard(),
+                          const SizedBox(height: 14),
+                          _buildSupervisorAnalyticsBanner(context),
                         ],
                         const SizedBox(height: 14),
                         const MetricCardsRow(),
@@ -109,6 +112,76 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSupervisorAnalyticsBanner(BuildContext context) {
+    return GestureDetector(
+      onTap: () => AppNavigation.toSupervisorAnalytics(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 8,
+              offset: Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: const Color(0x330284C7),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.analytics_rounded,
+                color: Color(0xFF38BDF8),
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'إحصائيات الوردية والخطوط (Floor Analytics)',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'مراقبة ملء الوردية، مخاطر التوقف، والتعويض الذكي للعمالة',
+                    style: TextStyle(
+                      color: Color(0xFF94A3B8),
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.arrow_forward_ios_rounded,
+              color: Color(0xFF94A3B8),
+              size: 14,
+            ),
+          ],
+        ),
       ),
     );
   }

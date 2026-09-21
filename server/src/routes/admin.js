@@ -29,6 +29,7 @@ const alertService = require('../services/alertService');
 const { BankingGateway, BankingReconciliationEngine } = require('../integrations/banking');
 const accessControl = require('../integrations/access_control');
 const predictiveAnalytics = require('../services/predictiveAnalyticsService');
+const analyticsAggregationService = require('../services/analyticsAggregationService');
 const { BUILTIN_TENANTS } = require('./tenant');
 
 const router = express.Router();
@@ -2084,6 +2085,36 @@ router.post('/analytics/predictive/recommend-backfill', requireAdmin, (req, res)
       requiredCount: Number(requiredCount),
     });
     res.json(recommendations);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+// ---------- Executive Fast BI Analytics Ecosystem ----------
+router.get('/analytics/bi-overview', requireAdmin, (req, res) => {
+  try {
+    const tenantId = req.query.tenantId || req.tenantId || req.admin?.tenantId || 'elaraby';
+    const forceRefresh = req.query.refresh === 'true' || req.query.force === 'true';
+    const data = analyticsAggregationService.getBiOverview({ tenantId, forceRefresh });
+    res.json(data);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message });
+  }
+});
+
+router.get('/analytics/export/report', requireAdmin, (req, res) => {
+  try {
+    const tenantId = req.query.tenantId || req.tenantId || req.admin?.tenantId || 'elaraby';
+    const format = (req.query.format || 'csv').toLowerCase();
+    if (format === 'json') {
+      const data = analyticsAggregationService.generateAnalyticsReport({ tenantId, format: 'json' });
+      return res.json(data);
+    }
+    const csvData = analyticsAggregationService.generateAnalyticsReport({ tenantId, format: 'csv' });
+    const filename = `workforce-os-analytics-${tenantId}-${new Date().toISOString().split('T')[0]}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csvData);
   } catch (err) {
     res.status(err.statusCode || 500).json({ error: err.message });
   }

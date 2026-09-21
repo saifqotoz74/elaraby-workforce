@@ -22,6 +22,7 @@ import { SettingsView } from './views/SettingsView.js';
 import { TenantsView } from './views/TenantsView.js';
 import { TransportView } from './views/TransportView.js';
 import { ReportsView } from './views/ReportsView.js';
+import { AnalyticsView } from './views/AnalyticsView.js';
 
 class App {
   constructor() {
@@ -120,6 +121,11 @@ class App {
     // 2. Dashboard
     this.router.addRoute('/dashboard', () => {
       this.renderView(DashboardView, 'Executive Dashboard', 'dashboard');
+    });
+
+    // 2b. Executive BI Analytics & Statistics
+    this.router.addRoute('/analytics', () => {
+      this.renderView(AnalyticsView, 'Executive Analytics & BI', 'analytics');
     });
 
     // 3. Employees

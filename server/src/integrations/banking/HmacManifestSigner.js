@@ -75,7 +75,17 @@ class HmacManifestSigner {
     const normBatchRef = String(batchReference).trim();
     const normBankCode = String(bankCode).trim().toLowerCase();
     const normTimestamp = String(timestamp).trim();
-    const normLineCount = String(parseInt(lineCount, 10));
+    if (typeof lineCount !== 'number' && typeof lineCount !== 'string') {
+      throw new Error('Invalid lineCount: must be a non-negative integer');
+    }
+    if (typeof lineCount === 'string' && !/^\d+$/.test(lineCount.trim())) {
+      throw new Error('Invalid lineCount: must be a non-negative integer');
+    }
+    const countNum = Number(lineCount);
+    if (!Number.isInteger(countNum) || countNum < 0) {
+      throw new Error('Invalid lineCount: must be a non-negative integer');
+    }
+    const normLineCount = String(countNum);
     const normTotalAmount = Number(totalAmount).toFixed(2);
     const normPayloadHash = String(payloadHash).trim().toLowerCase();
 

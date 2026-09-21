@@ -230,7 +230,8 @@ for (const bank of banks) {
   }
 
   // Split lines strictly by CRLF
-  const lines = rawOutput.split('\r\n');
+  const cleanOutput = rawOutput.endsWith('\r\n') ? rawOutput.slice(0, -2) : rawOutput;
+  const lines = cleanOutput.split('\r\n');
   const expectedLineCount = testRecords.length + 2; // 1 Header + 1050 Details + 1 Trailer
 
   console.log(`  - Total lines produced: ${lines.length} (Expected: ${expectedLineCount})`);
@@ -278,6 +279,9 @@ for (const bank of banks) {
   const endsWithCrLf = rawOutput.endsWith('\r\n');
   console.log(`  - Records separated by CRLF (\\r\\n): ${terminatesInCrLf ? '✔ YES' : '✖ NO'}`);
   console.log(`  - File terminates with trailing CRLF (\\r\\n): ${endsWithCrLf ? '✔ YES' : '✖ NO (Omits trailing CRLF after trailer)'}\n`);
+
+  assert.strictEqual(endsWithCrLf, true, `${bank.name} must terminate with trailing CRLF`);
+  assert.strictEqual(byteLengthViolations, 0, `${bank.name} must have 0 byte-length violations`);
 
   stressReport.suites.fixedWidth[bank.name] = {
     durationMs,
@@ -364,7 +368,8 @@ const cibBatch = cibGen.generateFixedWidth({
   period: '2026-09',
 });
 
-const cibLines = cibBatch.split('\r\n');
+const cleanCib = cibBatch.endsWith('\r\n') ? cibBatch.slice(0, -2) : cibBatch;
+const cibLines = cleanCib.split('\r\n');
 const cibTrailer = cibLines[cibLines.length - 1];
 
 // Expected CIB Trailer Structure:

@@ -29,6 +29,7 @@ abstract class AppRoutes {
   static const String raiseConcern = '/raise-concern';
   static const String employeeData = '/employee-data';
   static const String yourRequests = '/your-requests';
+  static const String supervisorAnalytics = '/supervisor-analytics';
 
   // ---- Home Feature Routes ----
   static const String announcementDetail = '/announcement-detail';

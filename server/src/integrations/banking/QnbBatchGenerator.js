@@ -90,7 +90,7 @@ class QnbBatchGenerator extends BaseBankBatchGenerator {
       'QNB Trailer (99)'
     );
 
-    return [header, ...details, trailer].join('\r\n');
+    return [header, ...details, trailer].join('\r\n') + '\r\n';
   }
 
   /**

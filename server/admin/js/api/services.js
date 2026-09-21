@@ -127,4 +127,10 @@ export const alertApi = {
   markAllRead: (params) => api.post('/api/admin/alerts/mark-all-read', params || {}),
 };
 
+export const analyticsApi = {
+  getBiOverview: (params) => api.get('/api/admin/analytics/bi-overview', params),
+  getReportExportUrl: (tenantId, format = 'csv') =>
+    `/api/admin/analytics/export/report?format=${encodeURIComponent(format)}&tenantId=${encodeURIComponent(tenantId || '')}`,
+};
+
 

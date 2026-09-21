@@ -32,6 +32,7 @@ import '../../features/services/presentation/screens/company_transportation_scre
 import '../../features/services/presentation/screens/driver_console_screen.dart';
 import '../../features/services/presentation/screens/vacation_balance_screen.dart';
 import '../../features/services/presentation/screens/your_requests_screen.dart';
+import '../../features/services/presentation/screens/supervisor_analytics_screen.dart';
 
 // Home Screens
 import '../../features/home/data/home_content.dart';
@@ -241,6 +242,10 @@ GoRouter createAppRouter({
       GoRoute(
         path: AppRoutes.yourRequests,
         builder: (context, state) => const YourRequestsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.supervisorAnalytics,
+        builder: (context, state) => const SupervisorAnalyticsScreen(),
       ),
 
       // ---- Home Feature Routes ----

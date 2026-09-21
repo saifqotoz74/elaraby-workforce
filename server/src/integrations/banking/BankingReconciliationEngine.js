@@ -93,7 +93,7 @@ class BankingReconciliationEngine {
 
     for (const record of feedbackRecords) {
       const empCode = record.employeeCode || record.employeeId || record.nationalId;
-      const recAmount = round2(record.amount);
+      const recAmount = Number(record.amount !== undefined && record.amount !== null ? record.amount : 0);
       const rawStatus = record.status || record.bankStatus;
       const normStatus = normalizeStatus(rawStatus);
       const bankRef = record.bankReference || record.transactionReference || null;
@@ -134,15 +134,15 @@ class BankingReconciliationEngine {
           }
           if (normStatus === 'PROCESSED') {
             const expectedNet = round2(orphanPayroll.netSalary !== undefined ? orphanPayroll.netSalary : (orphanPayroll.baseSalary || 0));
-            const delta = round2(Math.abs(recAmount - expectedNet));
-            if (delta <= 0.01) {
+            const delta = Math.abs(Number(record.amount) - expectedNet);
+            if (delta <= 0.010001) {
               matched.push({
                 employeeCode: empCode,
                 employeeId: empCode,
                 payrollId: orphanPayroll.id || null,
                 name: empCode,
                 netSalary: expectedNet,
-                disbursedAmount: recAmount,
+                disbursedAmount: Number(record.amount),
                 bankReference: bankRef || batchReference,
                 record,
               });
@@ -153,10 +153,10 @@ class BankingReconciliationEngine {
                 payrollId: orphanPayroll.id || null,
                 name: empCode,
                 reason: 'AMOUNT_MISMATCH',
-                message: `Amount mismatch: bank disbursed ${recAmount} EGP vs expected ${expectedNet} EGP (delta: ${round2(recAmount - expectedNet)})`,
+                message: `Amount mismatch: bank disbursed ${record.amount} EGP vs expected ${expectedNet} EGP (delta: ${round2(Number(record.amount) - expectedNet)})`,
                 expectedAmount: expectedNet,
-                receivedAmount: recAmount,
-                delta: round2(recAmount - expectedNet),
+                receivedAmount: Number(record.amount),
+                delta: round2(Number(record.amount) - expectedNet),
                 bankReference: bankRef,
                 record,
               });
@@ -223,16 +223,16 @@ class BankingReconciliationEngine {
 
       if (normStatus === 'PROCESSED') {
         const expectedNet = round2(payroll.netSalary !== undefined ? payroll.netSalary : (payroll.baseSalary || 0));
-        const delta = round2(Math.abs(recAmount - expectedNet));
+        const delta = Math.abs(Number(record.amount) - expectedNet);
 
-        if (delta <= 0.01) {
+        if (delta <= 0.010001) {
           matched.push({
             employeeCode: empCode,
             employeeId: employee.id,
             payrollId: payroll.id || null,
             name: employee.name,
             netSalary: expectedNet,
-            disbursedAmount: recAmount,
+            disbursedAmount: Number(record.amount),
             bankReference: bankRef || batchReference,
             record,
           });
@@ -243,10 +243,10 @@ class BankingReconciliationEngine {
             payrollId: payroll.id || null,
             name: employee.name,
             reason: 'AMOUNT_MISMATCH',
-            message: `Amount mismatch: bank disbursed ${recAmount} EGP vs expected ${expectedNet} EGP (delta: ${round2(recAmount - expectedNet)})`,
+            message: `Amount mismatch: bank disbursed ${record.amount} EGP vs expected ${expectedNet} EGP (delta: ${round2(Number(record.amount) - expectedNet)})`,
             expectedAmount: expectedNet,
-            receivedAmount: recAmount,
-            delta: round2(recAmount - expectedNet),
+            receivedAmount: Number(record.amount),
+            delta: round2(Number(record.amount) - expectedNet),
             bankReference: bankRef,
             record,
           });

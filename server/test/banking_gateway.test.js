@@ -49,7 +49,9 @@ test('CIB Generator: 200-byte fixed-width format and checksums', () => {
     period: '2026-09',
   });
 
-  const lines = batch.split('\r\n');
+  assert.ok(batch.endsWith('\r\n'), 'CIB batch must terminate with CRLF');
+  const cleanBatch = batch.endsWith('\r\n') ? batch.slice(0, -2) : batch;
+  const lines = cleanBatch.split('\r\n');
   assert.strictEqual(lines.length, 4, 'Must have Header, 2 Details, Trailer');
 
   // Verify each line is exactly 200 bytes
@@ -89,7 +91,9 @@ test('NBE Generator: 200-byte fixed-width format and Al Ahly Net CSV with UTF-8 
     period: '2026-09',
   });
 
-  const fixedLines = fixed.split('\r\n');
+  assert.ok(fixed.endsWith('\r\n'), 'NBE batch must terminate with CRLF');
+  const cleanFixedNbe = fixed.endsWith('\r\n') ? fixed.slice(0, -2) : fixed;
+  const fixedLines = cleanFixedNbe.split('\r\n');
   assert.strictEqual(fixedLines.length, 4);
   for (const line of fixedLines) {
     assert.strictEqual(line.length, 200, 'NBE line must be exactly 200 characters');
@@ -114,7 +118,9 @@ test('QNB ALAHLI Generator: 200-byte fixed-width and CSV format', () => {
     batchReference: 'QNB_SAL_20260921_001',
   });
 
-  const fixedLines = fixed.split('\r\n');
+  assert.ok(fixed.endsWith('\r\n'), 'QNB batch must terminate with CRLF');
+  const cleanFixedQnb = fixed.endsWith('\r\n') ? fixed.slice(0, -2) : fixed;
+  const fixedLines = cleanFixedQnb.split('\r\n');
   assert.strictEqual(fixedLines.length, 4);
   for (const line of fixedLines) {
     assert.strictEqual(line.length, 200, 'QNB line must be exactly 200 characters');
@@ -137,7 +143,9 @@ test('Banque Misr Generator: 200-byte fixed-width and CSV format', () => {
     batchReference: 'BM-BATCH-2026-09-001',
   });
 
-  const fixedLines = fixed.split('\r\n');
+  assert.ok(fixed.endsWith('\r\n'), 'Banque Misr batch must terminate with CRLF');
+  const cleanFixedBm = fixed.endsWith('\r\n') ? fixed.slice(0, -2) : fixed;
+  const fixedLines = cleanFixedBm.split('\r\n');
   assert.strictEqual(fixedLines.length, 4);
   for (const line of fixedLines) {
     assert.strictEqual(line.length, 200, 'Banque Misr line must be exactly 200 characters');

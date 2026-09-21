@@ -135,8 +135,13 @@ function forecastOvertimeDrift({
     return (pTenant === tenantId || tenantId === 'all') && (!p.period || p.period.startsWith(month));
   });
 
+  const employees = (database.employees || []).filter((e) => {
+    const eTenant = e.tenantId || 'elaraby';
+    return eTenant === tenantId || tenantId === 'all';
+  });
+
   const baseHourlyRate = 50; // default 50 EGP/hr
-  const totalEmployees = Math.max(1, payrolls.length);
+  const totalEmployees = Math.max(employees.length, payrolls.length, 1);
 
   // Analyze attendance overtime punches for this month
   const attendances = (database.attendanceRecords || []).filter((r) => {
@@ -155,9 +160,9 @@ function forecastOvertimeDrift({
   const monthProgressFactor = Math.min(1.0, currentDay / totalDaysInMonth);
 
   // Incorporate baseline workforce overtime estimation if records are sparse
-  const effectiveOvertimeHours = loggedOvertimeHours > 0
+  const effectiveOvertimeHours = loggedOvertimeHours >= totalEmployees
     ? loggedOvertimeHours
-    : Math.max(1, Math.round(totalEmployees * 3.0 * monthProgressFactor * 10) / 10);
+    : Math.max(loggedOvertimeHours, Math.round(totalEmployees * 3.0 * monthProgressFactor * 10) / 10);
 
   const projectedOvertimeHours = monthProgressFactor > 0
     ? Math.round((effectiveOvertimeHours / monthProgressFactor) * 10) / 10

@@ -86,18 +86,19 @@ class HikvisionIsapiParser {
           return { isValid: false, error: 'MALFORMED_JSON' };
         }
       } else if (cType.includes('xml') || trimmed.startsWith('<')) {
-        // XML check: verify root tag closure
-        const rootMatch = trimmed.match(/^<([A-Za-z0-9_]+)[\s>]/);
+        // Strip XML declaration if present
+        const xmlContent = trimmed.replace(/<\?xml[^>]*\?>/i, '').trim();
+        const rootMatch = xmlContent.match(/^<([A-Za-z0-9_]+)[\s>]/);
         if (!rootMatch) {
           return { isValid: false, error: 'MALFORMED_XML' };
         }
         const rootTag = rootMatch[1];
-        if (!trimmed.includes(`</${rootTag}>`) && !trimmed.endsWith('/>')) {
+        if (!xmlContent.includes(`</${rootTag}>`) && !xmlContent.endsWith('/>')) {
           return { isValid: false, error: 'MALFORMED_XML' };
         }
 
         const getTag = (tag) => {
-          const match = trimmed.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'));
+          const match = xmlContent.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'));
           return match ? match[1].trim() : null;
         };
 

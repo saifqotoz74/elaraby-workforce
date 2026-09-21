@@ -270,7 +270,7 @@ test('CHALLENGER-M1-2: Empirical Adversarial Stress Test Suite', async (suite) =
     console.log('  [CANONICAL-PROBE] Malformed string "2abc_tampered" accepted:', malformedLineCountResult.valid);
     console.log('  [CANONICAL-PROBE] Uppercase bankCode "CIB" accepted:', uppercaseBankResult.valid);
 
-    // Document findings
+    assert.strictEqual(malformedLineCountResult.valid, false, 'Malformed string "2abc_tampered" must be rejected');
     assert.ok(true, 'Canonicalization probe completed');
   });
 
@@ -428,10 +428,8 @@ test('CHALLENGER-M1-2: Empirical Adversarial Stress Test Suite', async (suite) =
 
     const is011Flagged = res011Pos.counts.discrepancyCount === 1;
     console.log(`  [EPSILON-PROBE] 0.011 delta: matched=${res011Pos.counts.matchedCount}, discrepancy=${res011Pos.counts.discrepancyCount}`);
-    if (!is011Flagged) {
-      console.warn('  ⚠️ [CRITICAL DEFECT DETECTED] BankingReconciliationEngine prematurely rounded 1000.011 to 1000.01!');
-      console.warn('  ⚠️ Delta 0.011 (1.1 piastres) was accepted as a match instead of being flagged as discrepancy.');
-    }
+    assert.strictEqual(res011Pos.counts.matchedCount, 0, 'Delta +0.011 must NOT match');
+    assert.strictEqual(res011Pos.counts.discrepancyCount, 1, 'Delta +0.011 must be flagged as discrepancy');
 
     // 6. Empirical Probe: Negative 0.011 delta (999.989 vs 1000.00 -> delta 0.011 EGP > 0.01 EGP)
     const res011Neg = BankingReconciliationEngine.categorize({
@@ -443,6 +441,8 @@ test('CHALLENGER-M1-2: Empirical Adversarial Stress Test Suite', async (suite) =
       payrollRecords: mockPayroll,
     });
     console.log(`  [EPSILON-PROBE] -0.011 delta: matched=${res011Neg.counts.matchedCount}, discrepancy=${res011Neg.counts.discrepancyCount}`);
+    assert.strictEqual(res011Neg.counts.matchedCount, 0, 'Delta -0.011 must NOT match');
+    assert.strictEqual(res011Neg.counts.discrepancyCount, 1, 'Delta -0.011 must be flagged as discrepancy');
   });
 
   // --------------------------------------------------------------------------

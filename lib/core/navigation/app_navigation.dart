@@ -33,6 +33,7 @@ import '../../features/services/presentation/screens/company_transportation_scre
 import '../../features/services/presentation/screens/driver_console_screen.dart';
 import '../../features/services/presentation/screens/vacation_balance_screen.dart';
 import '../../features/services/presentation/screens/your_requests_screen.dart';
+import '../../features/services/presentation/screens/supervisor_analytics_screen.dart';
 
 /// Centralized navigation service eliminating scattered navigation logic across the app.
 class AppNavigation {
@@ -212,6 +213,11 @@ class AppNavigation {
   static Future<void> toYourRequests(BuildContext context) async {
     await _push(context, AppRoutes.yourRequests,
         fallbackBuilder: () => const YourRequestsScreen());
+  }
+
+  static Future<void> toSupervisorAnalytics(BuildContext context) async {
+    await _push(context, AppRoutes.supervisorAnalytics,
+        fallbackBuilder: () => const SupervisorAnalyticsScreen());
   }
 
   // ---- Home Feature ----

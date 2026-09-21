@@ -91,7 +91,7 @@ class NbeBatchGenerator extends BaseBankBatchGenerator {
       'NBE Trailer (99)'
     );
 
-    return [header, ...details, trailer].join('\r\n');
+    return [header, ...details, trailer].join('\r\n') + '\r\n';
   }
 
   /**

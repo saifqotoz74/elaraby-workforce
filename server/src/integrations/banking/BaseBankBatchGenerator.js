@@ -29,11 +29,33 @@ class BaseBankBatchGenerator {
    * @returns {string}
    */
   padString(value, length, padChar = ' ') {
-    const str = (value === null || value === undefined) ? '' : String(value);
-    if (str.length > length) {
-      return str.slice(0, length);
+    const raw = (value === null || value === undefined) ? '' : String(value);
+    let str = raw;
+    let byteLen = Buffer.byteLength(str, 'utf8');
+
+    if (byteLen > length) {
+      let truncated = '';
+      let currentBytes = 0;
+      for (const ch of str) {
+        const chBytes = Buffer.byteLength(ch, 'utf8');
+        if (currentBytes + chBytes > length) {
+          break;
+        }
+        truncated += ch;
+        currentBytes += chBytes;
+      }
+      str = truncated;
+      byteLen = currentBytes;
     }
-    return str.padEnd(length, padChar);
+
+    const padByteLen = Buffer.byteLength(padChar, 'utf8') || 1;
+    const paddingNeeded = Math.max(0, Math.floor((length - byteLen) / padByteLen));
+    let result = str + padChar.repeat(paddingNeeded);
+    const remaining = length - Buffer.byteLength(result, 'utf8');
+    if (remaining > 0) {
+      result += ' '.repeat(remaining);
+    }
+    return result;
   }
 
   /**
@@ -122,9 +144,10 @@ class BaseBankBatchGenerator {
    * @returns {string}
    */
   assertRecordLength(record, expectedLength = 200, recordType = 'Record') {
-    if (record.length !== expectedLength) {
+    const byteLen = Buffer.byteLength(record, 'utf8');
+    if (byteLen !== expectedLength) {
       throw new Error(
-        `[${this.bankCode.toUpperCase()}] ${recordType} length violation: expected exactly ${expectedLength} chars, got ${record.length} (record: "${record.slice(0, 30)}...")`
+        `[${this.bankCode.toUpperCase()}] ${recordType} length violation: expected exactly ${expectedLength} bytes, got ${byteLen} (record: "${record.slice(0, 30)}...")`
       );
     }
     return record;
