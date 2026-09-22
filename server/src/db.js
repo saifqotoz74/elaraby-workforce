@@ -57,6 +57,7 @@ const EMPTY = () => ({
   hsePermits: [],
   hseIncidents: [],
   hsePpeInspections: [],
+  subscriptions: [],   // Platform licensing: per-tenant subscription records
   appVersionConfig: {
     minVersion: '1.0.0',
     latestVersion: '1.0.0',

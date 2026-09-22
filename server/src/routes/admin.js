@@ -33,10 +33,15 @@ const analyticsAggregationService = require('../services/analyticsAggregationSer
 const rosterSolverService = require('../services/rosterSolverService');
 const hseService = require('../services/hseService');
 const incentivesDeductionsService = require('../services/incentivesDeductionsService');
+const subscriptionService = require('../services/subscriptionService');
+const { subscriptionGuard } = require('../middleware/subscriptionGuard');
 const { BUILTIN_TENANTS } = require('./tenant');
 const { getCurrentTenantId } = require('../tenantContext');
 
 const router = express.Router();
+
+// Start daily subscription expiry alert scheduler (non-blocking)
+subscriptionService.startAlertScheduler();
 
 function ensureSeedAdmin(database) {
   database.adminUsers = database.adminUsers || [];
@@ -503,8 +508,34 @@ router.get('/employees/:id', requirePermission(PERMISSIONS.EMPLOYEE_READ), (req,
   }
 });
 
-router.post('/employees', requirePermission(PERMISSIONS.EMPLOYEE_CREATE), (req, res, next) => {
+router.post('/employees', requirePermission(PERMISSIONS.EMPLOYEE_CREATE), subscriptionGuard, (req, res, next) => {
   try {
+    // ── Seat Limit Enforcement ────────────────────────────────────────────────
+    // Resolve the current tenant's seat cap from BUILTIN_TENANTS or db tenants.
+    const tenantId = req.admin?.tenantId || null;
+    if (tenantId) {
+      const d = db();
+      const allTenants = [...Object.values(BUILTIN_TENANTS), ...(d.tenants || [])];
+      const tenant = allTenants.find((t) => t.id === tenantId || t.slug === tenantId);
+      const maxEmployees = tenant?.maxEmployees || null;
+
+      if (maxEmployees && maxEmployees > 0) {
+        const activeCount = (d.employees || []).filter(
+          (e) => e.tenantId === tenantId && e.status !== 'terminated' && e.active !== false
+        ).length;
+
+        if (activeCount >= maxEmployees) {
+          return res.status(403).json({
+            error: 'seat_limit_exceeded',
+            message: `Your organization's license allows a maximum of ${maxEmployees} active employees. Current count: ${activeCount}. Please contact your platform administrator to upgrade your subscription.`,
+            currentCount: activeCount,
+            maxAllowed: maxEmployees,
+          });
+        }
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     const employee = employeeService.createEmployee(req.admin, req.body, {
       ip: req.ip,
       userAgent: req.headers['user-agent'],
@@ -2350,6 +2381,37 @@ router.post('/incentives-deductions/post-to-payroll', requireAdmin, requirePermi
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// Subscription Status — for Dashboard Warning Banner
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/admin/subscription/status
+ * Returns the subscription status for the current tenant.
+ * Used by the Dashboard banner to warn about expiring subscriptions.
+ */
+router.get('/subscription/status', requireAdmin, (req, res) => {
+  try {
+    const tenantId = req.admin?.tenantId || null;
+    if (!tenantId) {
+      return res.json({
+        status: 'none',
+        daysUntilExpiry: null,
+        expiresAt: null,
+        plan: null,
+        seatCount: null,
+        gracePeriodEndsAt: null,
+        message: 'No subscription record (open/free tier)',
+      });
+    }
+
+    const status = subscriptionService.getSubscriptionStatus(tenantId);
+    return res.json(status);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

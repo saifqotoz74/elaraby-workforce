@@ -53,7 +53,7 @@ export class TenantsView {
       </div>
 
       <!-- Overview Stats Cards -->
-      <div class="dashboard-metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+      <div class="dashboard-metrics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
         <div class="card" style="padding: 16px 20px; border-left: 4px solid var(--primary);">
           <div style="font-size: 12.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Total Companies</div>
           <div id="stat-total-tenants" style="font-size: 26px; font-weight: 800; color: var(--navy-900); margin-top: 4px;">--</div>
@@ -65,6 +65,10 @@ export class TenantsView {
         <div class="card" style="padding: 16px 20px; border-left: 4px solid #6366F1;">
           <div style="font-size: 12.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Managed Workforce</div>
           <div id="stat-total-workers" style="font-size: 26px; font-weight: 800; color: #6366F1; margin-top: 4px;">--</div>
+        </div>
+        <div class="card" style="padding: 16px 20px; border-left: 4px solid #F59E0B;">
+          <div style="font-size: 12.5px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Expiring (30 Days)</div>
+          <div id="stat-expiring-tenants" style="font-size: 26px; font-weight: 800; color: #F59E0B; margin-top: 4px;">--</div>
         </div>
       </div>
 
@@ -903,18 +907,32 @@ export class TenantsView {
     }
   }
 
-  updateStats() {
+  async updateStats() {
+    const totalEl = this.container.querySelector('#stat-total-tenants');
+    const activeEl = this.container.querySelector('#stat-active-tenants');
+    const workersEl = this.container.querySelector('#stat-total-workers');
+    const expiringEl = this.container.querySelector('#stat-expiring-tenants');
+
+    try {
+      const analytics = await superAdminApi.getAnalytics();
+      if (analytics) {
+        if (totalEl) totalEl.textContent = analytics.totalTenants ?? this.tenants.length;
+        if (activeEl) activeEl.textContent = analytics.activeTenants ?? this.tenants.length;
+        if (workersEl) workersEl.textContent = (analytics.totalActiveEmployees ?? 0).toLocaleString();
+        if (expiringEl) expiringEl.textContent = analytics.expiringWithin30Days?.length ?? 0;
+        return;
+      }
+    } catch (_) {}
+
+    // Fallback to local computation
     const total = this.tenants.length;
     const active = this.tenants.filter((t) => t.status !== 'inactive').length;
     const workers = this.tenants.reduce((acc, t) => acc + (t.employeeCount || 0), 0);
 
-    const totalEl = this.container.querySelector('#stat-total-tenants');
-    const activeEl = this.container.querySelector('#stat-active-tenants');
-    const workersEl = this.container.querySelector('#stat-total-workers');
-
     if (totalEl) totalEl.textContent = total;
     if (activeEl) activeEl.textContent = active;
     if (workersEl) workersEl.textContent = workers.toLocaleString();
+    if (expiringEl) expiringEl.textContent = '0';
   }
 
   renderTable() {

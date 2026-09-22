@@ -193,10 +193,10 @@ class App {
       this.renderView(SettingsView, 'Administration & Settings', 'settings');
     });
 
-    // 11. Platform Super-Admin Tenants Management
+    // 11. Platform Super-Admin Tenants Management (requires tenant.admin permission — superadmin only)
     this.router.addRoute('/tenants', () => {
       this.renderView(TenantsView, 'Tenant Organizations & White-Label Management', 'tenants');
-    });
+    }, 'tenant.admin');
 
     // 12. Transport & Fleet Logistics
     this.router.addRoute('/transport', () => {

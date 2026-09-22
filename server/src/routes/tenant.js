@@ -7,6 +7,7 @@ const { requireAdmin, requireRole } = require('../auth');
 const { ROLES } = require('../rbac');
 const realtimeService = require('../services/realtimeService');
 const auditService = require('../services/auditService');
+const subscriptionService = require('../services/subscriptionService');
 
 // Standard Institutional Presets for fast out-of-the-box white-label support
 const BUILTIN_TENANTS = {
@@ -774,6 +775,169 @@ router.delete(['/super-admin/tenants/:id', '/admin/tenants/:id'], requireAdmin, 
     message: 'tenant_deactivated_successfully',
     tenantId: targetId,
   });
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// Subscription Management Endpoints (Super-Admin only)
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/super-admin/subscriptions
+ * List all subscription records across all tenants.
+ */
+router.get('/super-admin/subscriptions', requireAdmin, requireRole(ROLES.SUPER_ADMIN), (req, res) => {
+  try {
+    const all = subscriptionService.listAllSubscriptions();
+    return res.json({ subscriptions: all, total: all.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/super-admin/subscriptions
+ * Create a new subscription for a tenant.
+ * Body: { tenantId, plan, seatCount, durationDays, contactEmail? }
+ */
+router.post('/super-admin/subscriptions', requireAdmin, requireRole(ROLES.SUPER_ADMIN), (req, res) => {
+  try {
+    const { tenantId, plan = 'enterprise', seatCount = 500, durationDays = 365, contactEmail } = req.body;
+    if (!tenantId) {
+      return res.status(400).json({ error: 'missing_tenant_id', message: 'tenantId is required' });
+    }
+    const sub = subscriptionService.createSubscription(tenantId, { plan, seatCount, durationDays, contactEmail });
+    return res.status(201).json({ success: true, subscription: sub });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/super-admin/subscriptions/:tenantId/status
+ * Get enriched subscription status for a specific tenant.
+ */
+router.get('/super-admin/subscriptions/:tenantId/status', requireAdmin, requireRole(ROLES.SUPER_ADMIN), (req, res) => {
+  try {
+    const status = subscriptionService.getSubscriptionStatus(req.params.tenantId);
+    return res.json(status);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * PUT /api/super-admin/subscriptions/:tenantId/renew
+ * Renew (extend) the subscription for a tenant.
+ * Body: { durationDays? } — defaults to 365 days
+ */
+router.put('/super-admin/subscriptions/:tenantId/renew', requireAdmin, requireRole(ROLES.SUPER_ADMIN), (req, res) => {
+  try {
+    const { durationDays = 365 } = req.body || {};
+    const sub = subscriptionService.renewSubscription(req.params.tenantId, parseInt(durationDays, 10) || 365);
+    return res.json({ success: true, message: 'subscription_renewed', subscription: sub });
+  } catch (err) {
+    if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * DELETE /api/super-admin/subscriptions/:tenantId
+ * Cancel the subscription for a tenant.
+ * Body: { reason? }
+ */
+router.delete('/super-admin/subscriptions/:tenantId', requireAdmin, requireRole(ROLES.SUPER_ADMIN), (req, res) => {
+  try {
+    const { reason = '' } = req.body || {};
+    const sub = subscriptionService.cancelSubscription(req.params.tenantId, reason);
+    return res.json({ success: true, message: 'subscription_cancelled', subscription: sub });
+  } catch (err) {
+    if (err.statusCode) return res.status(err.statusCode).json({ error: err.message });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ────────────────────────────────────────────────────────────────────────────
+// Global Platform Analytics (Super-Admin only)
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/super-admin/analytics
+ * Returns aggregated platform-wide statistics across all tenants.
+ * Used by the TenantsView stats cards and the platform owner dashboard.
+ */
+router.get('/super-admin/analytics', requireAdmin, requireRole(ROLES.SUPER_ADMIN), (req, res) => {
+  try {
+    const d = db();
+    const allTenants = [...Object.values(BUILTIN_TENANTS), ...(d.tenants || [])];
+    const allEmployees = d.employees || [];
+    const allRequests = d.requests || [];
+    const allSubscriptions = subscriptionService.getAllSubscriptionStatuses();
+
+    const now = Date.now();
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+
+    // Tenant counts
+    const activeTenants = allTenants.filter((t) => t.status !== 'inactive' && t.status !== 'suspended').length;
+    const frozenTenants = allSubscriptions.filter((s) => s.status === 'frozen').length;
+
+    // Employee counts by tenant
+    const employeesByTenant = {};
+    for (const e of allEmployees) {
+      const tid = e.tenantId || 'elaraby';
+      employeesByTenant[tid] = (employeesByTenant[tid] || 0) + (e.active !== false ? 1 : 0);
+    }
+    const totalActiveEmployees = Object.values(employeesByTenant).reduce((a, b) => a + b, 0);
+
+    // Requests in last 30 days
+    const totalRequests30d = allRequests.filter((r) => Number(r.createdAt) > thirtyDaysAgo).length;
+
+    // Subscriptions by plan
+    const subscriptionsByPlan = {};
+    for (const s of allSubscriptions) {
+      if (s.plan) {
+        subscriptionsByPlan[s.plan] = (subscriptionsByPlan[s.plan] || 0) + 1;
+      }
+    }
+
+    // Expiring within 30 days
+    const expiringWithin30Days = allSubscriptions
+      .filter((s) => s.daysUntilExpiry !== null && s.daysUntilExpiry > 0 && s.daysUntilExpiry <= 30)
+      .map((s) => {
+        const tenant = allTenants.find((t) => t.id === s.tenantId || t.slug === s.tenantId);
+        return {
+          tenantId: s.tenantId,
+          name: tenant?.name || s.tenantId,
+          plan: s.plan,
+          daysUntilExpiry: s.daysUntilExpiry,
+          expiresAt: s.expiresAt,
+        };
+      })
+      .sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
+
+    // Top tenants by headcount
+    const topTenantsByHeadcount = Object.entries(employeesByTenant)
+      .map(([tenantId, count]) => {
+        const tenant = allTenants.find((t) => t.id === tenantId || t.slug === tenantId);
+        return { tenantId, name: tenant?.name || tenantId, activeEmployees: count };
+      })
+      .sort((a, b) => b.activeEmployees - a.activeEmployees)
+      .slice(0, 5);
+
+    return res.json({
+      totalTenants: allTenants.length,
+      activeTenants,
+      frozenTenants,
+      totalActiveEmployees,
+      totalRequests30d,
+      subscriptionsByPlan,
+      expiringWithin30Days,
+      topTenantsByHeadcount,
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.BUILTIN_TENANTS = BUILTIN_TENANTS;

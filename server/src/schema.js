@@ -288,6 +288,27 @@ function validateConstraints(state) {
     }
   }
 
+  // 14. Subscriptions Constraints (Platform Licensing)
+  const subscriptions = state.subscriptions || [];
+  const subscriptionIds = new Set();
+  const VALID_SUB_STATUSES = ['active', 'warning', 'frozen', 'cancelled'];
+  for (const sub of subscriptions) {
+    if (!sub.id) {
+      throw new ConstraintViolationError('Subscription record is missing mandatory "id"');
+    }
+    if (subscriptionIds.has(sub.id)) {
+      throw new ConstraintViolationError(`Duplicate subscription primary key: ${sub.id}`);
+    }
+    subscriptionIds.add(sub.id);
+
+    if (!sub.tenantId) {
+      throw new ConstraintViolationError(`Subscription ${sub.id} is missing mandatory "tenantId"`);
+    }
+    if (sub.status && !VALID_SUB_STATUSES.includes(sub.status)) {
+      throw new ConstraintViolationError(`Check constraint violation: Invalid subscription status "${sub.status}" on ${sub.id}`);
+    }
+  }
+
   return true;
 }
 

@@ -45,6 +45,10 @@ const PERMISSIONS = {
   // Health, Safety & Environment (HSE)
   HSE_READ: 'hse.read',
   HSE_APPROVE: 'hse.approve',
+
+  // Platform Super-Admin: Tenant & Licensing Management
+  TENANT_ADMIN: 'tenant.admin',
+  SUBSCRIPTION_MANAGE: 'subscription.manage',
 };
 
 const ROLE_PERMISSIONS = {

@@ -90,6 +90,15 @@ export const superAdminApi = {
   updateTenant: (id, data) => api.put(`/api/super-admin/tenants/${id}`, data),
   updateLogo: (id, logoUrl) => api.post(`/api/super-admin/tenants/${id}/logo`, { logoUrl }),
   deactivateTenant: (id) => api.delete(`/api/super-admin/tenants/${id}`),
+  getAnalytics: () => api.get('/api/super-admin/analytics'),
+  listSubscriptions: () => api.get('/api/super-admin/subscriptions'),
+  createSubscription: (data) => api.post('/api/super-admin/subscriptions', data),
+  renewSubscription: (tenantId, data) => api.put(`/api/super-admin/subscriptions/${tenantId}/renew`, data),
+  cancelSubscription: (tenantId, data) => api.delete(`/api/super-admin/subscriptions/${tenantId}`, data),
+};
+
+export const subscriptionApi = {
+  getStatus: () => api.get('/api/admin/subscription/status'),
 };
 
 export const transportApi = {

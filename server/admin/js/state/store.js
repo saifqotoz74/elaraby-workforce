@@ -7,6 +7,7 @@ const ROLE_PERMISSIONS = {
     'employee.read', 'employee.create', 'employee.update', 'employee.toggle',
     'leave.read', 'leave.approve', 'leave.reject', 'announcement.read',
     'stats.read', 'concerns.read', 'upload.image', 'hse.read', 'hse.approve',
+    'payroll.read',
   ],
   payroll_officer: [
     'employee.read', 'payroll.read', 'payroll.update', 'announcement.read', 'stats.read',
@@ -21,6 +22,8 @@ const ROLE_PERMISSIONS = {
   auditor: [
     'audit.read', 'stats.read', 'employee.read', 'leave.read', 'announcement.read',
   ],
+  // NOTE: 'tenant.admin' and 'subscription.manage' are intentionally NOT listed for any
+  // non-superadmin role. Only superadmin (via wildcard '*') has these permissions.
 };
 
 class Store {

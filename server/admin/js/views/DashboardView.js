@@ -1,6 +1,6 @@
 // Dashboard View Component — Executive Workforce Analytics & Control Center
 
-import { statsApi, metricsApi } from '../api/services.js';
+import { statsApi, metricsApi, subscriptionApi } from '../api/services.js';
 import { store } from '../state/store.js';
 import { createStatusBadge } from '../components/StatusBadge.js';
 import { toast } from '../components/Toast.js';
@@ -41,7 +41,11 @@ export class DashboardView {
 
   render() {
     this.element = document.createElement('div');
-    this.element.className = 'animate-fade-in';    this.element.innerHTML = `
+    this.element.className = 'animate-fade-in';
+    this.element.innerHTML = `
+      <!-- Subscription Lifecycle Alert Banner -->
+      <div id="subscription-alert-container"></div>
+
       <!-- Top Title & Action Controls -->
       <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; flex-wrap: wrap; gap: 16px;">
         <div>
@@ -587,8 +591,61 @@ export class DashboardView {
       } catch (_) {
         // Fallback for non-superadmin roles without audit permissions
       }
+
+      // Check subscription expiry warning / freeze
+      try {
+        const sub = await subscriptionApi.getStatus();
+        this.renderSubscriptionBanner(sub);
+      } catch (_) {
+        // Fail safely if subscription check is unavailable
+      }
     } catch (err) {
       console.error('Failed to load stats:', err);
+    }
+  }
+
+  renderSubscriptionBanner(sub) {
+    if (!this.element) return;
+    const container = this.element.querySelector('#subscription-alert-container');
+    if (!container || !sub) return;
+
+    if (sub.status === 'warning') {
+      const days = sub.daysUntilExpiry ?? 0;
+      container.innerHTML = `
+        <div style="background: #FFFBEB; border: 1px solid #FCD34D; border-left: 5px solid #F59E0B; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 22px;">⚠️</span>
+            <div>
+              <div style="font-weight: 700; color: #92400E; font-size: 14.5px;">تنبيه انتهاء الاشتراك — باقي ${days} يوم</div>
+              <div style="color: #B45309; font-size: 13px; margin-top: 2px;">
+                ينتهي اشتراك باقة (${sub.plan || 'Enterprise'}) في <b>${sub.expiresAt ? new Date(sub.expiresAt).toLocaleDateString('ar-EG') : 'قريباً'}</b>. يرجى التواصل مع إدارة المنصة للتجديد قبل تجميد العمليات.
+              </div>
+            </div>
+          </div>
+          <span class="badge" style="background: #FEF3C7; color: #92400E; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 6px;">
+            ${days} أيام متبقية
+          </span>
+        </div>
+      `;
+    } else if (sub.status === 'frozen') {
+      container.innerHTML = `
+        <div style="background: #FEF2F2; border: 1px solid #FCA5A5; border-left: 5px solid #EF4444; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 22px;">🔒</span>
+            <div>
+              <div style="font-weight: 700; color: #991B1B; font-size: 14.5px;">الاشتراك مجمد (وضع القراءة فقط — Read-Only Mode)</div>
+              <div style="color: #B91C1C; font-size: 13px; margin-top: 2px;">
+                انتهى اشتراك شركتك وتجاوز فترة السماح. تم قفل العمليات التحويلية (إضافة/تعديل). يرجى تجديد الاشتراك لاستعادة الصلاحيات.
+              </div>
+            </div>
+          </div>
+          <span class="badge" style="background: #FEE2E2; color: #991B1B; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 6px;">
+            مجمد
+          </span>
+        </div>
+      `;
+    } else {
+      container.innerHTML = '';
     }
   }
 
