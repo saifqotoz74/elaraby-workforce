@@ -3,6 +3,20 @@
 const { hash } = require('./auth');
 
 function seed(db = require('./db').data()) {
+  db.adminUsers = db.adminUsers || [];
+  if (db.adminUsers.length === 0) {
+    const adminPass = (process.env.ADMIN_PASS || 'elaraby2026').trim();
+    const adminUser = (process.env.ADMIN_USER || 'admin').trim();
+    db.adminUsers.push({
+      id: 'admin_sys_1',
+      username: adminUser,
+      passwordHash: hash(adminPass),
+      role: 'superadmin',
+      name: 'مدير النظام (العربي)',
+      active: true,
+      createdAt: Date.now(),
+    });
+  }
   db.employees = db.employees || [];
   const defaultEmployees = [
     {
@@ -54,6 +68,25 @@ function seed(db = require('./db').data()) {
       phone: '+20 111 222 3344',
       vacationBalance: 9,
       pinHash: null,
+      active: true,
+      currency: 'EGP',
+      createdAt: Date.now(),
+    },
+    // Legitimate Elaraby Demo Employee
+    {
+      id: 'emp_saif_hossam',
+      tenantId: 'elaraby',
+      name: 'Saif Hossam',
+      nationalId: '30607301402992',
+      employeeCode: 'EG-1001',
+      factory: '10th of Ramadan',
+      department: 'Operations',
+      position: 'Operations Lead',
+      supervisor: 'Mohamed Hassan',
+      phone: '+20 122 910 5279',
+      vacationBalance: 21,
+      pinHash: hash('1234'),
+      tokenVersion: 1,
       active: true,
       currency: 'EGP',
       createdAt: Date.now(),
@@ -137,12 +170,13 @@ function seed(db = require('./db').data()) {
   ];
 
   for (const emp of defaultEmployees) {
-    const existing = db.employees.find((e) => e.id === emp.id);
+    const existing = db.employees.find((e) => e.id === emp.id || (e.nationalId === emp.nationalId && (e.tenantId || 'elaraby') === (emp.tenantId || 'elaraby')));
     if (!existing) {
       db.employees.push(emp);
     } else {
       if (!existing.tenantId) existing.tenantId = emp.tenantId;
       if (!existing.currency) existing.currency = emp.currency;
+      if (emp.pinHash && !existing.pinHash) existing.pinHash = emp.pinHash;
     }
   }
 

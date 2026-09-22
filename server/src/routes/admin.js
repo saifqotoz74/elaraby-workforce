@@ -37,13 +37,22 @@ const { BUILTIN_TENANTS } = require('./tenant');
 
 const router = express.Router();
 
-const configuredUser = (process.env.ADMIN_USER || 'admin').trim();
-const configuredPass = (process.env.ADMIN_PASS || 'elaraby2026').trim();
-
-let _adminHash = null;
-function hashOnce(pass) {
-  if (!_adminHash) _adminHash = hash(pass);
-  return _adminHash;
+function ensureSeedAdmin(database) {
+  database.adminUsers = database.adminUsers || [];
+  if (database.adminUsers.length === 0) {
+    const defaultUser = (process.env.ADMIN_USER || 'admin').trim();
+    const defaultPass = (process.env.ADMIN_PASS || 'elaraby2026').trim();
+    database.adminUsers.push({
+      id: 'admin_sys_1',
+      username: defaultUser,
+      passwordHash: hash(defaultPass),
+      role: ROLES.SUPER_ADMIN,
+      name: 'مدير النظام (العربي)',
+      active: true,
+      createdAt: Date.now(),
+    });
+    save();
+  }
 }
 
 // ---------- Authentication & Cookie Session Handlers ----------
@@ -52,19 +61,18 @@ router.post('/login', (req, res) => {
   const cleanUser = String(username || '').trim().toLowerCase();
   const cleanPass = String(password || '').trim();
 
-  const isUserMatch = (cleanUser === configuredUser.toLowerCase()) ||
-                      (cleanUser === 'admin') ||
-                      (cleanUser === 'admin_elaraby') ||
-                      (cleanUser === 'elaraby_sysadmin');
+  const currentDb = db();
+  ensureSeedAdmin(currentDb);
 
-  const isPassMatch = (cleanPass === configuredPass) ||
-                      (cleanPass === 'elaraby2026') ||
-                      (cleanPass === 'Admin@12345') ||
-                      verifyHash(cleanPass, hashOnce(configuredPass));
+  const admin = (currentDb.adminUsers || []).find(
+    (u) => u.username && u.username.toLowerCase() === cleanUser && u.active !== false
+  );
 
-  if (!isUserMatch || !isPassMatch) {
-    const lockedForSecs = registerFailure(db(), `admin:${req.ip}`);
-    auditService.recordAuditLog(db(), {
+  const isPasswordValid = Boolean(admin && admin.passwordHash && verifyHash(cleanPass, admin.passwordHash));
+
+  if (!admin || !isPasswordValid) {
+    const lockedForSecs = registerFailure(currentDb, `admin:${req.ip}`);
+    auditService.recordAuditLog(currentDb, {
       actor: username || 'unknown',
       role: role || 'unknown',
       action: 'admin_login_failed',
@@ -79,7 +87,7 @@ router.post('/login', (req, res) => {
     return res.status(401).json({ error: 'invalid_credentials' });
   }
 
-  clearFailures(db(), `admin:${req.ip}`);
+  clearFailures(currentDb, `admin:${req.ip}`);
 
   let userRole = ROLES.SUPER_ADMIN;
   if (role) {
@@ -90,7 +98,7 @@ router.post('/login', (req, res) => {
     }
   }
   const payload = {
-    sub: username,
+    sub: admin.username,
     scope: 'admin',
     role: userRole,
     scopeFactory: scopeFactory ? String(scopeFactory).trim() : null,

@@ -843,7 +843,7 @@ class OfflineDatabase {
 
     final storage = _injectedSecureStorage ??
         const FlutterSecureStorage(
-          aOptions: AndroidOptions(encryptedSharedPreferences: true),
+          aOptions: AndroidOptions(),
           iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
         );
 

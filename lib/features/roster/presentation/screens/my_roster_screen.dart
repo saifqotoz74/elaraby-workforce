@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/network/api_client.dart';
 
 class MyRosterScreen extends StatefulWidget {
   const MyRosterScreen({super.key});
@@ -9,6 +10,37 @@ class MyRosterScreen extends StatefulWidget {
 
 class _MyRosterScreenState extends State<MyRosterScreen> {
   int weekOffset = 0;
+  Map<String, String> _serverRoster = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadServerRoster();
+  }
+
+  Future<void> _loadServerRoster() async {
+    try {
+      final body = await ApiClient.instance.get('/employee/roster');
+      if (body != null && mounted) {
+        final list = body['roster'] ?? body['data'] ?? [];
+        if (list is List && list.isNotEmpty) {
+          final Map<String, String> map = {};
+          for (final item in list) {
+            final d = item['date'];
+            final s = item['shift'];
+            if (d != null && s != null) {
+              map[d.toString().split('T')[0]] = s.toString();
+            }
+          }
+          if (mounted && map.isNotEmpty) {
+            setState(() {
+              _serverRoster = map;
+            });
+          }
+        }
+      }
+    } catch (_) {}
+  }
 
   List<Map<String, String>> _generateMockRoster() {
     final now = DateTime.now();
@@ -26,9 +58,10 @@ class _MyRosterScreenState extends State<MyRosterScreen> {
       final isFriday = date.weekday == DateTime.friday;
       final isSaturday = date.weekday == DateTime.saturday;
       
-      String shift = shifts[(i + weekOffset.abs()) % shifts.length];
-      if (isFriday) shift = 'OFF';
-      if (isSaturday && shift != 'LEAVE') shift = 'OFF';
+      final dateKey = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      String shift = _serverRoster[dateKey] ?? shifts[(i + weekOffset.abs()) % shifts.length];
+      if (isFriday && !_serverRoster.containsKey(dateKey)) shift = 'OFF';
+      if (isSaturday && shift != 'LEAVE' && !_serverRoster.containsKey(dateKey)) shift = 'OFF';
 
       roster.add({
         'dayName': weekDays[i],

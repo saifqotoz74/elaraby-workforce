@@ -139,18 +139,17 @@ function validateSecurity() {
   if (env === 'production') {
     const validation = validateProductionConfig();
     if (!validation.valid) {
-      if (!process.env.VERCEL) {
-        console.error('\n❌ ============================================================');
-        console.error('❌ PRODUCTION STARTUP BLOCKED: FATAL CONFIGURATION DEFICIENCIES');
-        console.error('❌ ============================================================');
-        validation.errors.forEach((err) => console.error(`  - ❌ ${err}`));
-        console.error('❌ ============================================================\n');
-        // If invoked directly in production server run, fail fast
-        if (process.env.FAIL_FAST_ON_CONFIG !== 'false' && !process.env.DISABLE_PROD_CONFIG_FAIL_FAST) {
-          process.exit(1);
-        }
-      } else {
-        console.warn('⚠️ [VERCEL WARNING] Running with fallback config in Vercel environment.');
+      console.error('\n❌ ============================================================');
+      console.error('❌ PRODUCTION STARTUP BLOCKED: FATAL CONFIGURATION DEFICIENCIES');
+      console.error('❌ ============================================================');
+      validation.errors.forEach((err) => console.error(`  - ❌ ${err}`));
+      console.error('❌ ============================================================\n');
+      if (process.env.VERCEL) {
+        console.error('❌ [DATA-001] Vercel serverless strictly requires DATABASE_URL to avoid ephemeral data loss.');
+      }
+      // If invoked directly in production server run, fail fast
+      if (process.env.FAIL_FAST_ON_CONFIG !== 'false' && !process.env.DISABLE_PROD_CONFIG_FAIL_FAST) {
+        process.exit(1);
       }
     }
   } else if (env === 'staging') {

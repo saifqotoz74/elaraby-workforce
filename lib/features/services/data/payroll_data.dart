@@ -1,7 +1,7 @@
-import 'dart:io' show Platform;
+import 'dart:io' show File;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter/services.dart' show rootBundle, ByteData;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -210,50 +210,82 @@ void clearPdfCache() {
 pw.Font? _cachedCairoRegular;
 pw.Font? _cachedCairoBold;
 
-/// Builds the enterprise stamped PDF statement and opens the system share sheet.
-Future<void> shareSalarySlipPdf(SalarySlipData data) async {
+/// Ensures Cairo Unicode fonts are loaded with comprehensive fallbacks:
+/// 1. Direct File read from assets/fonts/ (unit/widget test harness fallback)
+/// 2. Flutter rootBundle asset loading (production runtime)
+/// 3. PdfGoogleFonts network download with timeout fallback
+Future<void> _ensureCairoFontsLoaded() async {
+  if (_cachedCairoRegular != null && _cachedCairoBold != null) return;
+
+  // 1. Try local file system first with directory traversal fallback (for test harness & offline CI)
+  final candidateDirs = ['.', '..', '../..'];
+  for (final dir in candidateDirs) {
+    try {
+      final regFile = File('$dir/assets/fonts/Cairo-Regular.ttf');
+      final boldFile = File('$dir/assets/fonts/Cairo-Bold.ttf');
+      if (regFile.existsSync() && boldFile.existsSync()) {
+        final regBytes = regFile.readAsBytesSync();
+        final boldBytes = boldFile.readAsBytesSync();
+        _cachedCairoRegular = pw.Font.ttf(ByteData.view(regBytes.buffer));
+        _cachedCairoBold = pw.Font.ttf(ByteData.view(boldBytes.buffer));
+        return;
+      }
+    } catch (_) {}
+  }
+
+  // 2. Try loading from rootBundle (standard Flutter asset bundle in app runtime)
+  try {
+    final regData = await rootBundle.load('assets/fonts/Cairo-Regular.ttf');
+    final boldData = await rootBundle.load('assets/fonts/Cairo-Bold.ttf');
+    _cachedCairoRegular = pw.Font.ttf(regData);
+    _cachedCairoBold = pw.Font.ttf(boldData);
+    return;
+  } catch (_) {}
+
+  // 3. Fallback to Google Fonts network fetch if available
+  try {
+    _cachedCairoRegular = await PdfGoogleFonts.cairoRegular()
+        .timeout(const Duration(seconds: 4));
+    _cachedCairoBold = await PdfGoogleFonts.cairoBold()
+        .timeout(const Duration(seconds: 4));
+  } catch (e) {
+    debugPrint('Cairo font fallback error: $e');
+  }
+}
+
+/// Generates the raw PDF bytes for a salary slip statement, ensuring full Unicode
+/// and Arabic font support with Egyptian currency and fallback glyphs.
+Future<Uint8List> generateSalarySlipPdfBytes(SalarySlipData data) async {
   final profile = LocalStore.instance.profile;
-  final cacheKey = '${profile.employeeCode}_${data.period}_${data.netPay}_v2';
+  final brand = AppTheme.currentBrand;
+  final cacheKey =
+      '${brand.tenantId}_${profile.employeeCode}_${profile.name}_${data.period}_${data.netPay}_${data.paidOn}_v3';
 
   if (_cachedPdfKey == cacheKey && _cachedPdfBytes != null) {
-    await Printing.sharePdf(
-      bytes: _cachedPdfBytes!,
-      filename: 'Salary_Slip_${data.period.replaceAll(' ', '_')}.pdf',
-    );
-    return;
+    return _cachedPdfBytes!;
   }
 
-  pw.Font? regularFont = _cachedCairoRegular;
-  pw.Font? boldFont = _cachedCairoBold;
-  if (regularFont == null &&
-      !Platform.environment.containsKey('FLUTTER_TEST')) {
-    try {
-      final regData = await rootBundle.load('assets/fonts/Cairo-Regular.ttf');
-      final boldData = await rootBundle.load('assets/fonts/Cairo-Bold.ttf');
-      regularFont = pw.Font.ttf(regData);
-      boldFont = pw.Font.ttf(boldData);
-      _cachedCairoRegular = regularFont;
-      _cachedCairoBold = boldFont;
-    } catch (_) {
-      try {
-        regularFont = await PdfGoogleFonts.cairoRegular()
-            .timeout(const Duration(seconds: 5));
-        boldFont =
-            await PdfGoogleFonts.cairoBold().timeout(const Duration(seconds: 5));
-        _cachedCairoRegular = regularFont;
-        _cachedCairoBold = boldFont;
-      } on Exception catch (e) {
-        debugPrint('PdfGoogleFonts fallback: $e');
-      }
-    }
-  }
+  await _ensureCairoFontsLoaded();
+
+  final pw.Font? regularFont = _cachedCairoRegular;
+  final pw.Font? boldFont = _cachedCairoBold;
 
   final bool hasUnicode = regularFont != null && boldFont != null;
+  final List<pw.Font> fontFallbacks = [
+    if (regularFont != null) regularFont,
+    if (boldFont != null) boldFont,
+  ];
+
   final theme = hasUnicode
-      ? pw.ThemeData.withFont(base: regularFont, bold: boldFont)
+      ? pw.ThemeData.withFont(
+          base: regularFont,
+          bold: boldFont,
+          italic: regularFont,
+          boldItalic: boldFont,
+          fontFallback: fontFallbacks,
+        )
       : pw.ThemeData.base();
 
-  final brand = AppTheme.currentBrand;
   final int a = (brand.primaryColor.a * 255).round() & 0xff;
   final int r = (brand.primaryColor.r * 255).round() & 0xff;
   final int g = (brand.primaryColor.g * 255).round() & 0xff;
@@ -499,6 +531,8 @@ Future<void> shareSalarySlipPdf(SalarySlipData data) async {
                     data: qrPayload,
                     width: 48,
                     height: 48,
+                    drawText: false,
+                    textStyle: pw.TextStyle(font: regularFont, fontFallback: fontFallbacks),
                   ),
                   pw.SizedBox(width: 12),
                   pw.Expanded(
@@ -529,7 +563,12 @@ Future<void> shareSalarySlipPdf(SalarySlipData data) async {
   final Uint8List bytes = await pdf.save();
   _cachedPdfKey = cacheKey;
   _cachedPdfBytes = bytes;
+  return bytes;
+}
 
+/// Builds the enterprise stamped PDF statement and opens the system share sheet.
+Future<void> shareSalarySlipPdf(SalarySlipData data) async {
+  final bytes = await generateSalarySlipPdfBytes(data);
   await Printing.sharePdf(
     bytes: bytes,
     filename: 'Salary_Slip_${data.period.replaceAll(' ', '_')}.pdf',

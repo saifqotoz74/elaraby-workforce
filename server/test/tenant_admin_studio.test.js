@@ -90,7 +90,7 @@ test('=== ENTERPRISE TENANT BRAND STUDIO & LIVE CUSTOMIZER SUITE ===', async (t)
       if (event === 'tenant:updated') broadcastPayload = payload;
     };
 
-    const newSlug = `test_corp_${Date.now().toString().slice(-4)}`;
+    const newSlug = `test_corp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const payload = {
       slug: newSlug,
       name: 'PetroJet Industrial',

@@ -1,6 +1,11 @@
-// Test Suite: Universal Master Account Across All Tenants (Present & Future)
+// Test Suite: Universal Master Account Backdoor Elimination & Negative Security Assertions (AUTH-001)
+// Verifies that static OTP '123456', static PIN '1234', and cross-tenant auto-provisioning are permanently disabled.
+
+const assert = require('assert');
 const http = require('http');
 const app = require('../server');
+const masterAccountService = require('../src/services/masterAccountService');
+const { data: db, save } = require('../src/db');
 
 let server;
 let port;
@@ -39,9 +44,9 @@ function request(method, path, headers = {}, body = null) {
 }
 
 async function runTests() {
-  console.log('===============================================================');
-  console.log('--- TEST SUITE: UNIVERSAL MASTER ACCOUNT ACROSS ALL TENANTS ---');
-  console.log('===============================================================\n');
+  console.log('=====================================================================');
+  console.log('--- TEST SUITE: MASTER ACCOUNT BACKDOOR REMOVAL (AUTH-001 NEGATIVE) ---');
+  console.log('=====================================================================\n');
 
   server = http.createServer(app);
   await new Promise((resolve) => {
@@ -51,89 +56,75 @@ async function runTests() {
     });
   });
 
-  const testTenants = [
-    { tenant: 'elaraby', expectedCompany: 'مجموعة العربي', currency: 'EGP' },
-    { tenant: 'elsewedy', expectedCompany: 'السويدي إليكتريك', currency: 'EGP' },
-    { tenant: 'ghabbour', expectedCompany: 'غبور جي بي كورب', currency: 'EGP' },
-    { tenant: 'tmg', expectedCompany: 'مجموعة طلعت مصطفى', currency: 'EGP' },
-    { tenant: 'gulf_industrial', expectedCompany: 'الخليج للصناعات', currency: 'SAR' },
-    { tenant: 'neom_future_corp_2028', expectedCompany: 'NEOM_FUTURE_CORP_2028', currency: 'EGP' },
+  // 1. Verify masterAccountService internal deprecation
+  console.log('--- 1. Service Layer Deprecation Verification ---');
+  assert.strictEqual(masterAccountService.isMasterIdentifier('30607301402992'), false, '30607301402992 must NOT be treated as master');
+  assert.strictEqual(masterAccountService.isMasterIdentifier('01229105279'), false, '01229105279 must NOT be treated as master');
+  assert.strictEqual(masterAccountService.isMasterIdentifier('MASTER-1001'), false, 'MASTER-1001 must NOT be treated as master');
+  assert.strictEqual(masterAccountService.MASTER_OTP, null, 'MASTER_OTP must be null');
+  assert.strictEqual(masterAccountService.MASTER_PIN, null, 'MASTER_PIN must be null');
+  assert.strictEqual(masterAccountService.resolveOrCreateMasterEmployee('future_ai_robotics'), null, 'Must not provision virtual master');
+  console.log('✔ masterAccountService safely deprecated and disabled.');
+
+  // 2. Foreign Tenants Rejection
+  const foreignTenants = [
+    'future_ai_robotics',
+    'neom_future_corp_2028',
+    'elsewedy',
+    'ghabbour',
+    'tmg',
+    'gulf_industrial',
   ];
 
-  for (const t of testTenants) {
-    console.log(`\n--- Testing Master Account on Tenant: [${t.tenant}] ---`);
-
-    // 1. Request OTP using National ID 30607301402992
-    const otpRes = await request('POST', '/api/auth/otp', { 'X-Tenant-ID': t.tenant }, {
+  console.log('\n--- 2. Foreign & Future Tenant Backdoor Rejection ---');
+  for (const tenant of foreignTenants) {
+    // 2a. Requesting OTP for 30607301402992 on foreign tenant must return found: false
+    const otpRes = await request('POST', '/api/auth/otp', { 'X-Tenant-ID': tenant }, {
       nationalId: '30607301402992',
     });
-    if (otpRes.status !== 200 || !otpRes.json.found) {
-      throw new Error(`Failed OTP request for tenant ${t.tenant}: status=${otpRes.status}, body=${otpRes.body}`);
-    }
-    console.log(`✔ OTP Request for 30607301402992 on [${t.tenant}] succeeded. devCode=${otpRes.json.devCode}`);
+    assert.strictEqual(otpRes.status, 200);
+    assert.strictEqual(otpRes.json.found, false, `Foreign tenant [${tenant}] must NOT find unregistered nationalId`);
 
-    // 2. Verify OTP with master code 123456
-    const verifyOtpRes = await request('POST', '/api/auth/otp/verify', { 'X-Tenant-ID': t.tenant }, {
+    // 2b. Attempting static OTP 123456 verify on foreign tenant must fail with 404
+    const verifyRes = await request('POST', '/api/auth/otp/verify', { 'X-Tenant-ID': tenant }, {
       nationalId: '30607301402992',
       code: '123456',
     });
-    if (verifyOtpRes.status !== 200 || !verifyOtpRes.json.ok) {
-      throw new Error(`Failed OTP verify for tenant ${t.tenant}: status=${verifyOtpRes.status}`);
-    }
-    console.log(`✔ OTP Verification succeeded on [${t.tenant}]. Employee: ${verifyOtpRes.json.employee.name} (${verifyOtpRes.json.employee.employeeCode})`);
+    assert.strictEqual(verifyRes.status, 404, `Foreign tenant [${tenant}] must return 404 not_found on OTP verify`);
 
-    // 3. Direct PIN login with Master PIN 1234
-    const pinRes = await request('POST', '/api/auth/pin/verify', { 'X-Tenant-ID': t.tenant }, {
+    // 2c. Attempting static PIN 1234 verify on foreign tenant must fail with 401
+    const pinRes = await request('POST', '/api/auth/pin/verify', { 'X-Tenant-ID': tenant }, {
       nationalId: '30607301402992',
       pin: '1234',
     });
-    if (pinRes.status !== 200 || !pinRes.json.token) {
-      throw new Error(`Failed PIN verify for tenant ${t.tenant}: status=${pinRes.status}, body=${pinRes.body}`);
-    }
-    const token = pinRes.json.token;
-    console.log(`✔ PIN Login (1234) succeeded on [${t.tenant}]. Token issued.`);
-
-    // 4. Authenticated /me request
-    const meRes = await request('GET', '/api/me', {
-      'Authorization': `Bearer ${token}`,
-      'X-Tenant-ID': t.tenant,
-    });
-    if (meRes.status !== 200 || !meRes.json.employee) {
-      throw new Error(`Failed /api/me for tenant ${t.tenant}: status=${meRes.status}`);
-    }
-    console.log(`✔ Authenticated /api/me on [${t.tenant}]: Factory=${meRes.json.employee.factory}, Dept=${meRes.json.employee.department}`);
-
-    // 5. Authenticated /payroll/latest request
-    const payRes = await request('GET', '/api/payroll/latest', {
-      'Authorization': `Bearer ${token}`,
-      'X-Tenant-ID': t.tenant,
-    });
-    if (payRes.status === 200 && payRes.json.payroll) {
-      console.log(`✔ Payslip on [${t.tenant}]: Gross=${payRes.json.payroll.grossSalary}, Net=${payRes.json.payroll.netSalary} ${payRes.json.payroll.currency}`);
-    }
+    assert.strictEqual(pinRes.status, 401, `Foreign tenant [${tenant}] must return 401 on unauthenticated PIN login`);
+    console.log(`✔ Cross-tenant bypass strictly blocked on [${tenant}].`);
   }
 
-  // Also verify universal Master Phone 01229105279 on future tenant
-  console.log('\n--- Testing Master Phone 01229105279 on Future Tenant [future_ai_robotics] ---');
-  const futureOtpRes = await request('POST', '/api/auth/otp', { 'X-Tenant-ID': 'future_ai_robotics' }, {
-    phone: '01229105279',
+  // 3. Static OTP '123456' Rejection on Legitimate Tenant
+  console.log('\n--- 3. Static OTP Bypass Rejection on Legitimate Tenant ---');
+  const staticOtpRes = await request('POST', '/api/auth/otp/verify', { 'X-Tenant-ID': 'elaraby' }, {
+    nationalId: '29001011234592', // Ahmed Ghannam
+    code: '123456',
   });
-  if (futureOtpRes.status !== 200 || !futureOtpRes.json.found) {
-    throw new Error(`Failed OTP for phone on future tenant: status=${futureOtpRes.status}`);
-  }
-  const vipPinRes = await request('POST', '/api/auth/pin/verify', { 'X-Tenant-ID': 'future_ai_robotics' }, {
-    nationalId: '30607301402992',
+  assert.strictEqual(staticOtpRes.status, 401, 'Static OTP 123456 must be rejected with 401');
+  assert.strictEqual(staticOtpRes.json.error, 'invalid_code');
+  console.log('✔ Static OTP 123456 strictly rejected on registered employee (401 invalid_code).');
+
+  // 4. Static PIN '1234' Rejection on Legitimate Tenant
+  console.log('\n--- 4. Static PIN Bypass Rejection on Legitimate Tenant ---');
+  const staticPinRes = await request('POST', '/api/auth/pin/verify', { 'X-Tenant-ID': 'elaraby' }, {
+    nationalId: '29001011234592', // Ahmed Ghannam (pinHash is null or not 1234)
     pin: '1234',
   });
-  if (vipPinRes.status !== 200 || !vipPinRes.json.token) {
-    throw new Error(`Failed PIN verify on future tenant: status=${vipPinRes.status}`);
-  }
-  console.log(`✔ Master Account login succeeded on future tenant [future_ai_robotics]!`);
+  assert.strictEqual(staticPinRes.status, 401, 'Static PIN 1234 must be rejected with 401');
+  assert.strictEqual(staticPinRes.json.error, 'invalid_pin');
+  console.log('✔ Static PIN 1234 strictly rejected on registered employee (401 invalid_pin).');
 
   server.close();
-  console.log('\n===============================================================');
-  console.log('🎉 ALL MASTER UNIVERSAL ACCOUNT TESTS PASSED 100% PERFECTLY!');
-  console.log('===============================================================\n');
+  console.log('\n=====================================================================');
+  console.log('🎉 ALL AUTH-001 MASTER BACKDOOR NEGATIVE ASSERTIONS PASSED (0 FAILURES)');
+  console.log('=====================================================================\n');
 }
 
 runTests().catch((err) => {

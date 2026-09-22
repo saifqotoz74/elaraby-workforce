@@ -69,6 +69,13 @@ async function runTests() {
     assert.strictEqual(admin123Res.status, 401, 'Hardcoded "admin123" backdoor must be rejected');
     console.log('✔ Rejects hardcoded backdoor "admin123" (401).');
 
+    const admin12345Res = await request('POST', '/api/admin/login', {}, {
+      username: 'admin',
+      password: 'Admin@12345',
+    });
+    assert.strictEqual(admin12345Res.status, 401, 'Hardcoded "Admin@12345" backdoor must be rejected (SEC-001)');
+    console.log('✔ Rejects hardcoded backdoor "Admin@12345" (401).');
+
     const invalidRoleRes = await request('POST', '/api/admin/login', {}, {
       username: 'admin',
       password: process.env.ADMIN_PASS || 'elaraby2026',

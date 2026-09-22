@@ -103,6 +103,20 @@ async function runTests() {
     assert.ok(devRedis instanceof redis.InMemoryRedisMock, 'Development mode allows InMemoryRedisMock');
     console.log('✔ Development mode preserves rapid local developer workflows without crashing.');
 
+    // 6. Vercel Serverless Ephemeral Data Loss Gate (DATA-001)
+    console.log('\n--- 6. Vercel Serverless Ephemeral Storage Gate (DATA-001) ---');
+    process.env.NODE_ENV = 'production';
+    process.env.VERCEL = '1';
+    delete process.env.DATABASE_URL;
+    delete process.env.ALLOW_JSON_IN_PROD;
+    try {
+      db.data();
+      assert.fail('db.data() must fail in production on Vercel when DATABASE_URL is missing');
+    } catch (err) {
+      assert.ok(err.message.includes('strictly forbids ephemeral /tmp JSON persistence') || err.message.includes('strictly forbids JSON persistence'));
+      console.log('✔ db.data() strictly refuses ephemeral /tmp storage on Vercel in production.');
+    }
+
     console.log('\n=============================================================');
     console.log('ALL PRODUCTION HARDENING TESTS PASSED (0 FAILURES)');
     console.log('=============================================================\n');

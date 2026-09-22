@@ -5,39 +5,28 @@ import '../../../../core/theme/app_typography.dart';
 import '../../../../core/navigation/app_navigation.dart';
 import '../widgets/machine_status_card.dart';
 import '../widgets/work_order_tile.dart';
+import '../../../../core/network/api_client.dart';
 
-class KioskScreen extends StatefulWidget {
-  const KioskScreen({super.key});
+class ClockTicker extends StatefulWidget {
+  const ClockTicker({super.key});
 
   @override
-  State<KioskScreen> createState() => _KioskScreenState();
+  State<ClockTicker> createState() => _ClockTickerState();
 }
 
-class _KioskScreenState extends State<KioskScreen> {
+class _ClockTickerState extends State<ClockTicker> {
   late Timer _timer;
   DateTime _now = DateTime.now();
-
-  // Hardcoded Mock Data based on backend specs
-  final List<Map<String, dynamic>> machines = [
-    {'id': 'M001', 'name': 'خط التجميع A', 'status': 'running', 'stopReason': null},
-    {'id': 'M002', 'name': 'خط اللحام B', 'status': 'running', 'stopReason': null},
-    {'id': 'M003', 'name': 'ضاغط الهواء C', 'status': 'stopped', 'stopReason': 'صيانة دورية'},
-    {'id': 'M004', 'name': 'خط الطلاء D', 'status': 'maintenance', 'stopReason': null},
-  ];
-
-  final List<Map<String, dynamic>> workOrders = [
-    {'id': 'WO-2026-001', 'title': 'تجميع ثلاجات 12 قدم', 'targetQty': 200, 'completedQty': 145, 'dueDate': '2026-09-25', 'priority': 'high'},
-    {'id': 'WO-2026-002', 'title': 'لحام هياكل غسالات', 'targetQty': 150, 'completedQty': 150, 'dueDate': '2026-09-22', 'priority': 'normal'},
-    {'id': 'WO-2026-003', 'title': 'طلاء بودرة باب الثلاجة', 'targetQty': 300, 'completedQty': 80, 'dueDate': '2026-09-28', 'priority': 'normal'},
-  ];
 
   @override
   void initState() {
     super.initState();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        _now = DateTime.now();
-      });
+      if (mounted) {
+        setState(() {
+          _now = DateTime.now();
+        });
+      }
     });
   }
 
@@ -52,6 +41,62 @@ class _KioskScreenState extends State<KioskScreen> {
     final min = time.minute.toString().padLeft(2, '0');
     final amPm = time.hour >= 12 ? 'م' : 'ص';
     return '$hour:$min $amPm';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: Text(
+        _formatTime(_now),
+        style: AppTypography.welcomeTitle.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+}
+
+class KioskScreen extends StatefulWidget {
+  const KioskScreen({super.key});
+
+  @override
+  State<KioskScreen> createState() => _KioskScreenState();
+}
+
+class _KioskScreenState extends State<KioskScreen> {
+  // Initial fallback data based on backend specs
+  List<Map<String, dynamic>> machines = [
+    {'id': 'M001', 'name': 'خط التجميع A', 'status': 'running', 'stopReason': null},
+    {'id': 'M002', 'name': 'خط اللحام B', 'status': 'running', 'stopReason': null},
+    {'id': 'M003', 'name': 'ضاغط الهواء C', 'status': 'stopped', 'stopReason': 'صيانة دورية'},
+    {'id': 'M004', 'name': 'خط الطلاء D', 'status': 'maintenance', 'stopReason': null},
+  ];
+
+  List<Map<String, dynamic>> workOrders = [
+    {'id': 'WO-2026-001', 'title': 'تجميع ثلاجات 12 قدم', 'targetQty': 200, 'completedQty': 145, 'dueDate': '2026-09-25', 'priority': 'high'},
+    {'id': 'WO-2026-002', 'title': 'لحام هياكل غسالات', 'targetQty': 150, 'completedQty': 150, 'dueDate': '2026-09-22', 'priority': 'normal'},
+    {'id': 'WO-2026-003', 'title': 'طلاء بودرة باب الثلاجة', 'targetQty': 300, 'completedQty': 80, 'dueDate': '2026-09-28', 'priority': 'normal'},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadKioskOverview();
+  }
+
+  Future<void> _loadKioskOverview() async {
+    try {
+      final body = await ApiClient.instance.get('/employee/kiosk/overview');
+      if (body != null && mounted) {
+        final data = body['data'] ?? body;
+        if (data['machines'] is List && (data['machines'] as List).isNotEmpty) {
+          setState(() {
+            machines = List<Map<String, dynamic>>.from(data['machines']);
+            if (data['workOrders'] is List && (data['workOrders'] as List).isNotEmpty) {
+              workOrders = List<Map<String, dynamic>>.from(data['workOrders']);
+            }
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -103,10 +148,7 @@ class _KioskScreenState extends State<KioskScreen> {
               ),
             ],
           ),
-          Text(
-            _formatTime(_now),
-            style: AppTypography.welcomeTitle.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
-          ),
+          const ClockTicker(),
           Row(
             children: [
               CircleAvatar(

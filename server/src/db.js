@@ -36,6 +36,7 @@ const SEED_FILE = path.join(__dirname, '..', 'data', 'db.json');
 const EMPTY = () => ({
   schemaMigrations: [],
   counters: { request: 100, notification: 100, audit: 100, concern: 100, alert: 100 },
+  adminUsers: [],
   employees: [],
   otpCodes: [],
   requests: [],
@@ -90,14 +91,19 @@ function cleanupOrphanedTmpFiles() {
 }
 
 function data() {
-  if (_data) return _data;
+  const vercelActive = isVercel || !!(process.env.VERCEL || process.env.NOW_REGION);
 
-  // In production, refuse to silently rely on JSON file storage without PostgreSQL (unless running in Vercel serverless /tmp mode)
-  if (process.env.NODE_ENV === 'production' && !isVercel && !postgres.isConfigured() && !process.env.ALLOW_JSON_IN_PROD) {
-    const fatalErr = new Error('FATAL: Production mode strictly forbids JSON persistence. Set DATABASE_URL to connect to PostgreSQL.');
+  // In production, refuse to silently rely on JSON file storage without PostgreSQL (including on Vercel serverless /tmp)
+  if (process.env.NODE_ENV === 'production' && !postgres.isConfigured() && !process.env.ALLOW_JSON_IN_PROD) {
+    const msg = vercelActive
+      ? 'FATAL: Running on Vercel serverless strictly forbids ephemeral /tmp JSON persistence. Set DATABASE_URL to connect to PostgreSQL.'
+      : 'FATAL: Production mode strictly forbids JSON persistence. Set DATABASE_URL to connect to PostgreSQL.';
+    const fatalErr = new Error(msg);
     console.error(`❌ [db] ${fatalErr.message}`);
     throw fatalErr;
   }
+
+  if (_data) return _data;
 
   // Clean up any stale orphaned temporary files on startup
   cleanupOrphanedTmpFiles();
@@ -266,7 +272,7 @@ let _debounceTimer = null;
 const DEBOUNCE_MS = 50;
 
 function save() {
-  if (process.env.NODE_ENV === 'production' && !isVercel && !postgres.isConfigured() && !process.env.ALLOW_JSON_IN_PROD) {
+  if (process.env.NODE_ENV === 'production' && !postgres.isConfigured() && !process.env.ALLOW_JSON_IN_PROD) {
     throw new Error('FATAL: Production mode strictly forbids JSON persistence. Set DATABASE_URL to connect to PostgreSQL.');
   }
   if (_debounceTimer) clearTimeout(_debounceTimer);
@@ -294,8 +300,8 @@ function nextId(collection) {
 /// the database state rolls back completely to the pre-transaction snapshot.
 function transaction(fn) {
   const current = data();
-  // Deep clone state snapshot
-  const snapshot = JSON.parse(JSON.stringify(current));
+  // Deep clone state snapshot using fast native structuredClone where available
+  const snapshot = typeof structuredClone === 'function' ? structuredClone(current) : JSON.parse(JSON.stringify(current));
   try {
     const result = fn(current);
     // Validate all relational constraints and check constraints
@@ -326,7 +332,7 @@ async function withTransaction(fn) {
   await prevLock;
   try {
     const current = data();
-    const snapshot = JSON.parse(JSON.stringify(current));
+    const snapshot = typeof structuredClone === 'function' ? structuredClone(current) : JSON.parse(JSON.stringify(current));
     try {
       const result = await fn(current);
       validateConstraints(current);

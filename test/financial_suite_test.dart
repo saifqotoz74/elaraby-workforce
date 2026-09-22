@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:elaraby_workforce/core/storage/local_store.dart';
 import 'package:elaraby_workforce/features/services/data/payroll_data.dart';
 import 'package:elaraby_workforce/features/services/data/loan_model.dart';
 import 'package:elaraby_workforce/features/services/presentation/controllers/salary_controller.dart';
@@ -59,6 +61,11 @@ class MockSalaryRepository implements SalaryRepository {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues({});
+    await LocalStore.instance.init();
+  });
 
   group('Financial Suite: SalarySlipData & Itemized Breakdown', () {
     test('Calculates net pay and formatted labels correctly', () {
@@ -185,6 +192,97 @@ void main() {
       await notifier.selectPeriod('July 2026');
       expect(notifier.selectedPeriod, 'July 2026');
       expect(notifier.state.isSuccess, isTrue);
+    });
+  });
+
+  group('Financial Suite: FONT-001 Payslip PDF Unicode & Arabic Rendering', () {
+    test('generateSalarySlipPdfBytes generates valid PDF with Arabic text without glyph errors', () async {
+      clearPdfCache();
+      final slip = SalarySlipData(
+        period: 'August 2026',
+        basicSalary: 8500,
+        overtimeAmount: 700,
+        transportAllowance: 400,
+        mealAllowance: 350,
+        incentiveBonus: 850,
+        allowances: 2300,
+        socialInsurance: 680,
+        incomeTax: 210,
+        medicalInsurance: 150,
+        loanDeduction: 500,
+        deductions: 1540,
+        paidOn: 'Aug 28, 2026',
+        paymentMethod: 'Bank Transfer (CIB)',
+      );
+
+      final bytes = await generateSalarySlipPdfBytes(slip);
+      expect(bytes, isNotNull);
+      expect(bytes.length, greaterThan(1000));
+      expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
+    });
+
+    test('generateSalarySlipPdfBytes renders complex Arabic compound names and factory locations', () async {
+      clearPdfCache();
+      // Setup Arabic employee profile with compound names and Arabic characters
+      await LocalStore.instance.saveProfile(const EmployeeProfile(
+        name: 'عبد الرحمن بن عبد العزيز آل إبراهيم',
+        employeeCode: 'EG-99881',
+        factory: 'مجمع بنها الصناعي للإلكترونيات والأجهزة المنزلية',
+        department: 'إدارة هندسة الإنتاج ومراقبة الجودة',
+        position: 'مهندس جودة أول',
+      ));
+
+      final slip = SalarySlipData(
+        period: 'September 2026',
+        basicSalary: 12500,
+        overtimeAmount: 1200,
+        transportAllowance: 600,
+        mealAllowance: 450,
+        incentiveBonus: 1500,
+        allowances: 3750,
+        socialInsurance: 950,
+        incomeTax: 320,
+        medicalInsurance: 200,
+        loanDeduction: 1000,
+        deductions: 2470,
+        paidOn: 'Sep 28, 2026',
+        paymentMethod: 'تحويل بنكي - البنك الأهلي المصري',
+      );
+
+      final bytes = await generateSalarySlipPdfBytes(slip);
+      expect(bytes, isNotNull);
+      expect(bytes.length, greaterThan(1000));
+      expect(String.fromCharCodes(bytes.take(5)), '%PDF-');
+    });
+
+    test('generateSalarySlipPdfBytes updates cache when employee profile changes', () async {
+      clearPdfCache();
+      final slip = SalarySlipData(
+        period: 'October 2026',
+        basicSalary: 9000,
+        allowances: 1000,
+        deductions: 500,
+        paidOn: 'Oct 28, 2026',
+        paymentMethod: 'Bank Transfer',
+      );
+
+      await LocalStore.instance.saveProfile(const EmployeeProfile(
+        name: 'محمود حسن',
+        employeeCode: 'EG-11111',
+      ));
+      final bytes1 = await generateSalarySlipPdfBytes(slip);
+
+      // Change profile name — cache must produce new PDF without stale caching
+      await LocalStore.instance.saveProfile(const EmployeeProfile(
+        name: 'سيف الدين علي',
+        employeeCode: 'EG-11111',
+      ));
+      final bytes2 = await generateSalarySlipPdfBytes(slip);
+
+      expect(bytes1, isNotNull);
+      expect(bytes2, isNotNull);
+      expect(bytes1.length, greaterThan(1000));
+      expect(bytes2.length, greaterThan(1000));
     });
   });
 }

@@ -220,14 +220,6 @@ function getEmployeeById(id) {
     _cachedEmployeesLen = employees.length;
   }
   let emp = _empById.get(id);
-  if (!emp && id && String(id).startsWith('emp_master_')) {
-    const tenant = String(id).replace('emp_master_', '');
-    try {
-      const { resolveOrCreateMasterEmployee } = require('./services/masterAccountService');
-      emp = resolveOrCreateMasterEmployee(tenant);
-      if (emp) _empById.set(emp.id, emp);
-    } catch (_) {}
-  }
   return emp;
 }
 

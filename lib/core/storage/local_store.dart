@@ -130,7 +130,7 @@ class LocalStore extends ChangeNotifier {
   static const _kVacationDays = 'vacation_days_remaining';
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    aOptions: AndroidOptions(),
     iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
   );
 

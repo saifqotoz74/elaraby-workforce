@@ -161,6 +161,32 @@ async function runPhase3Tests() {
     }
   });
 
+  // 8. Check HTML Sanitizer & DataTable XSS Protection (SEC-002)
+  await test('HTML Sanitizer in sanitize.js and DataTable.js safely eliminate XSS (SEC-002)', async () => {
+    const sanitizePath = path.join(adminDir, 'js/utils/sanitize.js');
+    const dataTablePath = path.join(adminDir, 'js/components/DataTable.js');
+    assert.ok(fs.existsSync(sanitizePath), 'sanitize.js must exist');
+    assert.ok(fs.existsSync(dataTablePath), 'DataTable.js must exist');
+
+    const sanitizeSrc = fs.readFileSync(sanitizePath, 'utf8');
+    const dataTableSrc = fs.readFileSync(dataTablePath, 'utf8');
+
+    assert.ok(sanitizeSrc.includes('export function sanitizeHtml'), 'sanitize.js must export sanitizeHtml');
+    assert.ok(dataTableSrc.includes("import { sanitizeHtml } from '../utils/sanitize.js'"), 'DataTable must import sanitizeHtml');
+    assert.ok(dataTableSrc.includes('sanitizeHtml(str)'), 'DataTable must sanitize rendered HTML strings');
+
+    const { sanitizeHtml } = await import(`file://${sanitizePath.replace(/\\/g, '/')}`);
+    // Verify script tags are neutralized
+    const scriptPayload = '<script>alert("xss")</script>';
+    const sanitizedScript = sanitizeHtml(scriptPayload);
+    assert.strictEqual(sanitizedScript.includes('<script>'), false, 'Script tags must not remain unescaped');
+
+    // Verify onerror is neutralized
+    const imgPayload = '<img src=x onerror=alert(1)>';
+    const sanitizedImg = sanitizeHtml(imgPayload);
+    assert.strictEqual(sanitizedImg.includes('onerror'), false, 'onerror event handlers must be stripped');
+  });
+
   console.log(`\nPhase 3 Tests Finished: ${passed} Passed, ${failed} Failed`);
   if (failed > 0) process.exit(1);
 }

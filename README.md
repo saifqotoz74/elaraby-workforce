@@ -41,25 +41,84 @@ lib/
     └── main_navigation/ # 5 تابات بـ IndexedStack + bottom bar مخصص
 ```
 
-## الباك إند والأدمن داشبورد (متوصلين فعلاً)
+## الباك إند والأدمن داشبورد
 
 ```bash
 cd server && npm install && npm start
 ```
 
-- API على `http://localhost:3000/api` — مصادقة OTP/PIN حقيقية، طلبات، إشعارات، محتوى (التفاصيل في `server/README.md`).
-- **الأدمن داشبورد**: http://localhost:3000/admin/ (`admin` / `elaraby2026`) — إدارة موظفين، موافقة/رفض طلبات (إشعار فوري للموظف)، نشر إعلانات وأخبار ومزايا ورحلات.
-- التطبيق موصّل: المصادقة والطلبات والإشعارات على السيرفر، مع **offline-first** — لو السيرفر مطفي التطبيق يشتغل بالبيانات المحلية. للإنتاج: `overrideBaseUrl` في `lib/core/network/api_client.dart`.
+- **API**: على `http://localhost:3000/api` — مصادقة OTP/PIN حقيقية، طلبات، إشعارات، محتوى (التفاصيل في `server/README.md`).
+- **الأدمن داشبورد**: `http://localhost:3000/admin/` — إدارة موظفين، موافقة/رفض طلبات، نشر إعلانات وأخبار ومزايا ورحلات. (تُنشأ الحسابات بكلمات مرور مشفرة بـ Scrypt عبر إعدادات البيئة `ADMIN_USER` و `ADMIN_PASS`).
+- **تطبيق الموبايل**: المصادقة والطلبات والإشعارات على السيرفر، مع **offline-first** — لو السيرفر مطفي التطبيق يشتغل بالبيانات المحلية. للإنتاج: `overrideBaseUrl` في `lib/core/network/api_client.dart`.
+
+## متطلبات وتشغيل بيئة الإنتاج (Production Configuration)
+
+يفرض النظام سياسة أمان صارمة (**Zero Silent Development Fallbacks**) تمنع العمل بأي محاكيات أو تخزين مؤقت عند تفعيل وضع الإنتاج (`NODE_ENV=production`):
+
+### 1. قاعدة بيانات PostgreSQL (`DATABASE_URL`)
+- **إلزامية**: في بيئة الإنتاج يرفض السيرفر تماماً استخدام ملفات الـ JSON في الذاكرة (`db.data()`) ويرمي استثناءً قاتلاً إذا لم يكن `DATABASE_URL` معرفاً.
+- **صيغة الاتصال**:
+  ```env
+  DATABASE_URL=postgresql://<db_user>:<db_password>@<db_host>:5432/<db_name>?sslmode=require
+  ```
+- **الميزات المفعلة**: Connection Pooling مع إعادة المحاولة التلقائية، استعلامات parameterized ضد هجمات SQL Injection، وتفعيل Row-Level Security والعزل التام للمستأجرين Multi-Tenant.
+- **ترحيل البيانات**: لترحيل البيانات الأولية من JSON إلى PostgreSQL:
+  ```bash
+  npm run migrate:pg
+  ```
+
+### 2. وسيط الرسائل والكاش Redis (`REDIS_URL`)
+- **إلزامية**: يرفض النظام العمل عبر `InMemoryRedisMock` في بيئة الإنتاج لضمان موثوقية طوابير المهام الموزعة وتزامن أحداث SSE عبر السيرفرات المتعددة.
+- **صيغة الاتصال**:
+  ```env
+  REDIS_URL=redis://:<redis_password>@<redis_host>:6379
+  ```
+- **طوابير المهام (BullMQ Worker)**: لتشغيل معالج الرسائل والإشعارات الموزع في الخلفية:
+  ```bash
+  npm run worker
+  ```
+
+### 3. إعدادات النشر السحابي والسيرفرليس (Vercel & Cloud Functions)
+عند النشر على Vercel أو منصات Serverless (`VERCEL=1`):
+- يُحظر كلياً الاعتماد على التخزين المؤقت في مجلد `/tmp` لتفادي فقدان بيانات المعاملات المالية والحضور والانصراف.
+- يجب تهيئة المتغيرات البيئية التالية في لوحة التحكم:
+  | المتغير | الوصف | المتطلبات |
+  | :--- | :--- | :--- |
+  | `NODE_ENV` | بيئة التشغيل | `production` |
+  | `DATABASE_URL` | رابط اتصال PostgreSQL سحابي (Neon / Supabase / AWS RDS) | مشفر بـ SSL |
+  | `REDIS_URL` | رابط اتصال Redis سحابي (Upstash / Redis Cloud) | TLS مفعّل |
+  | `JWT_SECRET` | مفتاح توقيع رموز المصادقة JWT | 32 حرفاً عشوائياً كحد أدنى |
+  | `ADMIN_PASS` | كلمة مرور حساب الأدمن المبدئي | كلمة مرور معقدة |
+  | `STORAGE_PROVIDER` | مزود تخزين المرفقات | `s3` أو `gcs` (أو `local` للاختبارات فقط) |
+
+### 4. فحوصات الجاهزية ومراقبة الصحة (Health Probes)
+- **Kubernetes / Cloud Readiness Probe**:
+  - الرابط: `GET /api/health/ready`
+  - السلوك: يعيد `HTTP 200 OK` فقط عندما تكون قاعدة بيانات PostgreSQL و Redis متصلين وجاهزين لاستقبال الطلبات؛ ويعيد `HTTP 503 Service Unavailable` في حال انقطاع أي منهما في بيئة الإنتاج.
+- **Liveness Probe**: `GET /api/health` للتأكد من استجابة خادم الويب Express.
+- **التحقق الاستباقي من الإعدادات**:
+  ```bash
+  npm run validate:production
+  ```
 
 ## ما ينقص للنشر الفعلي على المتاجر
 
-- استضافة سحابية للسيرفر + دومين HTTPS + SMS gateway حقيقي (كل الكود جاهز).
+- استضافة سحابية للسيرفر + دومين HTTPS + SMS gateway حقيقي (كل الكود جاهز ومغطى باختبارات المحاكاة).
 - keystore/release signing، حسابات Play Console و Apple Developer، Privacy Policy.
 - توزيع داخلي مقترح لكونه تطبيق موظفين: Managed Google Play + Apple Business Manager.
 
-## الاختبارات
+## الاختبارات الشاملة (Automated Test Suites)
 
 ```bash
-flutter test      # unit + widget (PIN hashing, balances, stores, locale parity)
+# اختبارات الباك إند (56 جناح اختبار تغطي الأمان والـ RBAC والمعاملات المتزامنة وبنك الرواتب)
+cd server && npm test
+
+# جناح الاختبارات الشامل E2E بدون اعتماديات خارجية (395 اختبار عبر 4 مستويات)
+node test_infra/runner.js
+
+# اختبارات تطبيق الموبايل (Flutter Unit & Widget Tests)
+flutter test
+
+# الفحص الاستاتيكي لكود الفلاتر
 flutter analyze
 ```

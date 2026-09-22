@@ -11,6 +11,12 @@
 	</array>
 	<key>NSFaceIDUsageDescription</key>
 	<string>We use Face ID to unlock the app securely.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Workforce OS requires camera access to scan attendance QR codes on the factory floor.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Workforce OS requires location access to verify attendance within authorized factory geofences.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Workforce OS requires photo access to attach medical reports and official documents.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/network/api_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_typography.dart';
 import 'apply_permit_sheet.dart';
@@ -11,6 +12,61 @@ class HseHomeScreen extends StatefulWidget {
 }
 
 class _HseHomeScreenState extends State<HseHomeScreen> {
+  int _ltiDays = 142;
+  List<Map<String, dynamic>> _permits = [
+    {
+      'title': 'عمل حار - خط الإنتاج 3',
+      'subtitle': 'صالح حتى 4:00 مساءً',
+      'status': 'مقبول',
+      'isApproved': true,
+    },
+    {
+      'title': 'أماكن مغلقة - خزان 2',
+      'subtitle': 'في انتظار الموافقة',
+      'status': 'قيد المراجعة',
+      'isApproved': false,
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHseData();
+  }
+
+  Future<void> _loadHseData() async {
+    try {
+      final summaryBody = await ApiClient.instance.get('/employee/hse/summary');
+      if (summaryBody != null && mounted) {
+        final data = summaryBody['data'] ?? summaryBody;
+        if (data['ltiDays'] != null) {
+          setState(() {
+            _ltiDays = data['ltiDays'] as int;
+          });
+        }
+      }
+
+      final permitsBody = await ApiClient.instance.get('/employee/hse/permits');
+      if (permitsBody != null && mounted) {
+        final dataList = permitsBody['data'] ?? permitsBody['permits'];
+        if (dataList is List && dataList.isNotEmpty) {
+          final List<Map<String, dynamic>> list = [];
+          for (final item in dataList) {
+            list.add({
+              'title': '${item['type'] ?? 'تصريح عمل'} - ${item['location'] ?? ''}',
+              'subtitle': item['validUntil'] != null ? 'صالح حتى ${item['validUntil']}' : 'في انتظار المراجعة',
+              'status': item['status'] == 'approved' ? 'مقبول' : 'قيد المراجعة',
+              'isApproved': item['status'] == 'approved',
+            });
+          }
+          setState(() {
+            _permits = list;
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -45,7 +101,7 @@ class _HseHomeScreenState extends State<HseHomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '142 يوم بدون إصابات عمل',
+                            '$_ltiDays يوم بدون إصابات عمل',
                             style: AppTypography.metricValueSuccess,
                           ),
                           Text(
@@ -95,40 +151,30 @@ class _HseHomeScreenState extends State<HseHomeScreen> {
               // Active permits
               Text('تصاريح العمل النشطة', style: AppTypography.sectionHeading),
               const SizedBox(height: 12),
-              Card(
-                elevation: 0,
-                color: AppColors.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: AppColors.textLight.withValues(alpha: 0.2)),
-                ),
-                child: ListTile(
-                  title: Text('عمل حار - خط الإنتاج 3', style: AppTypography.bodyMedium),
-                  subtitle: Text('صالح حتى 4:00 مساءً', style: AppTypography.bodySmall),
-                  trailing: Chip(
-                    label: const Text('مقبول'),
-                    backgroundColor: AppColors.statusGreen.withValues(alpha: 0.1),
-                    labelStyle: TextStyle(color: AppColors.statusGreen, fontSize: 12),
+              ..._permits.map((permit) {
+                final isApproved = permit['isApproved'] == true;
+                return Card(
+                  elevation: 0,
+                  color: AppColors.surface,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: AppColors.textLight.withValues(alpha: 0.2)),
                   ),
-                ),
-              ),
-              Card(
-                elevation: 0,
-                color: AppColors.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: AppColors.textLight.withValues(alpha: 0.2)),
-                ),
-                child: ListTile(
-                  title: Text('أماكن مغلقة - خزان 2', style: AppTypography.bodyMedium),
-                  subtitle: Text('في انتظار الموافقة', style: AppTypography.bodySmall),
-                  trailing: Chip(
-                    label: const Text('قيد المراجعة'),
-                    backgroundColor: AppColors.warning.withValues(alpha: 0.1),
-                    labelStyle: TextStyle(color: AppColors.warning, fontSize: 12),
+                  child: ListTile(
+                    title: Text(permit['title'] as String, style: AppTypography.bodyMedium),
+                    subtitle: Text(permit['subtitle'] as String, style: AppTypography.bodySmall),
+                    trailing: Chip(
+                      label: Text(permit['status'] as String),
+                      backgroundColor: (isApproved ? AppColors.statusGreen : AppColors.warning).withValues(alpha: 0.1),
+                      labelStyle: TextStyle(
+                        color: isApproved ? AppColors.statusGreen : AppColors.warning,
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                );
+              }),
               const SizedBox(height: 24),
               // PPE
               Container(

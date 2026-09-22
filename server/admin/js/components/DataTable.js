@@ -1,4 +1,5 @@
 // Reusable DataTable Component
+import { sanitizeHtml } from '../utils/sanitize.js';
 
 export class DataTable {
   constructor({ columns = [], data = [], emptyMessage = 'No records found.', loading = false }) {
@@ -75,10 +76,12 @@ export class DataTable {
               td.appendChild(rendered);
             } else if (rendered !== undefined && rendered !== null) {
               const str = String(rendered);
-              if (col.html === false || (!col.html && !str.includes('<'))) {
+              if (col.html === false) {
                 td.textContent = str;
+              } else if (col.html === true || str.includes('<')) {
+                td.innerHTML = sanitizeHtml(str);
               } else {
-                td.innerHTML = str;
+                td.textContent = str;
               }
             } else {
               td.textContent = '—';
