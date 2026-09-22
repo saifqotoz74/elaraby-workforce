@@ -51,6 +51,12 @@ const EMPTY = () => ({
   fcmTokens: [],
   auditLogs: [],
   alerts: [],
+  machines: [],
+  workOrders: [],
+  machineStoppages: [],
+  hsePermits: [],
+  hseIncidents: [],
+  hsePpeInspections: [],
   appVersionConfig: {
     minVersion: '1.0.0',
     latestVersion: '1.0.0',

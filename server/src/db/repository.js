@@ -875,6 +875,647 @@ const repository = {
              (isSuper || (b.tenantId || 'elaraby') === tenantId)
     );
   },
+
+  // ==========================================
+  // Kiosk / Shop Floor Domain
+  // ==========================================
+  async listMachines(explicitTenantId) {
+    const tenantId = explicitTenantId || getCurrentTenantId();
+    if (!tenantId) throw new Error('Tenant context required');
+
+    if (getActiveBackend() === 'postgres') {
+      const res = await postgres.query(
+        'SELECT * FROM machines WHERE tenant_id = $1 ORDER BY id ASC',
+        [tenantId]
+      );
+      return res.rows.map(mapMachineFromPg);
+    }
+
+    const d = jsonDb.data();
+    const list = (d.machines || []).filter((m) => m.tenantId === tenantId);
+    return list;
+  },
+
+  async findMachineById(machineId, explicitTenantId) {
+    const tenantId = explicitTenantId || getCurrentTenantId();
+    if (!tenantId) throw new Error('Tenant context required');
+
+    if (getActiveBackend() === 'postgres') {
+      const res = await postgres.query(
+        'SELECT * FROM machines WHERE tenant_id = $1 AND id = $2 LIMIT 1',
+        [tenantId, machineId]
+      );
+      if (res.rows.length === 0) return null;
+      return mapMachineFromPg(res.rows[0]);
+    }
+
+    const d = jsonDb.data();
+    return (d.machines || []).find((m) => m.tenantId === tenantId && m.id === machineId) || null;
+  },
+
+  async createMachine(machineData) {
+    const tenantId = machineData.tenantId || getCurrentTenantId();
+    if (!tenantId) throw new Error('Tenant context required');
+
+    const id = machineData.id;
+    if (!id) throw new Error('Machine ID is required');
+
+    if (getActiveBackend() === 'postgres') {
+      const res = await postgres.query(
+        `INSERT INTO machines (id, tenant_id, name, line, status, stop_reason, last_updated)
+         VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+         ON CONFLICT (tenant_id, id) DO UPDATE SET
+           name = EXCLUDED.name,
+           line = EXCLUDED.line,
+           status = EXCLUDED.status,
+           stop_reason = EXCLUDED.stop_reason,
+           last_updated = CURRENT_TIMESTAMP
+         RETURNING *`,
+        [
+          id,
+          tenantId,
+          machineData.name,
+          machineData.line,
+          machineData.status || 'running',
+          machineData.stopReason || null,
+        ]
+      );
+      return mapMachineFromPg(res.rows[0]);
+    }
+
+    return jsonDb.withTransaction((d) => {
+      d.machines = d.machines || [];
+      const existing = d.machines.find((m) => m.tenantId === tenantId && m.id === id);
+      if (existing) {
+        Object.assign(existing, machineData, { tenantId, lastUpdated: new Date().toISOString() });
+        return existing;
+      }
+      const record = {
+        id,
+        tenantId,
+        name: machineData.name,
+        line: machineData.line,
+        status: machineData.status || 'running',
+        stopReason: machineData.stopReason || null,
+        lastUpdated: machineData.lastUpdated || new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      };
+      d.machines.push(record);
+      return record;
+    });
+  },
+
+  async updateMachine(machineId, updateData, explicitTenantId) {
+    const tenantId = explicitTenantId || getCurrentTenantId();
+    if (!tenantId) throw new Error('Tenant context required');
+
+    if (getActiveBackend() === 'postgres') {
+      const fields = ['last_updated = CURRENT_TIMESTAMP', 'updated_at = CURRENT_TIMESTAMP'];
+      const values = [tenantId, machineId];
+      let idx = 3;
+
+      if (typeof updateData.status !== 'undefined') {
+        fields.push(`status = $${idx++}`);
+        values.push(updateData.status);
+      }
+      if (typeof updateData.stopReason !== 'undefined') {
+        fields.push(`stop_reason = $${idx++}`);
+        values.push(updateData.stopReason);
+      }
+      if (typeof updateData.name !== 'undefined') {
+        fields.push(`name = $${idx++}`);
+        values.push(updateData.name);
+      }
+      if (typeof updateData.line !== 'undefined') {
+        fields.push(`line = $${idx++}`);
+        values.push(updateData.line);
+      }
+
+      const res = await postgres.query(
+        `UPDATE machines SET ${fields.join(', ')} WHERE tenant_id = $1 AND id = $2 RETURNING *`,
+        values
+      );
+      if (res.rows.length === 0) return null;
+      return mapMachineFromPg(res.rows[0]);
+    }
+
+    return jsonDb.withTransaction((d) => {
+      d.machines = d.machines || [];
+      const m = d.machines.find((item) => item.tenantId === tenantId && item.id === machineId);
+      if (!m) return null;
+      Object.assign(m, updateData, {
+        lastUpdated: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      return m;
+    });
+  },
+
+  async listWorkOrders(explicitTenantId) {
+    const tenantId = explicitTenantId || getCurrentTenantId();
+    if (!tenantId) throw new Error('Tenant context required');
+
+    if (getActiveBackend() === 'postgres') {
+      const res = await postgres.query(
+        'SELECT * FROM work_orders WHERE tenant_id = $1 ORDER BY created_at DESC',
+        [tenantId]
+      );
+      return res.rows.map(mapWorkOrderFromPg);
+    }
+
+    const d = jsonDb.data();
+    return (d.workOrders || []).filter((w) => w.tenantId === tenantId);
+  },
+
+  async findWorkOrderById(id, explicitTenantId) {
+    const tenantId = explicitTenantId || getCurrentTenantId();
+    if (!tenantId) throw new Error('Tenant context required');
+
+    if (getActiveBackend() === 'postgres') {
+      const res = await postgres.query(
+        'SELECT * FROM work_orders WHERE tenant_id = $1 AND id = $2 LIMIT 1',
+        [tenantId, id]
+      );
+      if (res.rows.length === 0) return null;
+      return mapWorkOrderFromPg(res.rows[0]);
+    }
+
+    const d = jsonDb.data();
+    return (d.workOrders || []).find((w) => w.tenantId === tenantId && w.id === id) || null;
+  },
+
+  async createWorkOrder(orderData) {
+    const tenantId = orderData.tenantId || getCurrentTenantId();
+    if (!tenantId) throw new Error('Tenant context required');
+
+    const id = orderData.id;
+    if (!id) throw new Error('Work order ID is required');
+
+    if (getActiveBackend() === 'postgres') {
+      const res = await postgres.query(
+        `INSERT INTO work_orders (id, tenant_id, title, target_qty, completed_qty, line, due_date, priority, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         ON CONFLICT (tenant_id, id) DO UPDATE SET
+           title = EXCLUDED.title,
+           target_qty = EXCLUDED.target_qty,
+           completed_qty = EXCLUDED.completed_qty,
+           line = EXCLUDED.line,
+           due_date = EXCLUDED.due_date,
+           priority = EXCLUDED.priority,
+           status = EXCLUDED.status,
+           updated_at = CURRENT_TIMESTAMP
+         RETURNING *`,
+        [
+          id,
+          tenantId,
+          orderData.title,
+          orderData.targetQty || 0,
+          orderData.completedQty || 0,
+          orderData.line || '',
+          orderData.dueDate || null,
+          orderData.priority || 'normal',
+          orderData.status || 'in_progress',
+        ]
+      );
+      return mapWorkOrderFromPg(res.rows[0]);
+    }
+
+    return jsonDb.withTransaction((d) => {
+      d.workOrders = d.workOrders || [];
+      const existing = d.workOrders.find((w) => w.tenantId === tenantId && w.id === id);
+      if (existing) {
+        Object.assign(existing, orderData, { tenantId });
+        return existing;
+      }
+      const record = {
+        id,
+        tenantId,
+        title: orderData.title,
+        targetQty: orderData.targetQty || 0,
+        completedQty: orderData.completedQty || 0,
+        line: orderData.line || '',
+        dueDate: orderData.dueDate || null,
+        priority: orderData.priority || 'normal',
+        status: orderData.status || 'in_progress',
+        createdAt: new Date().toISOString(),
+      };
+      d.workOrders.push(record);
+      return record;
+    });
+  },
+
+  async updateWorkOrder(id, updateData, explicitTenantId) {
+    const tenantId = explicitTenantId || getCurrentTenantId();
+    if (!tenantId) throw new Error('Tenant context required');
+
+    if (getActiveBackend() === 'postgres') {
+      const fields = ['updated_at = CURRENT_TIMESTAMP'];
+      const values = [tenantId, id];
+      let idx = 3;
+
+      if (typeof updateData.completedQty !== 'undefined') {
+        fields.push(`completed_qty = $${idx++}`);
+        values.push(updateData.completedQty);
+      }
+      if (typeof updateData.status !== 'undefined') {
+        fields.push(`status = $${idx++}`);
+        values.push(updateData.status);
+      }
+
+      const res = await postgres.query(
+        `UPDATE work_orders SET ${fields.join(', ')} WHERE tenant_id = $1 AND id = $2 RETURNING *`,
+        values
+      );
+      if (res.rows.length === 0) return null;
+      return mapWorkOrderFromPg(res.rows[0]);
+    }
+
+    return jsonDb.withTransaction((d) => {
+      d.workOrders = d.workOrders || [];
+      const w = d.workOrders.find((item) => item.tenantId === tenantId && item.id === id);
+      if (!w) return null;
+      Object.assign(w, updateData, { updatedAt: new Date().toISOString() });
+      return w;
+    });
+  },
+
+  async createMachineStoppage(stoppageData) {
+    const tenantId = stoppageData.tenantId || getCurrentTenantId();
+    if (!tenantId) throw new Error('Tenant context required');
+
+    const id = stoppageData.id || `stp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+
+    if (getActiveBackend() === 'postgres') {
+      const res = await postgres.query(
+        `INSERT INTO machine_stoppages (id, tenant_id, machine_id, reason, employee_code, status, reported_at)
+         VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)
+         RETURNING *`,
+        [
+          id,
+          tenantId,
+          stoppageData.machineId,
+          stoppageData.reason,
+          stoppageData.employeeCode || null,
+          stoppageData.status || 'active',
+        ]
+      );
+      return mapStoppageFromPg(res.rows[0]);
+    }
+
+    return jsonDb.withTransaction((d) => {
+      d.machineStoppages = d.machineStoppages || [];
+      const record = {
+        id,
+        tenantId,
+        machineId: stoppageData.machineId,
+        reason: stoppageData.reason,
+        employeeCode: stoppageData.employeeCode || null,
+        status: stoppageData.status || 'active',
+        reportedAt: new Date().toISOString(),
+        resolvedAt: null,
+      };
+      d.machineStoppages.push(record);
+      return record;
+    });
+  },
+
+  async listMachineStoppages(explicitTenantId, filters = {}) {
+    const tenantId = explicitTenantId || getCurrentTenantId();
+    if (!tenantId) throw new Error('Tenant context required');
+
+    if (getActiveBackend() === 'postgres') {
+      const conditions = ['tenant_id = $1'];
+      const values = [tenantId];
+      let idx = 2;
+
+      if (filters.machineId) {
+        conditions.push(`machine_id = $${idx++}`);
+        values.push(filters.machineId);
+      }
+      if (filters.status) {
+        conditions.push(`status = $${idx++}`);
+        values.push(filters.status);
+      }
+
+      const res = await postgres.query(
+        `SELECT * FROM machine_stoppages WHERE ${conditions.join(' AND ')} ORDER BY reported_at DESC`,
+        values
+      );
+      return res.rows.map(mapStoppageFromPg);
+    }
+
+    const d = jsonDb.data();
+    let list = (d.machineStoppages || []).filter((s) => s.tenantId === tenantId);
+    if (filters.machineId) list = list.filter((s) => s.machineId === filters.machineId);
+    if (filters.status) list = list.filter((s) => s.status === filters.status);
+    return list;
+  },
+
+  async resolveMachineStoppage(machineId, explicitTenantId, resolutionData = {}) {
+    const tenantId = explicitTenantId || getCurrentTenantId();
+    if (!tenantId) throw new Error('Tenant context required');
+
+    if (getActiveBackend() === 'postgres') {
+      const res = await postgres.query(
+        `UPDATE machine_stoppages
+         SET status = 'resolved', resolved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+         WHERE tenant_id = $1 AND machine_id = $2 AND status = 'active'
+         RETURNING *`,
+        [tenantId, machineId]
+      );
+      return res.rows.map(mapStoppageFromPg);
+    }
+
+    return jsonDb.withTransaction((d) => {
+      d.machineStoppages = d.machineStoppages || [];
+      const activeStoppages = d.machineStoppages.filter(
+        (s) => s.tenantId === tenantId && s.machineId === machineId && s.status === 'active'
+      );
+      for (const s of activeStoppages) {
+        s.status = 'resolved';
+        s.resolvedAt = new Date().toISOString();
+      }
+      return activeStoppages;
+    });
+  },
+
+  // ==========================================
+  // HSE Domain
+  // ==========================================
+  async createHsePermit(permitData) {
+    const tenantId = permitData.tenantId || getCurrentTenantId();
+    if (!tenantId) throw new Error('Tenant context required');
+
+    const id = permitData.id || `HSE-P-${tenantId}-${Date.now()}`;
+
+    if (getActiveBackend() === 'postgres') {
+      const res = await postgres.query(
+        `INSERT INTO hse_permits (id, tenant_id, employee_id, type, line, description, precautions, valid_until, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING *`,
+        [
+          id,
+          tenantId,
+          permitData.employeeId || null,
+          permitData.type,
+          permitData.line || null,
+          permitData.description || null,
+          JSON.stringify(permitData.precautions || []),
+          permitData.validUntil ? new Date(permitData.validUntil) : null,
+          permitData.status || 'pending',
+        ]
+      );
+      return mapPermitFromPg(res.rows[0]);
+    }
+
+    return jsonDb.withTransaction((d) => {
+      d.hsePermits = d.hsePermits || [];
+      const record = {
+        id,
+        tenantId,
+        employeeId: permitData.employeeId,
+        type: permitData.type,
+        line: permitData.line,
+        description: permitData.description,
+        precautions: permitData.precautions || [],
+        validUntil: permitData.validUntil,
+        status: permitData.status || 'pending',
+        createdAt: Date.now(),
+      };
+      d.hsePermits.push(record);
+      return record;
+    });
+  },
+
+  async findHsePermitById(id, explicitTenantId) {
+    const tenantId = explicitTenantId || getCurrentTenantId();
+    if (!tenantId) throw new Error('Tenant context required');
+
+    if (getActiveBackend() === 'postgres') {
+      const res = await postgres.query(
+        'SELECT * FROM hse_permits WHERE tenant_id = $1 AND id = $2 LIMIT 1',
+        [tenantId, id]
+      );
+      if (res.rows.length === 0) return null;
+      return mapPermitFromPg(res.rows[0]);
+    }
+
+    const d = jsonDb.data();
+    return (d.hsePermits || []).find((p) => p.tenantId === tenantId && p.id === id) || null;
+  },
+
+  async updateHsePermit(id, updateData, explicitTenantId) {
+    const tenantId = explicitTenantId || getCurrentTenantId();
+    if (!tenantId) throw new Error('Tenant context required');
+
+    if (getActiveBackend() === 'postgres') {
+      const fields = ['updated_at = CURRENT_TIMESTAMP'];
+      const values = [tenantId, id];
+      let idx = 3;
+
+      if (typeof updateData.status !== 'undefined') {
+        fields.push(`status = $${idx++}`);
+        values.push(updateData.status);
+      }
+      if (typeof updateData.reviewer !== 'undefined') {
+        fields.push(`reviewer = $${idx++}`);
+        values.push(updateData.reviewer);
+      }
+      if (typeof updateData.reason !== 'undefined') {
+        fields.push(`reason = $${idx++}`);
+        values.push(updateData.reason);
+      }
+      if (typeof updateData.decidedAt !== 'undefined') {
+        fields.push(`decided_at = $${idx++}`);
+        values.push(updateData.decidedAt ? new Date(updateData.decidedAt) : new Date());
+      }
+
+      const res = await postgres.query(
+        `UPDATE hse_permits SET ${fields.join(', ')} WHERE tenant_id = $1 AND id = $2 RETURNING *`,
+        values
+      );
+      if (res.rows.length === 0) return null;
+      return mapPermitFromPg(res.rows[0]);
+    }
+
+    return jsonDb.withTransaction((d) => {
+      d.hsePermits = d.hsePermits || [];
+      const permit = d.hsePermits.find((p) => p.tenantId === tenantId && p.id === id);
+      if (!permit) return null;
+      Object.assign(permit, updateData);
+      return permit;
+    });
+  },
+
+  async listHsePermits(explicitTenantId, filters = {}) {
+    const tenantId = explicitTenantId || getCurrentTenantId();
+    if (!tenantId) throw new Error('Tenant context required');
+
+    if (getActiveBackend() === 'postgres') {
+      const conditions = ['tenant_id = $1'];
+      const values = [tenantId];
+      let idx = 2;
+
+      if (filters.status) {
+        conditions.push(`status = $${idx++}`);
+        values.push(filters.status);
+      }
+      if (filters.employeeId) {
+        conditions.push(`employee_id = $${idx++}`);
+        values.push(filters.employeeId);
+      }
+
+      const res = await postgres.query(
+        `SELECT * FROM hse_permits WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`,
+        values
+      );
+      return res.rows.map(mapPermitFromPg);
+    }
+
+    const d = jsonDb.data();
+    let permits = (d.hsePermits || []).filter((p) => p.tenantId === tenantId);
+    if (filters.status) permits = permits.filter((p) => p.status === filters.status);
+    if (filters.employeeId) permits = permits.filter((p) => p.employeeId === filters.employeeId);
+    return permits;
+  },
+
+  async createHseIncident(incidentData) {
+    const tenantId = incidentData.tenantId || getCurrentTenantId();
+    if (!tenantId) throw new Error('Tenant context required');
+
+    const id = incidentData.id || `INC-${tenantId}-${Date.now()}`;
+
+    if (getActiveBackend() === 'postgres') {
+      const res = await postgres.query(
+        `INSERT INTO hse_incidents (id, tenant_id, reporter_id, title, line, severity, description, injury_reported, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING *`,
+        [
+          id,
+          tenantId,
+          incidentData.reporterId || null,
+          incidentData.title,
+          incidentData.line || null,
+          incidentData.severity || 'medium',
+          incidentData.description || null,
+          !!incidentData.injuryReported,
+          incidentData.status || 'open',
+        ]
+      );
+      return mapIncidentFromPg(res.rows[0]);
+    }
+
+    return jsonDb.withTransaction((d) => {
+      d.hseIncidents = d.hseIncidents || [];
+      const record = {
+        id,
+        tenantId,
+        reporterId: incidentData.reporterId,
+        title: incidentData.title,
+        line: incidentData.line,
+        severity: incidentData.severity || 'medium',
+        description: incidentData.description,
+        injuryReported: !!incidentData.injuryReported,
+        status: incidentData.status || 'open',
+        createdAt: Date.now(),
+      };
+      d.hseIncidents.push(record);
+      return record;
+    });
+  },
+
+  async listHseIncidents(explicitTenantId, filters = {}) {
+    const tenantId = explicitTenantId || getCurrentTenantId();
+    if (!tenantId) throw new Error('Tenant context required');
+
+    if (getActiveBackend() === 'postgres') {
+      const conditions = ['tenant_id = $1'];
+      const values = [tenantId];
+      let idx = 2;
+
+      if (filters.status) {
+        conditions.push(`status = $${idx++}`);
+        values.push(filters.status);
+      }
+
+      const res = await postgres.query(
+        `SELECT * FROM hse_incidents WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`,
+        values
+      );
+      return res.rows.map(mapIncidentFromPg);
+    }
+
+    const d = jsonDb.data();
+    let list = (d.hseIncidents || []).filter((i) => i.tenantId === tenantId);
+    if (filters.status) list = list.filter((i) => i.status === filters.status);
+    return list;
+  },
+
+  async createHsePpeInspection(inspectionData) {
+    const tenantId = inspectionData.tenantId || getCurrentTenantId();
+    if (!tenantId) throw new Error('Tenant context required');
+
+    const id = inspectionData.id || `PPE-${tenantId}-${Date.now()}`;
+
+    if (getActiveBackend() === 'postgres') {
+      const res = await postgres.query(
+        `INSERT INTO hse_ppe_inspections (id, tenant_id, line, checklist, compliance_score, inspector_id)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        [
+          id,
+          tenantId,
+          inspectionData.line,
+          JSON.stringify(inspectionData.checklist || {}),
+          inspectionData.complianceScore ?? 100,
+          inspectionData.inspectorId || null,
+        ]
+      );
+      return mapPpeFromPg(res.rows[0]);
+    }
+
+    return jsonDb.withTransaction((d) => {
+      d.hsePpeInspections = d.hsePpeInspections || [];
+      const record = {
+        id,
+        tenantId,
+        line: inspectionData.line,
+        checklist: inspectionData.checklist || {},
+        complianceScore: inspectionData.complianceScore ?? 100,
+        inspectorId: inspectionData.inspectorId || null,
+        createdAt: Date.now(),
+      };
+      d.hsePpeInspections.push(record);
+      return record;
+    });
+  },
+
+  async listHsePpeInspections(explicitTenantId, filters = {}) {
+    const tenantId = explicitTenantId || getCurrentTenantId();
+    if (!tenantId) throw new Error('Tenant context required');
+
+    if (getActiveBackend() === 'postgres') {
+      const conditions = ['tenant_id = $1'];
+      const values = [tenantId];
+      let idx = 2;
+
+      if (filters.line) {
+        conditions.push(`line = $${idx++}`);
+        values.push(filters.line);
+      }
+
+      const res = await postgres.query(
+        `SELECT * FROM hse_ppe_inspections WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`,
+        values
+      );
+      return res.rows.map(mapPpeFromPg);
+    }
+
+    const d = jsonDb.data();
+    let list = (d.hsePpeInspections || []).filter((i) => i.tenantId === tenantId);
+    if (filters.line) list = list.filter((i) => i.line === filters.line);
+    return list;
+  },
 };
 
 function mapEmployeeFromPg(row) {
@@ -1027,6 +1668,98 @@ function mapBookingFromPg(row) {
     scannedAt: row.scanned_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function mapMachineFromPg(row) {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    name: row.name,
+    line: row.line,
+    status: row.status,
+    stopReason: row.stop_reason,
+    lastUpdated: row.last_updated ? new Date(row.last_updated).toISOString() : new Date().toISOString(),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapWorkOrderFromPg(row) {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    title: row.title,
+    targetQty: parseInt(row.target_qty, 10),
+    completedQty: parseInt(row.completed_qty, 10),
+    line: row.line,
+    dueDate: row.due_date,
+    priority: row.priority,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapStoppageFromPg(row) {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    machineId: row.machine_id,
+    reason: row.reason,
+    employeeCode: row.employee_code,
+    status: row.status,
+    reportedAt: row.reported_at ? new Date(row.reported_at).toISOString() : new Date().toISOString(),
+    resolvedAt: row.resolved_at ? new Date(row.resolved_at).toISOString() : null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapPermitFromPg(row) {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    employeeId: row.employee_id,
+    type: row.type,
+    line: row.line,
+    description: row.description,
+    precautions: typeof row.precautions === 'string' ? JSON.parse(row.precautions) : (row.precautions || []),
+    validUntil: row.valid_until ? (row.valid_until instanceof Date ? row.valid_until.getTime() : new Date(row.valid_until).getTime()) : null,
+    status: row.status,
+    reviewer: row.reviewer,
+    reason: row.reason,
+    decidedAt: row.decided_at ? (row.decided_at instanceof Date ? row.decided_at.getTime() : new Date(row.decided_at).getTime()) : null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapIncidentFromPg(row) {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    reporterId: row.reporter_id,
+    title: row.title,
+    line: row.line,
+    severity: row.severity,
+    description: row.description,
+    injuryReported: !!row.injury_reported,
+    status: row.status,
+    createdAt: row.created_at ? (row.created_at instanceof Date ? row.created_at.getTime() : new Date(row.created_at).getTime()) : Date.now(),
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapPpeFromPg(row) {
+  return {
+    id: row.id,
+    tenantId: row.tenant_id,
+    line: row.line,
+    checklist: typeof row.checklist === 'string' ? JSON.parse(row.checklist) : (row.checklist || {}),
+    complianceScore: parseFloat(row.compliance_score),
+    inspectorId: row.inspector_id,
+    createdAt: row.created_at ? (row.created_at instanceof Date ? row.created_at.getTime() : new Date(row.created_at).getTime()) : Date.now(),
   };
 }
 

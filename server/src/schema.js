@@ -182,6 +182,112 @@ function validateConstraints(state) {
     }
   }
 
+  // 8. Machines Constraints & Multi-Tenant Uniqueness
+  const machines = state.machines || [];
+  const machineKeys = new Set();
+  const VALID_MACHINE_STATUSES = ['running', 'stopped', 'maintenance', 'idle'];
+  for (const m of machines) {
+    if (!m.id) {
+      throw new ConstraintViolationError('Machine record is missing mandatory "id"');
+    }
+    const tenantKey = `${(m.tenantId || 'elaraby').toLowerCase()}:${m.id}`;
+    if (machineKeys.has(tenantKey)) {
+      throw new ConstraintViolationError(`Duplicate machine primary key within tenant: ${m.id}`);
+    }
+    machineKeys.add(tenantKey);
+
+    if (m.status && !VALID_MACHINE_STATUSES.includes(m.status)) {
+      throw new ConstraintViolationError(`Check constraint violation: Invalid machine status "${m.status}" on ${m.id}`);
+    }
+  }
+
+  // 9. Work Orders Constraints
+  const workOrders = state.workOrders || [];
+  const workOrderKeys = new Set();
+  for (const wo of workOrders) {
+    if (!wo.id) {
+      throw new ConstraintViolationError('Work order record is missing mandatory "id"');
+    }
+    const tenantKey = `${(wo.tenantId || 'elaraby').toLowerCase()}:${wo.id}`;
+    if (workOrderKeys.has(tenantKey)) {
+      throw new ConstraintViolationError(`Duplicate work order primary key within tenant: ${wo.id}`);
+    }
+    workOrderKeys.add(tenantKey);
+
+    if (typeof wo.targetQty === 'number' && wo.targetQty < 0) {
+      throw new ConstraintViolationError(`Check constraint violation: Work order targetQty cannot be negative (${wo.targetQty})`);
+    }
+    if (typeof wo.completedQty === 'number' && wo.completedQty < 0) {
+      throw new ConstraintViolationError(`Check constraint violation: Work order completedQty cannot be negative (${wo.completedQty})`);
+    }
+  }
+
+  // 10. Machine Stoppages Constraints
+  const machineStoppages = state.machineStoppages || [];
+  const stoppageIds = new Set();
+  for (const stp of machineStoppages) {
+    if (!stp.id) {
+      throw new ConstraintViolationError('Machine stoppage record is missing mandatory "id"');
+    }
+    if (stoppageIds.has(stp.id)) {
+      throw new ConstraintViolationError(`Duplicate stoppage primary key: ${stp.id}`);
+    }
+    stoppageIds.add(stp.id);
+  }
+
+  // 11. HSE Permits Constraints
+  const hsePermits = state.hsePermits || [];
+  const hsePermitIds = new Set();
+  const VALID_PERMIT_STATUSES = ['pending', 'approved', 'rejected', 'expired', 'cancelled'];
+  for (const p of hsePermits) {
+    if (!p.id) {
+      throw new ConstraintViolationError('HSE permit is missing mandatory "id"');
+    }
+    if (hsePermitIds.has(p.id)) {
+      throw new ConstraintViolationError(`Duplicate HSE permit primary key: ${p.id}`);
+    }
+    hsePermitIds.add(p.id);
+
+    if (p.status && !VALID_PERMIT_STATUSES.includes(p.status)) {
+      throw new ConstraintViolationError(`Check constraint violation: Invalid permit status "${p.status}" on ${p.id}`);
+    }
+  }
+
+  // 12. HSE Incidents Constraints
+  const hseIncidents = state.hseIncidents || [];
+  const hseIncidentIds = new Set();
+  const VALID_INCIDENT_STATUSES = ['open', 'investigating', 'resolved', 'closed'];
+  for (const inc of hseIncidents) {
+    if (!inc.id) {
+      throw new ConstraintViolationError('HSE incident is missing mandatory "id"');
+    }
+    if (hseIncidentIds.has(inc.id)) {
+      throw new ConstraintViolationError(`Duplicate HSE incident primary key: ${inc.id}`);
+    }
+    hseIncidentIds.add(inc.id);
+
+    if (inc.status && !VALID_INCIDENT_STATUSES.includes(inc.status)) {
+      throw new ConstraintViolationError(`Check constraint violation: Invalid incident status "${inc.status}" on ${inc.id}`);
+    }
+  }
+
+  // 13. HSE PPE Inspections Constraints
+  const hsePpeInspections = state.hsePpeInspections || [];
+  const hsePpeIds = new Set();
+  for (const ppe of hsePpeInspections) {
+    if (!ppe.id) {
+      throw new ConstraintViolationError('HSE PPE inspection is missing mandatory "id"');
+    }
+    if (hsePpeIds.has(ppe.id)) {
+      throw new ConstraintViolationError(`Duplicate HSE PPE inspection primary key: ${ppe.id}`);
+    }
+    hsePpeIds.add(ppe.id);
+
+    if (typeof ppe.complianceScore === 'number' && (ppe.complianceScore < 0 || ppe.complianceScore > 100)) {
+      throw new ConstraintViolationError(`Check constraint violation: PPE compliance score must be between 0 and 100 (${ppe.complianceScore})`);
+    }
+  }
+
   return true;
 }
 

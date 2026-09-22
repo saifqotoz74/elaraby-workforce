@@ -139,3 +139,18 @@ export const rosterSolverApi = {
   getExportUrl: (weekStart, format = 'csv') => `/api/admin/roster/export?weekStart=${encodeURIComponent(weekStart)}&format=${encodeURIComponent(format)}`,
 };
 
+export const hseApi = {
+  getSummary: () => api.get('/api/admin/hse/summary'),
+  listPermits: (params) => api.get('/api/admin/hse/permits', params),
+  decidePermit: (id, decision, reason) => api.post(`/api/admin/hse/permits/${id}/decide`, { decision, reason }),
+  listIncidents: () => api.get('/api/admin/hse/incidents'),
+  submitPpeInspection: (data) => api.post('/api/admin/hse/ppe-inspection', data),
+};
+
+export const incentivesApi = {
+  getSummary: () => api.get('/api/admin/incentives-deductions/summary'),
+  calculate: (data) => api.post('/api/admin/incentives-deductions/calculate', data),
+  postToPayroll: (data) => api.post('/api/admin/incentives-deductions/post-to-payroll', data || {}),
+};
+
+

@@ -34,6 +34,7 @@ const rosterSolverService = require('../services/rosterSolverService');
 const hseService = require('../services/hseService');
 const incentivesDeductionsService = require('../services/incentivesDeductionsService');
 const { BUILTIN_TENANTS } = require('./tenant');
+const { getCurrentTenantId } = require('../tenantContext');
 
 const router = express.Router();
 
@@ -2187,64 +2188,68 @@ router.get('/roster/export', requireAdmin, async (req, res) => {
 });
 
 // ---------- HSE Safety Admin Routes ----------
-router.get('/hse/summary', requireAdmin, async (req, res) => {
+router.get('/hse/summary', requireAdmin, requirePermission('hse.read'), async (req, res) => {
   try {
-    const tenantId = req.admin?.tenantId || req.tenantId || 'elaraby';
-    const summary = hseService.getHseSummary(tenantId);
+    const summary = await hseService.getHseSummary();
     res.json({ success: true, data: summary });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: err.message });
   }
 });
 
-router.get('/hse/permits', requireAdmin, async (req, res) => {
+router.get('/hse/permits', requireAdmin, requirePermission('hse.read'), async (req, res) => {
   try {
-    const tenantId = req.admin?.tenantId || req.tenantId || 'elaraby';
-    const permits = hseService.listPermits(tenantId, req.query);
+    const permits = await hseService.listPermits(req.query);
     res.json({ success: true, data: permits });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: err.message });
   }
 });
 
-router.post('/hse/permits/:id/decide', requireAdmin, async (req, res) => {
+router.post('/hse/permits/:id/decide', requireAdmin, requirePermission('hse.approve'), async (req, res) => {
   try {
     const { decision, reason } = req.body;
-    const reviewer = req.admin?.sub || 'HSE Officer';
-    const updated = hseService.decidePermit(req.params.id, decision, { reviewer, reason });
+    if (!decision) return res.status(400).json({ success: false, message: 'decision_required' });
+    const reviewer = req.admin?.sub || req.admin?.name || 'HSE Officer';
+    const updated = await hseService.decidePermit(req.params.id, decision, { reviewer, reason });
+    if (!updated) return res.status(404).json({ success: false, message: 'permit_not_found' });
     res.json({ success: true, data: updated });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: err.message });
   }
 });
 
-router.get('/hse/incidents', requireAdmin, async (req, res) => {
+router.get('/hse/incidents', requireAdmin, requirePermission('hse.read'), async (req, res) => {
   try {
-    const tenantId = req.admin?.tenantId || req.tenantId || 'elaraby';
-    const incidents = hseService.listIncidents(tenantId);
+    const incidents = await hseService.listIncidents();
     res.json({ success: true, data: incidents });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: err.message });
   }
 });
 
-router.post('/hse/ppe-inspection', requireAdmin, async (req, res) => {
+router.post('/hse/ppe-inspection', requireAdmin, requirePermission('hse.read'), async (req, res) => {
   try {
-    const tenantId = req.admin?.tenantId || req.tenantId || 'elaraby';
     const { line, checklist } = req.body;
-    const record = hseService.submitPpeInspection(tenantId, line, checklist);
+    const record = await hseService.submitPpeInspection(line, checklist);
     res.json({ success: true, data: record });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: err.message });
   }
 });
 
 // ---------- Incentives & Deductions Admin Routes ----------
-router.get('/incentives-deductions/summary', requireAdmin, async (req, res) => {
+router.get('/incentives-deductions/summary', requireAdmin, requirePermission('payroll.read'), async (req, res) => {
   try {
-    const tenantId = req.admin?.tenantId || req.tenantId || 'elaraby';
+    const tenantId = req.tenantId || req.admin?.tenantId || getCurrentTenantId({ strict: true });
+    if (!tenantId) return res.status(400).json({ success: false, message: 'tenant_context_required' });
     const database = db();
-    const employees = (database.employees || []).filter(e => (e.tenantId || 'elaraby') === tenantId);
+    const employees = (database.employees || []).filter(e => (e.tenantId || 'elaraby') === tenantId && e.active !== false);
     const adjustmentsList = employees.map(emp => {
       const basicSalary = emp.basicSalary || 6000;
       return {
@@ -2267,9 +2272,10 @@ router.get('/incentives-deductions/summary', requireAdmin, async (req, res) => {
   }
 });
 
-router.post('/incentives-deductions/calculate', requireAdmin, async (req, res) => {
+router.post('/incentives-deductions/calculate', requireAdmin, requirePermission('payroll.read'), async (req, res) => {
   try {
-    const tenantId = req.admin?.tenantId || req.tenantId || 'elaraby';
+    const tenantId = req.tenantId || req.admin?.tenantId || getCurrentTenantId({ strict: true });
+    if (!tenantId) return res.status(400).json({ success: false, message: 'tenant_context_required' });
     const { employeeId, basicSalary, tardinessCount, unexcusedAbsenceDays, ppeViolationsCount, lineTargetAchieved } = req.body;
     const result = incentivesDeductionsService.calculateMonthlyAdjustments(tenantId, employeeId, {
       basicSalary: Number(basicSalary) || 6000,
@@ -2279,6 +2285,69 @@ router.post('/incentives-deductions/calculate', requireAdmin, async (req, res) =
       lineTargetAchieved: !!lineTargetAchieved,
     });
     res.json({ success: true, data: result });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/incentives-deductions/post-to-payroll', requireAdmin, requirePermission('payroll.update'), async (req, res) => {
+  try {
+    const tenantId = req.tenantId || req.admin?.tenantId || getCurrentTenantId({ strict: true });
+    if (!tenantId) return res.status(400).json({ success: false, message: 'tenant_context_required' });
+    const period = req.body?.period || new Date().toISOString().slice(0, 7);
+    const database = db();
+    const employees = (database.employees || []).filter(e => (e.tenantId || 'elaraby') === tenantId && e.active !== false);
+
+    let updatedCount = 0;
+    const { transaction } = require('../db');
+    transaction(state => {
+      state.payroll = state.payroll || [];
+      for (const emp of employees) {
+        const basicSalary = emp.basicSalary || 6000;
+        const adj = incentivesDeductionsService.calculateMonthlyAdjustments(tenantId, emp.id, {
+          basicSalary,
+          tardinessCount: 0,
+          unexcusedAbsenceDays: 0,
+          ppeViolationsCount: 0,
+          lineTargetAchieved: true,
+        });
+
+        let payRecord = state.payroll.find(p => p.employeeId === emp.id && p.period === period);
+        if (!payRecord) {
+          payRecord = state.payroll.find(p => p.employeeId === emp.id);
+        }
+
+        if (!payRecord) {
+          payRecord = {
+            id: `pay_${emp.id}_${Date.now()}`,
+            tenantId,
+            employeeId: emp.id,
+            period,
+            basicSalary,
+            allowances: adj.totalIncentivesEgp,
+            deductions: adj.totalDeductionsEgp,
+            netSalary: basicSalary + adj.totalIncentivesEgp - adj.totalDeductionsEgp,
+            updatedAt: Date.now(),
+          };
+          state.payroll.push(payRecord);
+        } else {
+          payRecord.allowances = (payRecord.allowances || 0) + adj.totalIncentivesEgp;
+          payRecord.deductions = (payRecord.deductions || 0) + adj.totalDeductionsEgp;
+          payRecord.netSalary = (payRecord.basicSalary || basicSalary) + payRecord.allowances - payRecord.deductions;
+          payRecord.updatedAt = Date.now();
+        }
+        updatedCount++;
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        period,
+        postedCount: updatedCount,
+        message: `Successfully posted ${updatedCount} employee adjustments to payroll for ${period}`,
+      },
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

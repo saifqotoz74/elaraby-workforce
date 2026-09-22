@@ -72,8 +72,8 @@ async function runPhase3Tests() {
     }
   });
 
-  // 4. Check all 10 domain views
-  await test('All 10 domain views exist and export mounting classes', async () => {
+  // 4. Check all domain views (TEST-001)
+  await test('All 17 domain views exist and export mounting classes', async () => {
     const views = [
       'LoginView.js',
       'DashboardView.js',
@@ -86,6 +86,12 @@ async function runPhase3Tests() {
       'AuditView.js',
       'SettingsView.js',
       'ReportsView.js',
+      'AnalyticsView.js',
+      'RosterView.js',
+      'HseView.js',
+      'IncentivesView.js',
+      'TenantsView.js',
+      'TransportView.js',
     ];
 
     for (const v of views) {
@@ -185,6 +191,55 @@ async function runPhase3Tests() {
     const imgPayload = '<img src=x onerror=alert(1)>';
     const sanitizedImg = sanitizeHtml(imgPayload);
     assert.strictEqual(sanitizedImg.includes('onerror'), false, 'onerror event handlers must be stripped');
+  });
+
+  // 9. Check HSE & Incentives Views Live API Bindings (UI-001)
+  await test('HSE & Incentives views are bound to live APIs and have no hardcoded mock rows (UI-001)', async () => {
+    const hsePath = path.join(adminDir, 'js/views/HseView.js');
+    const incentivesPath = path.join(adminDir, 'js/views/IncentivesView.js');
+
+    assert.ok(fs.existsSync(hsePath), 'HseView.js must exist');
+    assert.ok(fs.existsSync(incentivesPath), 'IncentivesView.js must exist');
+
+    const hseSrc = fs.readFileSync(hsePath, 'utf8');
+    const incSrc = fs.readFileSync(incentivesPath, 'utf8');
+
+    // HSE checks
+    assert.ok(hseSrc.includes("import { hseApi } from '../api/services.js'"), 'HseView must import hseApi');
+    assert.ok(hseSrc.includes('decidePermit('), 'HseView must implement decidePermit handling');
+    assert.ok(!hseSrc.includes('PTW-001'), 'HseView must not hardcode PTW-001');
+    assert.ok(!hseSrc.includes('INC-001'), 'HseView must not hardcode INC-001');
+
+    // Incentives checks
+    assert.ok(incSrc.includes("import { incentivesApi } from '../api/services.js'"), 'IncentivesView must import incentivesApi');
+    assert.ok(incSrc.includes('postToPayroll('), 'IncentivesView must implement postToPayroll handling');
+    assert.ok(!incSrc.includes('EMP001'), 'IncentivesView must not hardcode EMP001');
+    assert.ok(!incSrc.includes('50,000 EGP'), 'IncentivesView must not hardcode 50,000 EGP');
+  });
+
+  // 10. Check RBAC Route Guarding (AUTH-003)
+  await test('Admin app.js and store.js enforce RBAC permissions for HSE and Incentives (AUTH-003)', async () => {
+    const appPath = path.join(adminDir, 'js/app.js');
+    const storePath = path.join(adminDir, 'js/state/store.js');
+
+    assert.ok(fs.existsSync(appPath), 'app.js must exist');
+    assert.ok(fs.existsSync(storePath), 'store.js must exist');
+
+    const appSrc = fs.readFileSync(appPath, 'utf8');
+    const storeSrc = fs.readFileSync(storePath, 'utf8');
+
+    assert.ok(
+      appSrc.includes("addRoute('/hse'") && appSrc.includes("'hse.read'"),
+      "app.js must guard /hse route with 'hse.read'"
+    );
+    assert.ok(
+      appSrc.includes("addRoute('/incentives'") && appSrc.includes("'payroll.read'"),
+      "app.js must guard /incentives route with 'payroll.read'"
+    );
+    assert.ok(
+      storeSrc.includes("'hse.read'"),
+      "store.js must configure 'hse.read' permission for hr_officer"
+    );
   });
 
   console.log(`\nPhase 3 Tests Finished: ${passed} Passed, ${failed} Failed`);

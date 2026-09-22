@@ -1430,87 +1430,82 @@ router.get('/realtime/stream', (req, res) => {
 // GET /api/employee/kiosk/overview
 router.get('/kiosk/overview', requireAuth, async (req, res) => {
   try {
-    const me = db().employees.find((e) => e.id === req.employeeId);
-    const tenantId = me?.tenantId || req.tenantId || 'elaraby';
+    const me = req.employee || db().employees.find((e) => e.id === req.employeeId);
     const employeeCode = me?.employeeCode || '';
-    const overview = await kioskService.getKioskOverview(tenantId, employeeCode);
+    const overview = await kioskService.getKioskOverview(employeeCode);
     res.json({ success: true, data: overview });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: err.message });
   }
 });
 
 // POST /api/employee/kiosk/stoppage
 router.post('/kiosk/stoppage', requireAuth, async (req, res) => {
   try {
-    const me = db().employees.find((e) => e.id === req.employeeId);
-    const tenantId = me?.tenantId || req.tenantId || 'elaraby';
+    const me = req.employee || db().employees.find((e) => e.id === req.employeeId);
     const employeeCode = me?.employeeCode || '';
     const { machineId, reason } = req.body;
     if (!machineId || !reason) return res.status(400).json({ success: false, message: 'machineId and reason required' });
-    const result = await kioskService.reportStoppage(tenantId, machineId, reason, employeeCode);
+    const result = await kioskService.reportStoppage(machineId, reason, employeeCode);
     res.json({ success: true, data: result });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: err.message });
   }
 });
 
 // POST /api/employee/kiosk/resolve-stoppage
 router.post('/kiosk/resolve-stoppage', requireAuth, async (req, res) => {
   try {
-    const me = db().employees.find((e) => e.id === req.employeeId);
-    const tenantId = me?.tenantId || req.tenantId || 'elaraby';
     const { machineId } = req.body;
     if (!machineId) return res.status(400).json({ success: false, message: 'machineId required' });
-    const result = await kioskService.resolveStoppage(tenantId, machineId);
+    const result = await kioskService.resolveStoppage(machineId);
     res.json({ success: true, data: result });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: err.message });
   }
 });
 
 // ---------- HSE Safety Routes ----------
 router.get('/hse/summary', requireAuth, async (req, res) => {
   try {
-    const me = db().employees.find((e) => e.id === req.employeeId);
-    const tenantId = me?.tenantId || req.tenantId || 'elaraby';
-    const summary = hseService.getHseSummary(tenantId);
+    const summary = await hseService.getHseSummary();
     res.json({ success: true, data: summary });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: err.message });
   }
 });
 
 router.get('/hse/permits', requireAuth, async (req, res) => {
   try {
-    const me = db().employees.find((e) => e.id === req.employeeId);
-    const tenantId = me?.tenantId || req.tenantId || 'elaraby';
-    const permits = hseService.listPermits(tenantId, { employeeId: req.employeeId });
+    const permits = await hseService.listPermits({ employeeId: req.employeeId });
     res.json({ success: true, data: permits });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: err.message });
   }
 });
 
 router.post('/hse/permits', requireAuth, async (req, res) => {
   try {
-    const me = db().employees.find((e) => e.id === req.employeeId);
-    const tenantId = me?.tenantId || req.tenantId || 'elaraby';
-    const permit = hseService.createPermit(tenantId, req.employeeId, req.body);
+    const permit = await hseService.createPermit(req.employeeId, req.body);
     res.json({ success: true, data: permit });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: err.message });
   }
 });
 
 router.post('/hse/incidents', requireAuth, async (req, res) => {
   try {
-    const me = db().employees.find((e) => e.id === req.employeeId);
-    const tenantId = me?.tenantId || req.tenantId || 'elaraby';
-    const incident = hseService.reportIncident(tenantId, req.employeeId, req.body);
+    const incident = await hseService.reportIncident(req.employeeId, req.body);
     res.json({ success: true, data: incident });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    const statusCode = err.statusCode || 500;
+    res.status(statusCode).json({ success: false, message: err.message });
   }
 });
 
@@ -1518,7 +1513,8 @@ router.post('/hse/incidents', requireAuth, async (req, res) => {
 router.get('/incentives-deductions', requireAuth, async (req, res) => {
   try {
     const me = db().employees.find((e) => e.id === req.employeeId);
-    const tenantId = me?.tenantId || req.tenantId || 'elaraby';
+    const tenantId = me?.tenantId || req.tenantId;
+    if (!tenantId) return res.status(400).json({ success: false, message: 'tenant_context_required' });
     const basicSalary = me?.basicSalary || 6000;
     const adjustments = incentivesDeductionsService.calculateMonthlyAdjustments(tenantId, req.employeeId, {
       basicSalary,

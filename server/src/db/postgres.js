@@ -184,7 +184,7 @@ async function closePool() {
 }
 
 /**
- * Automatically initializes PostgreSQL schema if tables do not exist.
+ * Automatically initializes PostgreSQL schema and runs pending migrations on startup.
  */
 async function initializeSchema() {
   if (!isConfigured()) return;
@@ -198,9 +198,339 @@ async function initializeSchema() {
       await query(schemaSql);
       console.log('✔ [postgres] Enterprise schema.sql applied successfully.');
     }
+
+    // Automatically apply any pending incremental SQL migrations
+    try {
+      const { runPendingMigrations } = require('../../scripts/migrate-postgres');
+      await runPendingMigrations({ silent: false });
+    } catch (migErr) {
+      console.error('[postgres:migrations_runner_error]', migErr.message);
+    }
   } catch (err) {
     console.error('[postgres:initialize_schema_error]', err.message);
   }
+}
+
+// --- Kiosk / Shop Floor Domain Operations ---
+async function createMachine(machineData) {
+  const tenantId = machineData.tenantId;
+  const id = machineData.id;
+  const res = await query(
+    `INSERT INTO machines (id, tenant_id, name, line, status, stop_reason, last_updated)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (tenant_id, id) DO UPDATE SET
+       name = EXCLUDED.name,
+       line = EXCLUDED.line,
+       status = EXCLUDED.status,
+       stop_reason = EXCLUDED.stop_reason,
+       last_updated = CURRENT_TIMESTAMP,
+       updated_at = CURRENT_TIMESTAMP
+     RETURNING *`,
+    [
+      id,
+      tenantId,
+      machineData.name,
+      machineData.line,
+      machineData.status || 'running',
+      machineData.stopReason || null,
+      machineData.lastUpdated ? new Date(machineData.lastUpdated) : new Date(),
+    ]
+  );
+  return res.rows[0];
+}
+
+async function findMachineById(id, tenantId) {
+  const res = await query(
+    'SELECT * FROM machines WHERE tenant_id = $1 AND id = $2 LIMIT 1',
+    [tenantId, id]
+  );
+  return res.rows[0] || null;
+}
+
+async function updateMachine(id, updateData, tenantId) {
+  const fields = [];
+  const values = [];
+  let idx = 1;
+  if (updateData.status !== undefined) {
+    fields.push(`status = $${idx++}`);
+    values.push(updateData.status);
+  }
+  if (updateData.stopReason !== undefined) {
+    fields.push(`stop_reason = $${idx++}`);
+    values.push(updateData.stopReason);
+  }
+  if (updateData.name !== undefined) {
+    fields.push(`name = $${idx++}`);
+    values.push(updateData.name);
+  }
+  if (updateData.line !== undefined) {
+    fields.push(`line = $${idx++}`);
+    values.push(updateData.line);
+  }
+  fields.push('last_updated = CURRENT_TIMESTAMP');
+  fields.push('updated_at = CURRENT_TIMESTAMP');
+  values.push(tenantId, id);
+  const sql = `UPDATE machines SET ${fields.join(', ')} WHERE tenant_id = $${idx++} AND id = $${idx++} RETURNING *`;
+  const res = await query(sql, values);
+  return res.rows[0] || null;
+}
+
+async function listMachines(tenantId) {
+  const res = await query(
+    'SELECT * FROM machines WHERE tenant_id = $1 ORDER BY id ASC',
+    [tenantId]
+  );
+  return res.rows;
+}
+
+async function createWorkOrder(orderData) {
+  const res = await query(
+    `INSERT INTO work_orders (id, tenant_id, title, target_qty, completed_qty, line, due_date, priority, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     ON CONFLICT (tenant_id, id) DO UPDATE SET
+       title = EXCLUDED.title,
+       target_qty = EXCLUDED.target_qty,
+       completed_qty = EXCLUDED.completed_qty,
+       line = EXCLUDED.line,
+       due_date = EXCLUDED.due_date,
+       priority = EXCLUDED.priority,
+       status = EXCLUDED.status,
+       updated_at = CURRENT_TIMESTAMP
+     RETURNING *`,
+    [
+      orderData.id,
+      orderData.tenantId,
+      orderData.title,
+      orderData.targetQty || 0,
+      orderData.completedQty || 0,
+      orderData.line || '',
+      orderData.dueDate || null,
+      orderData.priority || 'normal',
+      orderData.status || 'in_progress',
+    ]
+  );
+  return res.rows[0];
+}
+
+async function findWorkOrderById(id, tenantId) {
+  const res = await query(
+    'SELECT * FROM work_orders WHERE tenant_id = $1 AND id = $2 LIMIT 1',
+    [tenantId, id]
+  );
+  return res.rows[0] || null;
+}
+
+async function updateWorkOrder(id, updateData, tenantId) {
+  const fields = [];
+  const values = [];
+  let idx = 1;
+  if (updateData.completedQty !== undefined) {
+    fields.push(`completed_qty = $${idx++}`);
+    values.push(updateData.completedQty);
+  }
+  if (updateData.status !== undefined) {
+    fields.push(`status = $${idx++}`);
+    values.push(updateData.status);
+  }
+  if (updateData.priority !== undefined) {
+    fields.push(`priority = $${idx++}`);
+    values.push(updateData.priority);
+  }
+  fields.push('updated_at = CURRENT_TIMESTAMP');
+  values.push(tenantId, id);
+  const sql = `UPDATE work_orders SET ${fields.join(', ')} WHERE tenant_id = $${idx++} AND id = $${idx++} RETURNING *`;
+  const res = await query(sql, values);
+  return res.rows[0] || null;
+}
+
+async function listWorkOrders(tenantId) {
+  const res = await query(
+    'SELECT * FROM work_orders WHERE tenant_id = $1 ORDER BY created_at DESC',
+    [tenantId]
+  );
+  return res.rows;
+}
+
+async function createMachineStoppage(stoppageData) {
+  const id = stoppageData.id || `stp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  const res = await query(
+    `INSERT INTO machine_stoppages (id, tenant_id, machine_id, reason, employee_code, status, reported_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     RETURNING *`,
+    [
+      id,
+      stoppageData.tenantId,
+      stoppageData.machineId,
+      stoppageData.reason,
+      stoppageData.employeeCode || null,
+      stoppageData.status || 'active',
+      stoppageData.reportedAt ? new Date(stoppageData.reportedAt) : new Date(),
+    ]
+  );
+  return res.rows[0];
+}
+
+async function listMachineStoppages(tenantId, filters = {}) {
+  const conditions = ['tenant_id = $1'];
+  const values = [tenantId];
+  let idx = 2;
+  if (filters.machineId) {
+    conditions.push(`machine_id = $${idx++}`);
+    values.push(filters.machineId);
+  }
+  if (filters.status) {
+    conditions.push(`status = $${idx++}`);
+    values.push(filters.status);
+  }
+  const res = await query(
+    `SELECT * FROM machine_stoppages WHERE ${conditions.join(' AND ')} ORDER BY reported_at DESC`,
+    values
+  );
+  return res.rows;
+}
+
+async function resolveMachineStoppage(machineId, tenantId) {
+  const res = await query(
+    `UPDATE machine_stoppages
+     SET status = 'resolved', resolved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+     WHERE tenant_id = $1 AND machine_id = $2 AND status = 'active'
+     RETURNING *`,
+    [tenantId, machineId]
+  );
+  return res.rows;
+}
+
+// --- HSE Domain Operations ---
+async function createHsePermit(permitData) {
+  const res = await query(
+    `INSERT INTO hse_permits (id, tenant_id, employee_id, type, line, description, precautions, valid_until, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     RETURNING *`,
+    [
+      permitData.id,
+      permitData.tenantId,
+      permitData.employeeId || null,
+      permitData.type,
+      permitData.line || null,
+      permitData.description || null,
+      JSON.stringify(permitData.precautions || []),
+      permitData.validUntil ? new Date(permitData.validUntil) : null,
+      permitData.status || 'pending',
+    ]
+  );
+  return res.rows[0];
+}
+
+async function findHsePermitById(id, tenantId) {
+  const res = await query(
+    'SELECT * FROM hse_permits WHERE tenant_id = $1 AND id = $2 LIMIT 1',
+    [tenantId, id]
+  );
+  return res.rows[0] || null;
+}
+
+async function updateHsePermit(id, updateData, tenantId) {
+  const res = await query(
+    `UPDATE hse_permits
+     SET status = $1, reviewer = $2, reason = $3, decided_at = $4, updated_at = CURRENT_TIMESTAMP
+     WHERE tenant_id = $5 AND id = $6
+     RETURNING *`,
+    [
+      updateData.status,
+      updateData.reviewer || null,
+      updateData.reason || null,
+      updateData.decidedAt ? new Date(updateData.decidedAt) : new Date(),
+      tenantId,
+      id,
+    ]
+  );
+  return res.rows[0] || null;
+}
+
+async function listHsePermits(tenantId, filters = {}) {
+  const conditions = ['tenant_id = $1'];
+  const values = [tenantId];
+  let idx = 2;
+  if (filters.status) {
+    conditions.push(`status = $${idx++}`);
+    values.push(filters.status);
+  }
+  if (filters.employeeId) {
+    conditions.push(`employee_id = $${idx++}`);
+    values.push(filters.employeeId);
+  }
+  const res = await query(
+    `SELECT * FROM hse_permits WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`,
+    values
+  );
+  return res.rows;
+}
+
+async function createHseIncident(incidentData) {
+  const res = await query(
+    `INSERT INTO hse_incidents (id, tenant_id, reporter_id, title, line, severity, description, injury_reported, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     RETURNING *`,
+    [
+      incidentData.id,
+      incidentData.tenantId,
+      incidentData.reporterId || null,
+      incidentData.title,
+      incidentData.line || null,
+      incidentData.severity || 'medium',
+      incidentData.description || null,
+      !!incidentData.injuryReported,
+      incidentData.status || 'open',
+    ]
+  );
+  return res.rows[0];
+}
+
+async function listHseIncidents(tenantId, filters = {}) {
+  const conditions = ['tenant_id = $1'];
+  const values = [tenantId];
+  let idx = 2;
+  if (filters.status) {
+    conditions.push(`status = $${idx++}`);
+    values.push(filters.status);
+  }
+  const res = await query(
+    `SELECT * FROM hse_incidents WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`,
+    values
+  );
+  return res.rows;
+}
+
+async function createHsePpeInspection(inspectionData) {
+  const res = await query(
+    `INSERT INTO hse_ppe_inspections (id, tenant_id, line, checklist, compliance_score, inspector_id)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [
+      inspectionData.id,
+      inspectionData.tenantId,
+      inspectionData.line,
+      JSON.stringify(inspectionData.checklist || {}),
+      inspectionData.complianceScore ?? 100,
+      inspectionData.inspectorId || null,
+    ]
+  );
+  return res.rows[0];
+}
+
+async function listHsePpeInspections(tenantId, filters = {}) {
+  const conditions = ['tenant_id = $1'];
+  const values = [tenantId];
+  let idx = 2;
+  if (filters.line) {
+    conditions.push(`line = $${idx++}`);
+    values.push(filters.line);
+  }
+  const res = await query(
+    `SELECT * FROM hse_ppe_inspections WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`,
+    values
+  );
+  return res.rows;
 }
 
 module.exports = {
@@ -211,4 +541,25 @@ module.exports = {
   closePool,
   initializeSchema,
   isConfigured,
+  // Kiosk / Shop floor domain queries
+  createMachine,
+  findMachineById,
+  updateMachine,
+  listMachines,
+  createWorkOrder,
+  findWorkOrderById,
+  updateWorkOrder,
+  listWorkOrders,
+  createMachineStoppage,
+  listMachineStoppages,
+  resolveMachineStoppage,
+  // HSE domain queries
+  createHsePermit,
+  findHsePermitById,
+  updateHsePermit,
+  listHsePermits,
+  createHseIncident,
+  listHseIncidents,
+  createHsePpeInspection,
+  listHsePpeInspections,
 };

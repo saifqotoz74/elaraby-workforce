@@ -6,7 +6,7 @@ const ROLE_PERMISSIONS = {
   hr_officer: [
     'employee.read', 'employee.create', 'employee.update', 'employee.toggle',
     'leave.read', 'leave.approve', 'leave.reject', 'announcement.read',
-    'stats.read', 'concerns.read', 'upload.image',
+    'stats.read', 'concerns.read', 'upload.image', 'hse.read', 'hse.approve',
   ],
   payroll_officer: [
     'employee.read', 'payroll.read', 'payroll.update', 'announcement.read', 'stats.read',

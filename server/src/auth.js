@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { data: db, DATA_DIR } = require('./db');
+const { runWithTenantContext, getTenantContext } = require('./tenantContext');
 
 const isProd = process.env.NODE_ENV === 'production';
 const _generatedSecret = crypto.randomBytes(32).toString('hex');
@@ -260,6 +261,19 @@ function requireAuth(req, res, next) {
   req.employee = employee;
   req.tenantId = authoritativeTenant;
   req.authPayload = payload;
+
+  const currentCtx = getTenantContext();
+  if (!currentCtx || currentCtx.tenantId !== authoritativeTenant) {
+    return runWithTenantContext(
+      {
+        tenantId: authoritativeTenant,
+        isSuperAdmin: false,
+        actor: payload.sub,
+        role: 'employee',
+      },
+      () => next()
+    );
+  }
   next();
 }
 
@@ -303,6 +317,21 @@ function requireAdmin(req, res, next) {
     }
   }
   req.admin = payload;
+
+  const currentCtx = getTenantContext();
+  const adminTenant = payload.tenantId && payload.tenantId !== 'all' ? String(payload.tenantId).trim().toLowerCase() : null;
+  const isSuper = !payload.tenantId || payload.tenantId === 'all' || payload.role === 'superadmin';
+  if (adminTenant && (!currentCtx || currentCtx.tenantId !== adminTenant)) {
+    return runWithTenantContext(
+      {
+        tenantId: adminTenant,
+        isSuperAdmin: isSuper,
+        actor: payload.sub,
+        role: payload.role || 'admin',
+      },
+      () => next()
+    );
+  }
   next();
 }
 

@@ -52,9 +52,9 @@ test('=== KIOSK SERVICE SUITE ===', async (t) => {
     assert.equal(machine.status, 'running');
   });
 
-  await t.test('6. Unknown tenant falls back to elaraby mock data', () => {
+  await t.test('6. Unknown tenant is isolated and does NOT see elaraby machines', () => {
     const machines = kioskService.getMachineStatuses('unknown_tenant');
     assert.ok(Array.isArray(machines));
-    assert.equal(machines[0].id, 'M001'); // fallback
+    assert.equal(machines.length, 0); // Strict isolation: no fallback to elaraby
   });
 });

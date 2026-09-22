@@ -14,8 +14,9 @@ const DEFAULT_TENANT_ID = process.env.DEFAULT_TENANT_ID || 'elaraby';
  * @param {Function} callback - Function or Promise to execute
  */
 function runWithTenantContext(context, callback) {
+  const rawTenantId = context.tenantId ? context.tenantId.toString().trim().toLowerCase() : null;
   const store = {
-    tenantId: (context.tenantId || DEFAULT_TENANT_ID).toString().trim().toLowerCase(),
+    tenantId: rawTenantId || (context.isSuperAdmin ? null : DEFAULT_TENANT_ID),
     isSuperAdmin: !!context.isSuperAdmin,
     actor: context.actor || null,
     role: context.role || null,
@@ -34,12 +35,40 @@ function getTenantContext() {
 }
 
 /**
- * Returns current tenant ID, falling back to default.
+ * Returns current tenant ID.
+ * @param {object} [opts] - { required?: boolean, strict?: boolean }
+ * @returns {string|null}
+ */
+function getCurrentTenantId(opts = {}) {
+  const store = tenantStorage.getStore();
+  const tenantId = store?.tenantId || null;
+  if (opts.required && !tenantId) {
+    const err = new Error('tenant_context_required');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (tenantId) return tenantId;
+  return opts.strict ? null : DEFAULT_TENANT_ID;
+}
+
+/**
+ * Strictly requires active tenant context; throws explicit error if missing.
+ * Prevents dangerous cross-tenant fallback.
  * @returns {string}
  */
-function getCurrentTenantId() {
+function getRequiredTenantId() {
   const store = tenantStorage.getStore();
-  return store?.tenantId || DEFAULT_TENANT_ID;
+  const tenantId = store?.tenantId;
+  if (!tenantId) {
+    const err = new Error('tenant_context_required');
+    err.statusCode = 400;
+    throw err;
+  }
+  return tenantId;
+}
+
+function requireTenantId() {
+  return getRequiredTenantId();
 }
 
 /**
@@ -64,6 +93,8 @@ module.exports = {
   runWithTenantContext,
   getTenantContext,
   getCurrentTenantId,
+  getRequiredTenantId,
+  requireTenantId,
   isSuperAdmin,
   hasSuperAdminPrivilege,
 };

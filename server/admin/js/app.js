@@ -137,11 +137,11 @@ class App {
 
     this.router.addRoute('/hse', () => {
       this.renderView(HseView, 'Safety & HSE Management', 'hse');
-    });
+    }, 'hse.read');
 
     this.router.addRoute('/incentives', () => {
       this.renderView(IncentivesView, 'Incentives & Penalties', 'incentives');
-    });
+    }, 'payroll.read');
 
     // 3. Employees
     this.router.addRoute('/employees', () => {

@@ -41,6 +41,10 @@ const PERMISSIONS = {
   AUDIT_READ: 'audit.read',
   CONCERNS_READ: 'concerns.read',
   UPLOAD_IMAGE: 'upload.image',
+
+  // Health, Safety & Environment (HSE)
+  HSE_READ: 'hse.read',
+  HSE_APPROVE: 'hse.approve',
 };
 
 const ROLE_PERMISSIONS = {
@@ -57,6 +61,8 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.STATS_READ,
     PERMISSIONS.CONCERNS_READ,
     PERMISSIONS.UPLOAD_IMAGE,
+    PERMISSIONS.HSE_READ,
+    PERMISSIONS.HSE_APPROVE,
   ],
   [ROLES.PAYROLL_OFFICER]: [
     PERMISSIONS.EMPLOYEE_READ,
