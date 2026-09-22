@@ -88,3 +88,5 @@ android/key.properties
 *.cer
 *.secret
 credentials.json
+.vercel
+.env*
