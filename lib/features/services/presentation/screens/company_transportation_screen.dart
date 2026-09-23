@@ -31,7 +31,7 @@ class _CompanyTransportationScreenState
   bool _isSimulating = false;
   SimulatedTransitUpdate? _lastSimUpdate;
   Timer? _countdownTicker;
-  int _displaySeconds = 0;
+  final ValueNotifier<int> _displaySecondsNotifier = ValueNotifier<int>(0);
 
   @override
   void initState() {
@@ -39,10 +39,8 @@ class _CompanyTransportationScreenState
     _tabController = TabController(length: 3, vsync: this);
     _countdownTicker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      if (_displaySeconds > 0) {
-        setState(() {
-          _displaySeconds--;
-        });
+      if (_displaySecondsNotifier.value > 0) {
+        _displaySecondsNotifier.value--;
       }
     });
   }
@@ -50,6 +48,7 @@ class _CompanyTransportationScreenState
   @override
   void dispose() {
     _countdownTicker?.cancel();
+    _displaySecondsNotifier.dispose();
     _simSubscription?.cancel();
     _simulator?.dispose();
     _tabController.dispose();
@@ -69,8 +68,8 @@ class _CompanyTransportationScreenState
         if (!mounted) return;
         setState(() {
           _lastSimUpdate = update;
-          _displaySeconds = update.etaSecondsRemaining;
         });
+        _displaySecondsNotifier.value = update.etaSecondsRemaining;
       });
       _simulator!.startSimulation(
         route: route,
@@ -200,8 +199,8 @@ class _CompanyTransportationScreenState
         ? _lastSimUpdate!.telemetry
         : telemetry;
 
-    if (_displaySeconds == 0 && effectiveTelemetry != null && !_isSimulating) {
-      _displaySeconds = effectiveTelemetry.etaMinutes * 60;
+    if (_displaySecondsNotifier.value == 0 && effectiveTelemetry != null && !_isSimulating) {
+      _displaySecondsNotifier.value = effectiveTelemetry.etaMinutes * 60;
     }
 
     return RefreshIndicator(
@@ -351,14 +350,17 @@ class _CompanyTransportationScreenState
                           crossAxisAlignment: CrossAxisAlignment.baseline,
                           textBaseline: TextBaseline.alphabetic,
                           children: [
-                            Text(
-                              _formatCountdown(_displaySeconds),
-                              style: AppTypography.welcomeTitle.copyWith(
-                                fontSize: 26,
-                                color: effectiveTelemetry.isApproaching
-                                    ? const Color(0xFFEAB308)
-                                    : AppColors.primary,
-                                fontWeight: FontWeight.w800,
+                            ValueListenableBuilder<int>(
+                              valueListenable: _displaySecondsNotifier,
+                              builder: (context, seconds, _) => Text(
+                                _formatCountdown(seconds),
+                                style: AppTypography.welcomeTitle.copyWith(
+                                  fontSize: 26,
+                                  color: effectiveTelemetry.isApproaching
+                                      ? const Color(0xFFEAB308)
+                                      : AppColors.primary,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 4),

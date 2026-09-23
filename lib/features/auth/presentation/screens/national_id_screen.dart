@@ -26,13 +26,15 @@ class _NationalIdScreenState extends State<NationalIdScreen> {
   IdentityStrategy get _strategy =>
       IdentityStrategy.fromString(LocalStore.instance.identityMode);
 
-  bool get _isValid => _strategy.validate(_idController.text);
+  bool get _isValid =>
+      _strategy.validate(EgyptianNationalIdValidator.normalizeDigits(_idController.text.trim()));
 
   bool _requesting = false;
 
   Future<void> _continue() async {
     _focusNode.unfocus();
-    final nationalId = _idController.text;
+    final nationalId =
+        EgyptianNationalIdValidator.normalizeDigits(_idController.text.trim());
     setState(() => _requesting = true);
     final otpRes = await Backend.instance.requestOtp(nationalId);
     if (!mounted) return;
