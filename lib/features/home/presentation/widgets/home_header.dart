@@ -79,7 +79,9 @@ class HomeHeader extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${AppLocale.tr('welcome_prefix')} ${LocalStore.instance.profile.name.split(' ').first}',
+                        LocalStore.instance.profile.name.trim().isNotEmpty
+                            ? '${AppLocale.tr('welcome_prefix')} ${LocalStore.instance.profile.name.trim().split(' ').first}'
+                            : AppLocale.tr('welcome_user'),
                         style: AppTypography.welcomeTitle,
                       ),
                     ],

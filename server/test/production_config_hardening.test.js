@@ -116,6 +116,19 @@ async function runTests() {
       assert.ok(err.message.includes('strictly forbids ephemeral /tmp JSON persistence') || err.message.includes('strictly forbids JSON persistence'));
       console.log('✔ db.data() strictly refuses ephemeral /tmp storage on Vercel in production.');
     }
+    // 7. Production JWT_SECRET Mandatory Enforcement Gate
+    console.log('\n--- 7. Production JWT_SECRET Mandatory Gate ---');
+    process.env.NODE_ENV = 'production';
+    delete process.env.JWT_SECRET;
+    delete process.env.ALLOW_JSON_IN_PROD;
+    delete require.cache[require.resolve('../src/auth')];
+    try {
+      require('../src/auth');
+      assert.fail('auth.js must throw fatal error in production when JWT_SECRET is missing');
+    } catch (err) {
+      assert.ok(err.message.includes('JWT_SECRET environment variable is strictly required in production'));
+      console.log('✔ auth.js strictly refuses initialization without JWT_SECRET in production.');
+    }
 
     console.log('\n=============================================================');
     console.log('ALL PRODUCTION HARDENING TESTS PASSED (0 FAILURES)');

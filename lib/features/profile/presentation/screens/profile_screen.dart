@@ -94,7 +94,9 @@ class ProfileScreen extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    LocalStore.instance.profile.name,
+                                    LocalStore.instance.profile.name.isNotEmpty
+                                        ? LocalStore.instance.profile.name
+                                        : '—',
                                     style: AppTypography.fontBase.copyWith(
                                       fontSize: 18,
                                       fontWeight: FontWeight.w700,
@@ -103,7 +105,9 @@ class ProfileScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'ID ${LocalStore.instance.profile.employeeCode}',
+                                    LocalStore.instance.profile.employeeCode.isNotEmpty
+                                        ? 'ID ${LocalStore.instance.profile.employeeCode}'
+                                        : '',
                                     style: AppTypography.dateSubtitle
                                         .copyWith(fontSize: 13),
                                   ),
@@ -126,7 +130,9 @@ class ProfileScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    LocalStore.instance.profile.factory,
+                                    LocalStore.instance.profile.factory.isNotEmpty
+                                        ? LocalStore.instance.profile.factory
+                                        : '—',
                                     style: AppTypography.fontBase.copyWith(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
@@ -147,7 +153,9 @@ class ProfileScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    LocalStore.instance.profile.department,
+                                    LocalStore.instance.profile.department.isNotEmpty
+                                        ? LocalStore.instance.profile.department
+                                        : '—',
                                     style: AppTypography.fontBase.copyWith(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,

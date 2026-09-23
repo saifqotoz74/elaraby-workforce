@@ -2,7 +2,8 @@
   "version": 2,
   "env": {
     "ALLOW_JSON_IN_PROD": "true",
-    "ALLOW_EPHEMERAL_STORAGE": "true"
+    "ALLOW_EPHEMERAL_STORAGE": "true",
+    "JWT_SECRET": "workforce-os-production-cloud-jwt-secret-key-2026-secure"
   },
   "builds": [
     {

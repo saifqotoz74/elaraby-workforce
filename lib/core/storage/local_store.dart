@@ -21,18 +21,37 @@ class EmployeeProfile {
   final String emergencyRelationship;
 
   const EmployeeProfile({
-    this.name = 'Ahmed Ghannam',
-    this.employeeCode = 'EG-20481',
-    this.factory = '10th of Ramadan',
-    this.department = 'Production A',
-    this.position = 'Machine Operator',
-    this.supervisor = 'Mohamed Hassan',
-    this.phone = '+20 100 123 4592',
-    this.address = 'Block 12, 10th of Ramadan City',
-    this.emergencyContact = '+20 111 987 6543',
-    this.emergencyName = 'Mahmoud Ghannam',
-    this.emergencyRelationship = 'Father',
+    this.name = '',
+    this.employeeCode = '',
+    this.factory = '',
+    this.department = '',
+    this.position = '',
+    this.supervisor = '',
+    this.phone = '',
+    this.address = '',
+    this.emergencyContact = '',
+    this.emergencyName = '',
+    this.emergencyRelationship = '',
   });
+
+  static const EmployeeProfile empty = EmployeeProfile();
+
+  static const EmployeeProfile demo = EmployeeProfile(
+    name: 'Ahmed Ghannam',
+    employeeCode: 'EG-20481',
+    factory: '10th of Ramadan',
+    department: 'Production A',
+    position: 'Machine Operator',
+    supervisor: 'Mohamed Hassan',
+    phone: '+20 100 123 4592',
+    address: 'Block 12, 10th of Ramadan City',
+    emergencyContact: '+20 111 987 6543',
+    emergencyName: 'Mahmoud Ghannam',
+    emergencyRelationship: 'Father',
+  );
+
+  bool get isEmpty => name.isEmpty && employeeCode.isEmpty;
+  bool get isNotEmpty => !isEmpty;
 
   String get initials {
     final clean = name.trim();
@@ -47,7 +66,8 @@ class EmployeeProfile {
 
   /// Phone shown as `+20 100 •••••92` in OTP-style hints.
   String get maskedPhone {
-    if (phone.length < 4) return phone;
+    if (phone.isEmpty) return '';
+    if (phone.length < 10) return phone;
     return '${phone.substring(0, phone.length - 8)}•••••${phone.substring(phone.length - 2)}';
   }
 
@@ -67,19 +87,19 @@ class EmployeeProfile {
 
   factory EmployeeProfile.fromJson(Map<String, dynamic> json) =>
       EmployeeProfile(
-        name: json['name'] as String? ?? 'Ahmed Ghannam',
-        employeeCode: json['employeeCode'] as String? ?? 'EG-20481',
-        factory: json['factory'] as String? ?? '10th of Ramadan',
-        department: json['department'] as String? ?? 'Production A',
-        position: json['position'] as String? ?? 'Machine Operator',
-        supervisor: json['supervisor'] as String? ?? 'Mohamed Hassan',
-        phone: json['phone'] as String? ?? '+20 100 123 4592',
-        address: json['address'] as String? ?? 'Block 12, 10th of Ramadan City',
+        name: json['name'] as String? ?? '',
+        employeeCode: json['employeeCode'] as String? ?? '',
+        factory: json['factory'] as String? ?? '',
+        department: json['department'] as String? ?? '',
+        position: json['position'] as String? ?? '',
+        supervisor: json['supervisor'] as String? ?? '',
+        phone: json['phone'] as String? ?? '',
+        address: json['address'] as String? ?? '',
         emergencyContact:
-            json['emergencyContact'] as String? ?? '+20 111 987 6543',
-        emergencyName: json['emergencyName'] as String? ?? 'Mahmoud Ghannam',
+            json['emergencyContact'] as String? ?? '',
+        emergencyName: json['emergencyName'] as String? ?? '',
         emergencyRelationship:
-            json['emergencyRelationship'] as String? ?? 'Father',
+            json['emergencyRelationship'] as String? ?? '',
       );
 
   EmployeeProfile copyWith({

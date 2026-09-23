@@ -8,7 +8,15 @@ const isProd = process.env.NODE_ENV === 'production';
 const _generatedSecret = crypto.randomBytes(32).toString('hex');
 
 function getOrGenerateJwtSecret() {
-  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+  if (process.env.JWT_SECRET) {
+    if (isProd && (process.env.JWT_SECRET === 'dev-secret-elaraby-2026' || process.env.JWT_SECRET.length < 32)) {
+      throw new Error('FATAL: JWT_SECRET must be set to a cryptographically random string of at least 32 characters in production.');
+    }
+    return process.env.JWT_SECRET;
+  }
+  if (isProd && !process.env.ALLOW_JSON_IN_PROD) {
+    throw new Error('FATAL: JWT_SECRET environment variable is strictly required in production to eliminate ephemeral secrets that trigger cross-container session invalidation.');
+  }
   try {
     const secretPath = path.join(DATA_DIR, '.jwt_secret');
     if (fs.existsSync(secretPath)) {

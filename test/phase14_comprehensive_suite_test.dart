@@ -432,7 +432,7 @@ void main() {
       // Assert post-condition: Complete isolation achieved, zero residual data
       expect(ApiClient.instance.token, isNull);
       expect(LocalStore.instance.profile.name,
-          'Ahmed Ghannam'); // default mock profile
+          ''); // verified zero residual profile data
       expect(LocalStore.instance.vacationDaysRemaining, 12); // default balance
       expect(RequestsStore.instance.allRequests, isEmpty);
       expect(HomeContent.instance.news, isEmpty);

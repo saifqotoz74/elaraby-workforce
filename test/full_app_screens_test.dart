@@ -194,6 +194,7 @@ void main() {
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
 
+      await LocalStore.instance.saveProfile(EmployeeProfile.demo);
       await tester.pumpWidget(
         const ProviderScope(
           child: ElarabyWorkforceApp(initialScreen: MainNavScreen()),
