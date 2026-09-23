@@ -237,7 +237,18 @@ app.get('/api/uploads/*', async (req, res) => {
   }
 });
 
-app.use('/admin', express.static(path.join(__dirname, 'admin')));
+app.use(
+  '/admin',
+  express.static(path.join(__dirname, 'admin'), {
+    etag: false,
+    maxAge: 0,
+    setHeaders: (res) => {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    },
+  })
+);
 app.get('/admin', (req, res) => {
   res.redirect(301, '/admin/');
 });

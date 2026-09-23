@@ -14,12 +14,15 @@ import { escapeHtml } from '../utils/sanitize.js';
 
 export class EmployeesView {
   constructor(containerOrOpts, opts) {
+    const fallbackNav = (route) => {
+      window.location.hash = `#/${String(route).replace(/^\//, '')}`;
+    };
     if (containerOrOpts instanceof HTMLElement) {
       this.container = containerOrOpts;
-      this.onNavigate = opts?.onNavigate;
+      this.onNavigate = opts?.onNavigate || fallbackNav;
     } else {
       this.container = null;
-      this.onNavigate = containerOrOpts?.onNavigate;
+      this.onNavigate = containerOrOpts?.onNavigate || fallbackNav;
     }
     this.element = null;
     this.page = 1;
@@ -36,6 +39,10 @@ export class EmployeesView {
     if (this.container) {
       this.container.innerHTML = '';
       this.container.appendChild(el);
+    }
+    if (sessionStorage.getItem('admin_auto_action') === 'add-employee') {
+      sessionStorage.removeItem('admin_auto_action');
+      setTimeout(() => this.openAddModal(), 100);
     }
     return el;
   }

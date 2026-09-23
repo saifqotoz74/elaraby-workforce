@@ -7,12 +7,15 @@ import { toast } from '../components/Toast.js';
 
 export class DashboardView {
   constructor(containerOrOpts, opts) {
+    const fallbackNav = (route) => {
+      window.location.hash = `#/${String(route).replace(/^\//, '')}`;
+    };
     if (containerOrOpts instanceof HTMLElement) {
       this.container = containerOrOpts;
-      this.onNavigate = opts?.onNavigate;
+      this.onNavigate = opts?.onNavigate || fallbackNav;
     } else {
       this.container = null;
-      this.onNavigate = containerOrOpts?.onNavigate;
+      this.onNavigate = containerOrOpts?.onNavigate || fallbackNav;
     }
     this.element = null;
     this.refreshHandler = null;
@@ -63,34 +66,34 @@ export class DashboardView {
 
         <!-- Executive Quick Action Bar -->
         <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-          <button class="btn btn-secondary btn-sm" id="dash-refresh-btn" title="Refresh Latest Metrics">
+          <button type="button" class="btn btn-secondary btn-sm" id="dash-refresh-btn" title="Refresh Latest Metrics">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             <span>Refresh</span>
           </button>
-          <button class="btn btn-secondary btn-sm" id="dash-act-add-emp">
+          <a href="#/employees" class="btn btn-secondary btn-sm" id="dash-act-add-emp" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             <span>New Employee</span>
-          </button>
-          <button class="btn btn-secondary btn-sm" id="dash-act-broadcast">
+          </a>
+          <a href="#/announcements" class="btn btn-secondary btn-sm" id="dash-act-broadcast" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             <span>Broadcast</span>
-          </button>
-          <button class="btn btn-secondary btn-sm" id="dash-act-loans">
+          </a>
+          <a href="#/loans" class="btn btn-secondary btn-sm" id="dash-act-loans" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
             <span>Review Loans</span>
-          </button>
-          <button class="btn btn-secondary btn-sm" id="dash-act-attendance">
+          </a>
+          <a href="#/attendance" class="btn btn-secondary btn-sm" id="dash-act-attendance" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
             <span>Live Attendance</span>
-          </button>
-          <button class="btn btn-secondary btn-sm" id="dash-act-reports">
+          </a>
+          <a href="#/reports" class="btn btn-secondary btn-sm" id="dash-act-reports" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
             <span>Executive Reports</span>
-          </button>
-          <button class="btn btn-primary btn-sm" id="dash-goto-requests">
+          </a>
+          <a href="#/leave" class="btn btn-primary btn-sm" id="dash-goto-requests" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             <span>Review Leaves</span>
-          </button>
+          </a>
         </div>
       </div>
 
@@ -395,62 +398,104 @@ export class DashboardView {
 
     // Event handlers
     const refreshBtn = this.element.querySelector('#dash-refresh-btn');
-    if (refreshBtn) refreshBtn.onclick = () => this.loadStats();
+    if (refreshBtn) {
+      refreshBtn.onclick = async () => {
+        refreshBtn.disabled = true;
+        const icon = refreshBtn.querySelector('svg');
+        if (icon) {
+          icon.style.transition = 'transform 0.6s ease';
+          icon.style.transform = 'rotate(360deg)';
+        }
+        try {
+          await this.loadStats();
+          toast.success('Dashboard Refreshed', 'Workforce KPIs and live stats updated successfully.');
+        } catch (err) {
+          toast.error('Refresh Failed', err.message);
+        } finally {
+          setTimeout(() => {
+            refreshBtn.disabled = false;
+            if (icon) icon.style.transform = '';
+          }, 600);
+        }
+      };
+    }
 
     const addEmpBtn = this.element.querySelector('#dash-act-add-emp');
     if (addEmpBtn) {
       addEmpBtn.onclick = () => {
-        if (this.onNavigate) this.onNavigate('employees');
-        setTimeout(() => {
-          const btn = document.querySelector('#btn-add-employee');
-          if (btn) btn.click();
-        }, 150);
+        sessionStorage.setItem('admin_auto_action', 'add-employee');
+        if (typeof this.onNavigate === 'function') {
+          this.onNavigate('employees');
+        } else {
+          window.location.hash = '#/employees';
+        }
       };
     }
 
     const broadcastBtn = this.element.querySelector('#dash-act-broadcast');
     if (broadcastBtn) {
       broadcastBtn.onclick = () => {
-        if (this.onNavigate) this.onNavigate('announcements');
-        setTimeout(() => {
-          const btn = document.querySelector('#btn-create-content') || document.querySelector('#btn-new-announcement');
-          if (btn) btn.click();
-        }, 150);
+        sessionStorage.setItem('admin_auto_action', 'new-announcement');
+        if (typeof this.onNavigate === 'function') {
+          this.onNavigate('announcements');
+        } else {
+          window.location.hash = '#/announcements';
+        }
       };
     }
 
     const loansBtn = this.element.querySelector('#dash-act-loans');
     if (loansBtn) {
       loansBtn.onclick = () => {
-        if (this.onNavigate) this.onNavigate('loans');
+        if (typeof this.onNavigate === 'function') {
+          this.onNavigate('loans');
+        } else {
+          window.location.hash = '#/loans';
+        }
       };
     }
 
     const attendanceBtn = this.element.querySelector('#dash-act-attendance');
     if (attendanceBtn) {
       attendanceBtn.onclick = () => {
-        if (this.onNavigate) this.onNavigate('attendance');
+        if (typeof this.onNavigate === 'function') {
+          this.onNavigate('attendance');
+        } else {
+          window.location.hash = '#/attendance';
+        }
       };
     }
 
     const reportsBtn = this.element.querySelector('#dash-act-reports');
     if (reportsBtn) {
       reportsBtn.onclick = () => {
-        if (this.onNavigate) this.onNavigate('reports');
+        if (typeof this.onNavigate === 'function') {
+          this.onNavigate('reports');
+        } else {
+          window.location.hash = '#/reports';
+        }
       };
     }
 
     const reqBtn = this.element.querySelector('#dash-goto-requests');
     if (reqBtn) {
       reqBtn.onclick = () => {
-        if (this.onNavigate) this.onNavigate('leave');
+        if (typeof this.onNavigate === 'function') {
+          this.onNavigate('leave');
+        } else {
+          window.location.hash = '#/leave';
+        }
       };
     }
 
     const viewAllAct = this.element.querySelector('#dash-view-all-activity');
     if (viewAllAct) {
       viewAllAct.onclick = () => {
-        if (this.onNavigate) this.onNavigate('leave');
+        if (typeof this.onNavigate === 'function') {
+          this.onNavigate('leave');
+        } else {
+          window.location.hash = '#/leave';
+        }
       };
     }
 

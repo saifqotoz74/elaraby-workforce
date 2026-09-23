@@ -93,7 +93,11 @@ class App {
     container.className = `view-wrapper view-${routeKey}`;
     shell.setContent(container, title);
 
-    this.currentView = new ViewClass(container, params);
+    const viewParams = {
+      onNavigate: (route) => this.router.navigate(route.startsWith('/') ? route : `/${route}`),
+      ...params,
+    };
+    this.currentView = new ViewClass(container, viewParams);
     this.currentView.mount().catch((err) => {
       console.error(`Error mounting view ${routeKey}:`, err);
       toast.error('Navigation Error', err.message);

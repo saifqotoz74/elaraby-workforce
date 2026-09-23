@@ -33,6 +33,10 @@ export class AnnouncementsView {
     window.addEventListener('realtime:announcement.created', this.onRealtimeCreate);
     window.addEventListener('realtime:announcement.deleted', this.onRealtimeDelete);
     await this.loadContent();
+    if (sessionStorage.getItem('admin_auto_action') === 'new-announcement') {
+      sessionStorage.removeItem('admin_auto_action');
+      setTimeout(() => this.openCreateModal(), 100);
+    }
   }
 
   renderSkeleton() {

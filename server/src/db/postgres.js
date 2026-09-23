@@ -87,10 +87,10 @@ async function query(text, params) {
   try {
     await client.query('BEGIN');
     if (tenantCtx.tenantId) {
-      await client.query('SET LOCAL app.current_tenant_id = $1', [tenantCtx.tenantId]);
+      await client.query("SELECT set_config('app.current_tenant_id', $1, true)", [tenantCtx.tenantId]);
     }
     if (tenantCtx.isSuperAdmin && !tenantCtx.masqueraded) {
-      await client.query("SET LOCAL app.is_super_admin = 'true'");
+      await client.query("SELECT set_config('app.is_super_admin', 'true', true)");
     }
     const res = await client.query(text, params);
     await client.query('COMMIT');
@@ -122,10 +122,10 @@ async function withTransaction(callback) {
     await client.query('BEGIN');
     if (tenantCtx) {
       if (tenantCtx.tenantId) {
-        await client.query('SET LOCAL app.current_tenant_id = $1', [tenantCtx.tenantId]);
+        await client.query("SELECT set_config('app.current_tenant_id', $1, true)", [tenantCtx.tenantId]);
       }
       if (tenantCtx.isSuperAdmin && !tenantCtx.masqueraded) {
-        await client.query("SET LOCAL app.is_super_admin = 'true'");
+        await client.query("SELECT set_config('app.is_super_admin', 'true', true)");
       }
     }
     const result = await callback(client);
