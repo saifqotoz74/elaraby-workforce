@@ -4,7 +4,9 @@ import '../../../../core/localization/app_locale.dart';
 import '../../../../core/network/backend.dart';
 import '../../../../core/storage/local_store.dart';
 import '../../../../core/tenant/identity_strategy.dart';
+import '../../../../core/tenant/tenant_brand.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/app_typography.dart';
 import '../../../../core/utils/national_id_validator.dart';
 import '../widgets/auth_progress_bar.dart';
@@ -386,7 +388,39 @@ class _NationalIdScreenState extends State<NationalIdScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
+
+              // Switch Company Link (only visible when !brand.isFlavorLocked)
+              if (!AppTheme.currentBrand.isFlavorLocked) ...[
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () async {
+                      await LocalStore.instance.setActiveTenantBrandJson(null);
+                      await LocalStore.instance.setActiveTenantSlug('generic');
+                      AppTheme.setTenantBrand(TenantBrand.prConnectDefault());
+                      if (context.mounted) {
+                        AppNavigation.toCompanyCode(context);
+                      }
+                    },
+                    icon: const Icon(
+                      Icons.swap_horiz_rounded,
+                      size: 16,
+                      color: AppColors.textSecondary,
+                    ),
+                    label: Text(
+                      isAr
+                          ? '🏢 لست موظفاً في ${AppTheme.currentBrand.localizedCompanyName(isAr)}؟ تغيير الشركة'
+                          : '🏢 Not an employee at ${AppTheme.currentBrand.companyName}? Switch Company',
+                      style: AppTypography.fontBase.copyWith(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
             ],
           ),
         ),

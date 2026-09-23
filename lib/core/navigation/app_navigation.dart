@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'app_routes.dart';
 
 // Screen fallbacks for test environments where GoRouter is not injected
+import '../../features/auth/presentation/screens/company_code_screen.dart';
 import '../../features/auth/presentation/screens/confirm_pin_screen.dart';
 import '../../features/auth/presentation/screens/get_started_screen.dart';
 import '../../features/auth/presentation/screens/national_id_screen.dart';
@@ -78,6 +79,11 @@ class AppNavigation {
   // ---- Auth / Onboarding ----
   static void toSplash(BuildContext context) {
     _go(context, AppRoutes.splash, fallbackBuilder: () => const SplashScreen());
+  }
+
+  static void toCompanyCode(BuildContext context) {
+    _go(context, AppRoutes.companyCode,
+        fallbackBuilder: () => const CompanyCodeScreen());
   }
 
   static void toGetStarted(BuildContext context) {

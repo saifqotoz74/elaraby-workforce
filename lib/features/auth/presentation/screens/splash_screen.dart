@@ -49,7 +49,17 @@ class _SplashScreenState extends State<SplashScreen> {
       if (onboarded) {
         AppNavigation.toLock(context);
       } else {
-        AppNavigation.toGetStarted(context);
+        final brand = AppTheme.currentBrand;
+        final tenantSlug = LocalStore.instance.hasExplicitTenant
+            ? LocalStore.instance.activeTenantSlug
+            : null;
+
+        if (!brand.isFlavorLocked &&
+            (tenantSlug == null || tenantSlug == 'generic')) {
+          AppNavigation.toCompanyCode(context);
+        } else {
+          AppNavigation.toGetStarted(context);
+        }
       }
     }
   }

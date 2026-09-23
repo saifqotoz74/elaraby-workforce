@@ -2,6 +2,7 @@
 abstract class AppRoutes {
   // ---- Authentication & Onboarding Routes ----
   static const String splash = '/';
+  static const String companyCode = '/company-code';
   static const String getStarted = '/get-started';
   static const String nationalId = '/national-id';
   static const String otp = '/otp';
@@ -54,6 +55,7 @@ abstract class AppRoutes {
   /// Returns true if the given [location] is an authentication / onboarding screen.
   static bool isAuthRoute(String location) {
     return location == splash ||
+        location == companyCode ||
         location == getStarted ||
         location == nationalId ||
         location == otp ||

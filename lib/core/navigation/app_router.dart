@@ -9,6 +9,7 @@ import 'unknown_route_screen.dart';
 
 // Auth Screens
 import '../../features/auth/presentation/screens/confirm_pin_screen.dart';
+import '../../features/auth/presentation/screens/company_code_screen.dart';
 import '../../features/auth/presentation/screens/get_started_screen.dart';
 import '../../features/auth/presentation/screens/national_id_screen.dart';
 import '../../features/auth/presentation/screens/otp_screen.dart';
@@ -118,6 +119,7 @@ GoRouter createAppRouter({
 
       // 2. Fully onboarded user trying to access onboarding screens
       if (loc == AppRoutes.getStarted ||
+          loc == AppRoutes.companyCode ||
           loc == AppRoutes.nationalId ||
           loc == AppRoutes.otp ||
           loc == AppRoutes.profileConfirmation ||
@@ -145,6 +147,10 @@ GoRouter createAppRouter({
       GoRoute(
         path: AppRoutes.splash,
         builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.companyCode,
+        builder: (context, state) => const CompanyCodeScreen(),
       ),
       GoRoute(
         path: AppRoutes.getStarted,

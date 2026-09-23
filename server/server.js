@@ -10,6 +10,7 @@ const { errorHandler } = require('./src/errors');
 const employeeRoutes = require('./src/routes/employee');
 const adminRoutes = require('./src/routes/admin');
 const tenantRoutes = require('./src/routes/tenant');
+const iclockRoutes = require('./src/routes/iclock');
 const { tenantResolver } = require('./src/tenantResolver');
 
 const correlationMiddleware = require('./src/observability/correlationMiddleware');
@@ -212,6 +213,7 @@ app.get('/api/news', (req, res) => {
 app.use('/api', tenantRoutes);
 app.use('/api', employeeRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/iclock', iclockRoutes);
 
 // Uploaded images + admin dashboard (single-file SPA).
 const storage = require('./src/services/storage');

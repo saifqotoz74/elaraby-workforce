@@ -67,6 +67,10 @@ export class EmployeesView {
             </button>
           </div>
 
+          <button class="btn btn-secondary" id="btn-import-employees" style="border-color: #059669; color: #059669;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>📥 استيراد عمال من إكسيل (Bulk Import)</span>
+          </button>
           <button class="btn btn-secondary" id="btn-export-employees">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span>Export to Excel</span>
@@ -214,6 +218,11 @@ export class EmployeesView {
     };
 
     // Event Bindings
+    const importBtn = this.element.querySelector('#btn-import-employees');
+    if (importBtn) {
+      importBtn.onclick = () => this.openImportModal();
+    }
+
     this.element.querySelector('#btn-add-employee').onclick = () => this.openAddModal();
 
     const exportBtn = this.element.querySelector('#btn-export-employees');
@@ -565,6 +574,159 @@ export class EmployeesView {
       } catch (err) {
         errEl.textContent = err.message || 'Failed to create employee';
         errEl.style.display = 'block';
+      }
+    };
+
+    modal.render();
+  }
+
+  openImportModal() {
+    const container = document.createElement('div');
+    container.innerHTML = `
+      <div style="margin-bottom: 16px;">
+        <p style="font-size: 13.5px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
+          قم برفع ملف إكسيل (.xlsx) أو ملف نصي (.csv) يحتوي على بيانات العمال. سيتم التحقق من صحة الرقم القومي والهاتف تلقائياً، وتعيين كود المرور المبدئي لكل عامل كـ <b>آخر 4 أرقام من الرقم القومي</b> مع تفعيل تغيير الرمز عند أول دخول.
+        </p>
+        <div style="background: var(--surface-subtle); padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-light); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-main);">📄 القوالب المعتمدة للاستيراد:</span>
+          <div style="display: flex; gap: 8px;">
+            <a href="/api/admin/employees/import-template?format=xlsx" download="workforce_import_template.xlsx" class="btn btn-secondary btn-sm" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+              📊 تحميل قالب إكسيل (.xlsx)
+            </a>
+            <a href="/api/admin/employees/import-template?format=csv" download="workforce_import_template.csv" class="btn btn-secondary btn-sm" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+              📝 تحميل قالب (.csv)
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" style="font-weight: 700;">اختر ملف الإكسيل أو CSV للرفع</label>
+        <input type="file" id="bulk-import-file" class="form-input" accept=".xlsx,.csv" style="padding: 8px;" />
+      </div>
+
+      <div id="bulk-import-progress" style="display: none; margin-top: 14px;">
+        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+          <span>جاري معالجة البيانات والتحقق من الأرقام القومية...</span>
+          <span id="bulk-import-progress-pct">100%</span>
+        </div>
+        <div style="width: 100%; height: 6px; background: #E5E7EB; border-radius: 3px; overflow: hidden;">
+          <div style="width: 100%; height: 100%; background: #059669; border-radius: 3px; animation: pulse 1.5s infinite;"></div>
+        </div>
+      </div>
+
+      <div id="bulk-import-errors-wrap" style="display: none; margin-top: 16px;">
+        <div style="background: #FEF2F2; border: 1px solid #FCA5A5; border-radius: 8px; padding: 12px;">
+          <b style="color: #991B1B; font-size: 13px; display: block; margin-bottom: 6px;">⚠️ تنبيه: تم العثور على أخطاء في بعض السطور:</b>
+          <div style="max-height: 180px; overflow-y: auto;">
+            <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+              <thead>
+                <tr style="border-bottom: 1px solid #FECACA; text-align: right;">
+                  <th style="padding: 4px 6px;">السطر</th>
+                  <th style="padding: 4px 6px;">الرقم القومي</th>
+                  <th style="padding: 4px 6px;">سبب الخطأ</th>
+                </tr>
+              </thead>
+              <tbody id="bulk-import-errors-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-error" id="bulk-import-err" style="display: none; margin-top: 12px;"></div>
+    `;
+
+    const footer = document.createElement('div');
+    footer.style.display = 'flex';
+    footer.style.gap = '10px';
+    footer.style.justifyContent = 'flex-end';
+    footer.style.width = '100%';
+    footer.innerHTML = `
+      <button type="button" class="btn btn-secondary btn-sm" id="modal-import-cancel">إلغاء</button>
+      <button type="button" class="btn btn-primary btn-sm" id="modal-import-submit" style="background: #059669; border-color: #059669;">بدء الاستيراد وتوليد PIN</button>
+    `;
+
+    const modal = new Modal({
+      title: '📥 استيراد عمال من إكسيل (Bulk Import & Auto-PIN)',
+      content: container,
+      footer,
+    });
+
+    footer.querySelector('#modal-import-cancel').onclick = () => modal.close();
+
+    const submitBtn = footer.querySelector('#modal-import-submit');
+    submitBtn.onclick = async () => {
+      const fileInput = container.querySelector('#bulk-import-file');
+      const errEl = container.querySelector('#bulk-import-err');
+      const progressEl = container.querySelector('#bulk-import-progress');
+      const errorsWrap = container.querySelector('#bulk-import-errors-wrap');
+      const errorsTable = container.querySelector('#bulk-import-errors-table');
+
+      errEl.style.display = 'none';
+      errorsWrap.style.display = 'none';
+
+      if (!fileInput.files || fileInput.files.length === 0) {
+        errEl.textContent = 'يرجى اختيار ملف .xlsx أو .csv أولاً';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      const file = fileInput.files[0];
+      submitBtn.disabled = true;
+      progressEl.style.display = 'block';
+
+      try {
+        const reader = new FileReader();
+        const fileData = await new Promise((resolve, reject) => {
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        const token = store.get('token');
+        const resp = await fetch('/api/admin/employees/import-bulk', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            dataBase64: fileData,
+            filename: file.name,
+          }),
+        });
+
+        const result = await resp.json();
+        if (!resp.ok) {
+          throw new Error(result.message || result.error || 'فشل الاستيراد');
+        }
+
+        if (result.importedCount > 0) {
+          toast.success('تم الاستيراد بنجاح', `تم استيراد ${result.importedCount} عامل وتعيين PIN تلقائي.`);
+          this.loadEmployees();
+        }
+
+        if (result.errorCount > 0) {
+          errorsTable.innerHTML = '';
+          result.errors.forEach((err) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td style="padding: 4px 6px; font-weight: bold;">${err.row}</td>
+              <td style="padding: 4px 6px; font-family: monospace;">${escapeHtml(err.nationalId || '—')}</td>
+              <td style="padding: 4px 6px; color: #DC2626;">${escapeHtml(err.reason || '')}</td>
+            `;
+            errorsTable.appendChild(tr);
+          });
+          errorsWrap.style.display = 'block';
+        } else {
+          modal.close();
+        }
+      } catch (err) {
+        errEl.textContent = err.message || 'حدث خطأ أثناء معالجة الملف';
+        errEl.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        progressEl.style.display = 'none';
       }
     };
 

@@ -151,6 +151,24 @@ class SettingsScreen extends ConsumerWidget {
                       height: 1,
                       indent: 64,
                       color: AppColors.scaffoldBackground),
+                  if (!AppTheme.currentBrand.isFlavorLocked) ...[
+                    _buildNavTile(
+                      icon: Icons.corporate_fare_rounded,
+                      title: AppLocale.instance.isArabic
+                          ? 'كود المؤسسة النشط'
+                          : 'Active Organization Code',
+                      subtitle: AppTheme.currentBrand
+                          .localizedCompanyName(AppLocale.instance.isArabic),
+                      hasChevron: true,
+                      onTap: () {
+                        AppNavigation.toCompanyCode(context);
+                      },
+                    ),
+                    const Divider(
+                        height: 1,
+                        indent: 64,
+                        color: AppColors.scaffoldBackground),
+                  ],
                   _buildNavTile(
                     icon: Icons.info_outline_rounded,
                     title: AppLocale.tr('settings_about'),
