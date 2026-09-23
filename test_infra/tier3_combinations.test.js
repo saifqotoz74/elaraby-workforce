@@ -449,28 +449,28 @@ test('=== TIER 3: CROSS-FEATURE COMBINATORIAL E2E SUITE ===', async (t) => {
   // Interaction 16: Tenant Switch -> New Tenant Employee -> Cross-Tenant RLS (F16 + F7 + F8)
   // -------------------------------------------------------------------------
   await t.test('INT-16: Tenant Switch -> New Tenant Employee -> Cross-Tenant RLS (F16 + F7 + F8)', async () => {
-    // Fetch Ghabbour tenant config
-    const tenantRes = await request('GET', '/api/tenants/ghabbour');
+    // Fetch Elsewedy tenant config
+    const tenantRes = await request('GET', '/api/tenants/elsewedy');
     assert.equal(tenantRes.status, 200);
-    assert.equal(tenantRes.json?.tenant?.slug, 'ghabbour');
+    assert.equal(tenantRes.json?.tenant?.slug, 'elsewedy');
 
-    // Create employee in Ghabbour
-    const ghabbourAdminToken = getAdminToken({ role: ROLES.HR_OFFICER, tenantId: 'ghabbour' });
+    // Create employee in Elsewedy
+    const elsewedyAdminToken = getAdminToken({ role: ROLES.HR_OFFICER, tenantId: 'elsewedy' });
     const createRes = await request('POST', '/api/admin/employees', {
-      Authorization: `Bearer ${ghabbourAdminToken}`,
-      'X-Tenant-ID': 'ghabbour',
+      Authorization: `Bearer ${elsewedyAdminToken}`,
+      'X-Tenant-ID': 'elsewedy',
     }, {
-      name: 'Ghabbour Auto Tech',
+      name: 'Elsewedy Cable Tech',
       nationalId: `29${Math.floor(100000000000 + Math.random() * 900000000000)}`,
-      factory: 'Suez Automotive Plant',
+      factory: '10th of Ramadan Plant',
       department: 'Assembly',
     });
     assert.equal(createRes.status, 201);
-    const ghabbourEmpId = createRes.json?.employee?.id;
+    const elsewedyEmpId = createRes.json?.employee?.id;
 
-    // Elaraby HR officer cannot access Ghabbour employee
+    // Elaraby HR officer cannot access Elsewedy employee
     const elarabyHrToken = getAdminToken({ role: ROLES.HR_OFFICER, tenantId: 'elaraby' });
-    const crossRes = await request('GET', `/api/admin/employees/${ghabbourEmpId}`, {
+    const crossRes = await request('GET', `/api/admin/employees/${elsewedyEmpId}`, {
       Authorization: `Bearer ${elarabyHrToken}`,
       'X-Tenant-ID': 'elaraby',
     });

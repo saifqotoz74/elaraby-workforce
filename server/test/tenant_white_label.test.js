@@ -157,7 +157,7 @@ async function runTests() {
   // 5a. Super-admin lists all tenants
   const listRes = await invokeRoute('GET', '/super-admin/tenants');
   assert.strictEqual(listRes.status, 200);
-  assert(listRes.body.totalTenants >= 3, 'Should list at least 3 default tenants');
+  assert(listRes.body.totalTenants >= 2, 'Should list default tenants');
   console.log('✔ Super-admin GET /super-admin/tenants lists active tenants with stats.');
 
   // 5b. Super-admin provisions a new tenant

@@ -20,6 +20,26 @@ async function testSuite() {
   if (currentDb.loans) {
     currentDb.loans = currentDb.loans.filter(l => l.employeeId !== 'emp_3' && l.employeeId !== 'emp_gic_1');
   }
+  if (!currentDb.employees.find(e => e.id === 'emp_gic_1')) {
+    currentDb.employees.push({
+      id: 'emp_gic_1',
+      tenantId: 'gulf_industrial',
+      name: 'Saud Al-Otaibi',
+      nationalId: '1092837465',
+      employeeCode: 'GIC-88120',
+      factory: 'jubail',
+      department: 'Petrochemical Refining',
+      position: 'Process Operations Lead',
+      supervisor: 'Fahad Al-Dosari',
+      phone: '+966 50 112 2334',
+      vacationBalance: 25,
+      pinHash: null,
+      tokenVersion: 1,
+      active: true,
+      currency: 'SAR',
+      createdAt: Date.now(),
+    });
+  }
 
   // -------------------------------------------------------------
   // Test 1: Multi-Tenant Loan Application & Currency Enforcement
