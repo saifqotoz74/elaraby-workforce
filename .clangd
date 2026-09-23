@@ -1,0 +1,9 @@
+CompileFlags:
+  Add:
+    - -w
+    - -Wno-everything
+
+Diagnostics:
+  Suppress: ["*"]
+  UnusedIncludes: None
+  MissingIncludes: None
