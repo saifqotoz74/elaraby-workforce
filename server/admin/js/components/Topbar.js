@@ -47,9 +47,15 @@ export class Topbar {
     // Determine Cairo active shift
     const nowCairo = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Cairo' }));
     const cairoHour = nowCairo.getHours();
-    let shiftText = '🌅 Morning Shift';
-    if (cairoHour >= 16) shiftText = '🌇 Evening Shift';
-    if (cairoHour < 8) shiftText = '🌙 Night Shift';
+    let shiftEmoji = '🌅';
+    let shiftText = 'Morning Shift';
+    if (cairoHour >= 16) {
+      shiftEmoji = '🌇';
+      shiftText = 'Evening Shift';
+    } else if (cairoHour < 8) {
+      shiftEmoji = '🌙';
+      shiftText = 'Night Shift';
+    }
 
     this.element.innerHTML = `
       <div class="topbar-left">
@@ -60,81 +66,93 @@ export class Topbar {
 
         <!-- Spotlight Command Bar Trigger -->
         <button class="topbar-command-trigger" id="topbar-command-btn" title="Quick Search & Actions (Ctrl+K)">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <span style="font-size: 13px;">Search or jump to...</span>
-          <span class="kbd-badge" style="margin-left: 6px;">Ctrl K</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span class="cmd-label">Search or jump to...</span>
+          <kbd class="kbd-badge">Ctrl K</kbd>
         </button>
       </div>
 
       <div class="topbar-right">
-        <!-- Live Shift Indicator -->
-        <div class="topbar-clock" id="topbar-shift-badge" title="Active Factory Operational Shift">
-          <span>${shiftText}</span>
-          <span style="color: var(--text-light);">•</span>
-          <span class="clock-time" id="topbar-live-clock">--:--:--</span>
+        <!-- Group 1: Live Status & Context -->
+        <div class="topbar-group topbar-status-group">
+          <!-- Live Shift Indicator -->
+          <div class="topbar-shift-pill" id="topbar-shift-badge" title="Active Factory Operational Shift (Cairo Local Time)">
+            <span class="shift-icon">${shiftEmoji}</span>
+            <span class="shift-name">${shiftText}</span>
+            <span class="shift-sep">•</span>
+            <span class="clock-time" id="topbar-live-clock">--:--:--</span>
+          </div>
+
+          <!-- Realtime Live Sync Badge -->
+          <div class="topbar-realtime-badge" id="topbar-realtime-badge" title="Realtime Server Synchronization">
+            <span class="realtime-dot"></span>
+            <span class="realtime-label">Live Sync</span>
+          </div>
+
+          <!-- Active Multi-Tenant Context Selector -->
+          <div class="topbar-tenant-box">
+            <svg class="tenant-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            <select id="topbar-tenant-select" class="topbar-tenant-select" title="Active Tenant Organization Context">
+              <option value="all">All Organizations</option>
+              <option value="elaraby">Elaraby Group</option>
+              <option value="elsewedy">Elsewedy Electric</option>
+            </select>
+            <svg class="tenant-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
         </div>
 
-        <!-- Language Switcher Toggle (EN / AR) -->
-        <button class="btn btn-secondary btn-icon" id="topbar-lang-toggle" title="Switch Language (العربية / English)" style="border-radius: var(--radius-pill); padding: 6px 12px; font-size: 12.5px; display: flex; align-items: center; gap: 6px;">
-          <span>🌐</span>
-          <span id="lang-toggle-text" style="font-weight: 700;">${currentLang === 'ar' ? 'English' : 'العربية'}</span>
-        </button>
+        <div class="topbar-divider"></div>
 
-        <!-- Theme Toggle (Light / Dark) -->
-        <button class="btn btn-secondary btn-icon" id="topbar-theme-toggle" title="Toggle Theme (Light/Dark)" style="border-radius: var(--radius-pill); padding: 6px 12px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
-          <span id="theme-toggle-icon">${currentTheme === 'dark' ? '☀️' : '🌙'}</span>
-          <span id="theme-toggle-text" style="font-size: 12px; font-weight: 600;">${currentTheme === 'dark' ? 'Light' : 'Dark'}</span>
-        </button>
-
-        <!-- Manager Alerts & Exception Bell Dropdown -->
-        <div class="topbar-alerts-container" id="topbar-alerts-container">
-          <button class="topbar-alerts-btn" id="topbar-alerts-btn" title="Manager Alerts & Operational Exceptions" aria-haspopup="true" aria-expanded="false">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-            </svg>
-            <span class="topbar-alerts-badge" id="topbar-alerts-badge" style="display: none;">0</span>
+        <!-- Group 2: Action Utilities (Uniform 34px icon buttons) -->
+        <div class="topbar-group topbar-actions-group">
+          <!-- Language Switcher Toggle (EN / AR) -->
+          <button class="topbar-action-btn" id="topbar-lang-toggle" title="Switch Language (العربية / English)">
+            <span id="lang-toggle-text" class="topbar-lang-chip">${currentLang === 'ar' ? 'EN' : 'عربي'}</span>
           </button>
-          
-          <div class="topbar-alerts-dropdown" id="topbar-alerts-dropdown" style="display: none;">
-            <div class="topbar-alerts-header">
-              <div class="topbar-alerts-title">
-                <span>🚨 Manager Alerts</span>
-                <span class="badge badge-secondary badge-pill" id="topbar-alerts-count-badge" style="font-size: 11px;">0 unread</span>
+
+          <!-- Theme Toggle (Light / Dark) -->
+          <button class="topbar-action-btn" id="topbar-theme-toggle" title="Toggle Theme (Light/Dark)">
+            <span id="theme-toggle-icon">${currentTheme === 'dark' ? '☀️' : '🌙'}</span>
+            <span id="theme-toggle-text" style="display: none;">${currentTheme === 'dark' ? 'Light' : 'Dark'}</span>
+          </button>
+
+          <!-- Manager Alerts & Exception Bell Dropdown -->
+          <div class="topbar-alerts-container" id="topbar-alerts-container">
+            <button class="topbar-action-btn" id="topbar-alerts-btn" title="Manager Alerts & Operational Exceptions" aria-haspopup="true" aria-expanded="false">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+              <span class="topbar-alerts-badge" id="topbar-alerts-badge" style="display: none;">0</span>
+            </button>
+            
+            <div class="topbar-alerts-dropdown" id="topbar-alerts-dropdown" style="display: none;">
+              <div class="topbar-alerts-header">
+                <div class="topbar-alerts-title">
+                  <span>🚨 Manager Alerts</span>
+                  <span class="badge badge-secondary badge-pill" id="topbar-alerts-count-badge" style="font-size: 11px;">0 unread</span>
+                </div>
+                <button class="btn btn-ghost btn-xs" id="topbar-alerts-mark-all" style="font-size: 11px; font-weight: 600;">
+                  Mark all read
+                </button>
               </div>
-              <button class="btn btn-ghost btn-xs" id="topbar-alerts-mark-all" style="font-size: 11px; font-weight: 600;">
-                Mark all read
-              </button>
-            </div>
-            <div class="topbar-alerts-list" id="topbar-alerts-list">
-              <div class="topbar-alerts-empty">
-                <div class="topbar-alerts-empty-icon">✓</div>
-                <div class="topbar-alerts-empty-text">No active alerts. All operations normal.</div>
+              <div class="topbar-alerts-list" id="topbar-alerts-list">
+                <div class="topbar-alerts-empty">
+                  <div class="topbar-alerts-empty-icon">✓</div>
+                  <div class="topbar-alerts-empty-text">No active alerts. All operations normal.</div>
+                </div>
               </div>
-            </div>
-            <div class="topbar-alerts-footer">
-              <a href="#/audit" id="topbar-alerts-view-all">View Audit Trail & Exceptions →</a>
+              <div class="topbar-alerts-footer">
+                <a href="#/audit" id="topbar-alerts-view-all">View Audit Trail & Exceptions →</a>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Realtime Live Sync Badge -->
-        <div class="realtime-indicator" id="topbar-realtime-badge">
-          <span class="realtime-dot"></span>
-          <span>Live Sync</span>
-        </div>
+        <div class="topbar-divider"></div>
 
-        <!-- Active Multi-Tenant Context Selector -->
-        <div class="topbar-tenant-box" style="display: flex; align-items: center; gap: 6px;">
-          <select id="topbar-tenant-select" class="form-select" style="padding: 4px 10px; height: 34px; font-size: 12px; font-weight: 700; border-radius: var(--radius-pill); background: var(--surface-subtle); border: 1px solid var(--border-light); cursor: pointer;" title="Active Tenant Organization Context">
-            <option value="all">🌐 All Organizations</option>
-            <option value="elaraby">🏢 Elaraby Group</option>
-            <option value="elsewedy">🏢 Elsewedy Electric</option>
-          </select>
-        </div>
-
-        <!-- User Profile Badge -->
-        <div class="user-profile-badge" id="topbar-user-badge" title="Authenticated Administrator">
+        <!-- Group 3: User Profile Badge -->
+        <div class="topbar-user-badge" id="topbar-user-badge" title="Authenticated Administrator (${username})">
           <div class="user-avatar">${username.slice(0, 2).toUpperCase()}</div>
           <div class="user-meta">
             <b>${username}</b>
@@ -182,7 +200,7 @@ export class Topbar {
         document.documentElement.setAttribute('lang', newLang);
         localStorage.setItem('admin_lang', newLang);
         const textEl = this.element.querySelector('#lang-toggle-text');
-        if (textEl) textEl.textContent = newLang === 'ar' ? 'English' : 'العربية';
+        if (textEl) textEl.textContent = newLang === 'ar' ? 'EN' : 'عربي';
 
         // Dispatch language change event so views can react if needed
         window.dispatchEvent(new CustomEvent('admin:language.changed', { detail: { lang: newLang } }));
@@ -442,11 +460,11 @@ export class Topbar {
       const tenants = res.tenants || [];
       if (tenants.length > 0) {
         const currentVal = localStorage.getItem('admin_active_tenant') || 'all';
-        tenantSelect.innerHTML = `<option value="all">🌐 All Organizations</option>`;
+        tenantSelect.innerHTML = `<option value="all">All Organizations</option>`;
         for (const t of tenants) {
           const opt = document.createElement('option');
           opt.value = t.slug || t.id;
-          opt.textContent = `🏢 ${t.brandName || t.name || t.slug}`;
+          opt.textContent = `${t.brandName || t.name || t.slug}`;
           tenantSelect.appendChild(opt);
         }
         tenantSelect.value = currentVal;
