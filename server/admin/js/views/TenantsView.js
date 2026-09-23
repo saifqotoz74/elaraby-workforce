@@ -110,246 +110,307 @@ export class TenantsView {
       </div>
 
       <!-- Two-Column Enterprise Brand Studio Modal -->
-      <div id="tenant-modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 20px;">
-        <div class="card" style="width: 100%; max-width: 1120px; max-height: 94vh; overflow-y: auto; padding: 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.45); border-radius: 20px;">
+      <div id="tenant-modal-overlay" style="display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.75); z-index: 9999; align-items: center; justify-content: center; backdrop-filter: blur(8px); padding: 16px;">
+        <div class="studio-modal-card">
           
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px;">
+          <!-- Modal Header -->
+          <div class="studio-modal-header">
             <div style="display: flex; align-items: center; gap: 12px;">
-              <div style="width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #0B63B4, #3B82F6); color: white; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+              <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #0284C7, #2563EB); color: white; display: flex; align-items: center; justify-content: center; font-size: 19px; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);">
                 🎨
               </div>
               <div>
-                <h3 id="modal-tenant-title" style="margin: 0; font-size: 19px; font-weight: 800; color: var(--navy-900);">
-                  Enterprise Brand Studio & Live Mobile Customizer
+                <h3 id="modal-tenant-title" style="margin: 0; font-size: 16.5px; font-weight: 800; color: var(--text-main);">
+                  Brand Studio: Elaraby Group
                 </h3>
-                <p style="margin: 0; font-size: 12px; color: var(--text-muted);">
-                  Customize branding, typography, official tax letterhead, and factory geofences with instant real-time device preview.
+                <p style="margin: 0; font-size: 11.5px; color: var(--text-muted);">
+                  تخصيص الهوية المؤسسية، النطاقات الجغرافية، والبيانات القانونية مع معاينة فورية على الهاتف
                 </p>
               </div>
             </div>
-            <button type="button" class="btn btn-ghost btn-sm" id="btn-close-tenant-modal" style="font-size: 22px; line-height: 1;">&times;</button>
+            <button type="button" class="studio-close-btn" id="btn-close-tenant-modal" aria-label="Close modal">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
 
-          <div class="brand-studio-layout">
-            <!-- Left Column: Studio Form Configuration -->
-            <div class="brand-studio-form-col">
-              <form id="tenant-form">
-                <input type="hidden" id="form-tenant-mode" value="create">
+          <!-- Studio Navigation Segmented Tabs -->
+          <div class="studio-nav-segmented">
+            <button type="button" class="studio-nav-pill active" data-studio-tab="branding">
+              <span>🎨</span> الهوية والمظهر
+            </button>
+            <button type="button" class="studio-nav-pill" data-studio-tab="corporate">
+              <span>🏢</span> بيانات المنشأة
+            </button>
+            <button type="button" class="studio-nav-pill" data-studio-tab="legal">
+              <span>📜</span> السجل والترخيص
+            </button>
+            <button type="button" class="studio-nav-pill" data-studio-tab="geofence">
+              <span>📍</span> المجمعات والـ GPS
+            </button>
+            <button type="button" class="studio-nav-pill" data-studio-tab="modules">
+              <span>⚡</span> موديولات النظام
+            </button>
+          </div>
 
-                <!-- 1. Corporate Identity -->
-                <div style="background: var(--bg-subtle); padding: 14px 16px; border-radius: 12px; margin-bottom: 16px; border: 1px solid var(--border-color);">
-                  <div style="font-size: 13px; font-weight: 800; color: var(--navy-900); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-                    <span>🏢</span> Corporate Identity & Localization
-                  </div>
-                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
-                    <div>
-                      <label class="form-label">Company Code / Slug *</label>
-                      <input type="text" id="form-tenant-slug" class="form-input" placeholder="e.g. elsewedy" required>
-                      <small style="color: var(--text-muted); font-size: 10.5px;">Code used by workers to connect.</small>
-                    </div>
-                    <div>
-                      <label class="form-label">Name (English) *</label>
-                      <input type="text" id="form-tenant-name" class="form-input" placeholder="e.g. Elsewedy Electric" required>
-                    </div>
-                    <div>
-                      <label class="form-label">Name (Arabic) *</label>
-                      <input type="text" id="form-tenant-name-ar" class="form-input" placeholder="e.g. السويدي إليكتريك" required dir="rtl">
-                    </div>
-                  </div>
+          <!-- Modal Body Layout -->
+          <div class="studio-modal-body">
+            <form id="tenant-form">
+              <input type="hidden" id="form-tenant-mode" value="create">
 
-                  <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px;">
-                    <div>
-                      <label class="form-label">Corporate Subtitle / Activity</label>
-                      <input type="text" id="form-tenant-subtitle" class="form-input" placeholder="e.g. Energy & Cables Infrastructure">
-                    </div>
-                    <div>
-                      <label class="form-label">Support Hotline</label>
-                      <input type="text" id="form-tenant-hotline" class="form-input" placeholder="e.g. 16244">
-                    </div>
-                    <div>
-                      <label class="form-label">Currency</label>
-                      <select id="form-tenant-currency" class="form-select">
-                        <option value="EGP">EGP (جم)</option>
-                        <option value="SAR">SAR (ر.س)</option>
-                        <option value="AED">AED (د.إ)</option>
-                        <option value="USD">USD ($)</option>
-                        <option value="EUR">EUR (€)</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- 2. Visual Theming & Logo Studio -->
-                <div style="background: var(--bg-subtle); padding: 14px 16px; border-radius: 12px; margin-bottom: 16px; border: 1px solid var(--border-color);">
-                  <div style="font-size: 13px; font-weight: 800; color: var(--navy-900); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-                    <span>🎨</span> Visual Theming & Logo Studio
-                  </div>
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;">
-                    <div>
-                      <label class="form-label">Primary Brand Color *</label>
-                      <div style="display: flex; gap: 8px; align-items: center;">
-                        <input type="color" id="form-tenant-color-picker" value="#0B63B4" style="width: 44px; height: 38px; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; padding: 2px;">
-                        <input type="text" id="form-tenant-color-hex" class="form-input" value="#0B63B4" style="flex: 1; font-family: monospace; font-weight: 700;">
+              <div class="brand-studio-layout">
+                <!-- Left Form Column with Tab Panels -->
+                <div class="brand-studio-form-col">
+                  
+                  <!-- Tab 1: Branding & Identity -->
+                  <div class="studio-panel active" id="studio-panel-branding">
+                    <div class="studio-section-card">
+                      <div class="studio-section-title">
+                        <span>🏷️</span> المعرّف والأسماء الرسمية
+                      </div>
+                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                          <label class="form-label">Company Code / Slug *</label>
+                          <input type="text" id="form-tenant-slug" class="form-input" placeholder="e.g. elaraby" required>
+                          <small style="color: var(--text-muted); font-size: 10px;">كود الربط الحصري لتسجيل دخول العمال.</small>
+                        </div>
+                        <div>
+                          <label class="form-label">Name (English) *</label>
+                          <input type="text" id="form-tenant-name" class="form-input" placeholder="e.g. Elaraby Group" required>
+                        </div>
+                      </div>
+                      <div>
+                        <label class="form-label">Name (Arabic) *</label>
+                        <input type="text" id="form-tenant-name-ar" class="form-input" placeholder="e.g. مجموعة العربي" required dir="rtl">
                       </div>
                     </div>
-                    <div>
-                      <label class="form-label">Identity Strategy</label>
-                      <select id="form-tenant-auth-mode" class="form-select">
-                        <option value="egyptian_national_id">🇪🇬 Egyptian National ID (14 digits)</option>
-                        <option value="gulf_iqama">🇸🇦 Gulf Iqama / National ID (10 digits)</option>
-                        <option value="generic_employee_code">🏢 Corporate Employee Code</option>
-                      </select>
-                    </div>
-                  </div>
 
-                  <!-- Logo Upload & Monogram Box -->
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
-                    <div>
-                      <label class="form-label">Corporate Logo Image</label>
-                      <div class="logo-dropzone" id="logo-dropzone">
-                        <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display: none;">
-                        <div id="dropzone-prompt" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--primary)" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="17 8 12 3 7 8"></polyline>
-                            <line x1="12" y1="3" x2="12" y2="15"></line>
-                          </svg>
-                          <span style="font-size: 11.5px; font-weight: 600; color: var(--navy-800);">Click or drag & drop Logo</span>
-                          <span style="font-size: 10px; color: var(--text-muted);">PNG, SVG, or WebP up to 6MB</span>
+                    <div class="studio-section-card">
+                      <div class="studio-section-title">
+                        <span>🎨</span> لون الهوية والشعار المؤسسي
+                      </div>
+                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+                        <div>
+                          <label class="form-label">لون الهوية الأساسي (Brand Color) *</label>
+                          <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="color" id="form-tenant-color-picker" value="#0B63B4" style="width: 42px; height: 36px; border: 1px solid var(--border-light); border-radius: 8px; cursor: pointer; padding: 2px; background: var(--surface-card);">
+                            <input type="text" id="form-tenant-color-hex" class="form-input" value="#0B63B4" style="flex: 1; font-family: monospace; font-weight: 700;">
+                          </div>
+                          <div class="studio-swatch-list">
+                            <span style="font-size: 10.5px; color: var(--text-muted);">نماذج:</span>
+                            <div class="studio-swatch" data-color="#0B63B4" style="background: #0B63B4;" title="Elaraby Blue"></div>
+                            <div class="studio-swatch" data-color="#DC2626" style="background: #DC2626;" title="Elsewedy Red"></div>
+                            <div class="studio-swatch" data-color="#1E3A8A" style="background: #1E3A8A;" title="Corporate Navy"></div>
+                            <div class="studio-swatch" data-color="#059669" style="background: #059669;" title="Emerald Green"></div>
+                            <div class="studio-swatch" data-color="#7C3AED" style="background: #7C3AED;" title="Royal Violet"></div>
+                            <div class="studio-swatch" data-color="#D97706" style="background: #D97706;" title="Warm Amber"></div>
+                          </div>
                         </div>
-                        <div id="dropzone-preview" style="display: none; align-items: center; gap: 10px;">
-                          <img id="logo-preview-img" src="" style="width: 44px; height: 44px; object-fit: contain; border-radius: 8px; background: white; padding: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.1);">
-                          <div style="text-align: left;">
-                            <div id="logo-filename" style="font-size: 11.5px; font-weight: 700; color: var(--navy-900);">logo.png</div>
-                            <button type="button" id="btn-remove-logo" class="btn btn-ghost btn-sm" style="padding: 2px 6px; font-size: 11px; color: #EF4444;">Remove</button>
+
+                        <div>
+                          <label class="form-label">درع الحروف (Monogram Shield)</label>
+                          <div style="display: flex; align-items: center; gap: 12px; background: var(--surface-card); padding: 10px; border-radius: 10px; border: 1px solid var(--border-light); height: 74px;">
+                            <div id="monogram-shield-preview" style="width: 44px; height: 44px; border-radius: 10px; background: #0B63B4; color: white; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 17px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); flex-shrink: 0;">
+                              EG
+                            </div>
+                            <div style="font-size: 10.5px; color: var(--text-muted); line-height: 1.35;">
+                              يتم إنشاؤه تلقائياً بالحروف الأولى للشركة كأيقونة احتياطية.
+                            </div>
                           </div>
                         </div>
                       </div>
-                      <input type="hidden" id="form-tenant-logo-url" value="">
-                    </div>
 
-                    <div>
-                      <label class="form-label">Monogram Shield Fallback</label>
-                      <div style="display: flex; align-items: center; gap: 12px; background: white; padding: 12px; border-radius: 10px; border: 1px solid var(--border-color); height: 96px;">
-                        <div id="monogram-shield-preview" style="width: 52px; height: 52px; border-radius: 12px; background: #0B63B4; color: white; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
-                          EG
+                      <div>
+                        <label class="form-label">شعار الشركة (Corporate Logo)</label>
+                        <div class="logo-dropzone" id="logo-dropzone">
+                          <input type="file" id="logo-file-input" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="display: none;">
+                          <div id="dropzone-prompt" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="var(--primary)" stroke-width="2">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                              <polyline points="17 8 12 3 7 8"></polyline>
+                              <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <span style="font-size: 11px; font-weight: 600; color: var(--text-main);">انقر أو اسحب الشعار هنا</span>
+                            <span style="font-size: 9.5px; color: var(--text-muted);">PNG, SVG, WebP حتى 6 ميجابايت</span>
+                          </div>
+                          <div id="dropzone-preview" style="display: none; align-items: center; gap: 10px;">
+                            <img id="logo-preview-img" src="" style="width: 38px; height: 38px; object-fit: contain; border-radius: 8px; background: white; padding: 4px; box-shadow: 0 1px 4px rgba(0,0,0,0.1);">
+                            <div style="text-align: left;">
+                              <div id="logo-filename" style="font-size: 11px; font-weight: 700; color: var(--text-main);">logo.png</div>
+                              <button type="button" id="btn-remove-logo" class="btn btn-ghost btn-sm" style="padding: 1px 6px; font-size: 10.5px; color: var(--status-red);">حذف الشعار</button>
+                            </div>
+                          </div>
                         </div>
-                        <div style="font-size: 11px; color: var(--text-muted); line-height: 1.4;">
-                          Generated automatically from uppercase brand initials when no custom image logo is attached.
-                        </div>
+                        <input type="hidden" id="form-tenant-logo-url" value="">
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <!-- 3. Legal Registry & Tax Letterhead -->
-                <div style="background: var(--bg-subtle); padding: 14px 16px; border-radius: 12px; margin-bottom: 16px; border: 1px solid var(--border-color);">
-                  <div style="font-size: 13px; font-weight: 800; color: var(--navy-900); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-                    <span>📜</span> Legal Registration & Document Letterhead
-                  </div>
-                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 8px;">
-                    <div>
-                      <label class="form-label">Commercial Registry (CR) Number *</label>
-                      <input type="text" id="form-tenant-cr" class="form-input" placeholder="e.g. EG-284910, 104821" required>
+                  <!-- Tab 2: Corporate & Localization -->
+                  <div class="studio-panel" id="studio-panel-corporate">
+                    <div class="studio-section-card">
+                      <div class="studio-section-title">
+                        <span>🏢</span> نشاط المنشأة وخدمة الموظفين
+                      </div>
+                      <div style="margin-bottom: 12px;">
+                        <label class="form-label">الوصف والنشاط التجاري (Subtitle / Activity)</label>
+                        <input type="text" id="form-tenant-subtitle" class="form-input" placeholder="e.g. الأجهزة المنزلية والصناعات الإلكترونية">
+                      </div>
+                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                          <label class="form-label">الخط الساخن للدعم (Hotline)</label>
+                          <input type="text" id="form-tenant-hotline" class="form-input" placeholder="e.g. 19319">
+                        </div>
+                        <div>
+                          <label class="form-label">العملة الرسمية (Currency)</label>
+                          <select id="form-tenant-currency" class="form-select">
+                            <option value="EGP">EGP (جنيه مصري)</option>
+                            <option value="SAR">SAR (ريال سعودي)</option>
+                            <option value="AED">AED (درهم إماراتي)</option>
+                            <option value="USD">USD ($)</option>
+                            <option value="EUR">EUR (€)</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label class="form-label">استراتيجية التحقق من هوية العامل (Identity Strategy)</label>
+                        <select id="form-tenant-auth-mode" class="form-select">
+                          <option value="egyptian_national_id">🇪🇬 الرقم القومي المصري (14 رقماً)</option>
+                          <option value="gulf_iqama">🇸🇦 الإقامة / الهوية الخليجية (10 أرقام)</option>
+                          <option value="generic_employee_code">🏢 كود الموظف المؤسسي الداخلي</option>
+                        </select>
+                      </div>
                     </div>
-                    <div>
-                      <label class="form-label">Tax Card Registration *</label>
-                      <input type="text" id="form-tenant-tax" class="form-input" placeholder="e.g. EG-284-910-112" required>
+                  </div>
+
+                  <!-- Tab 3: Legal & Tax Letterhead -->
+                  <div class="studio-panel" id="studio-panel-legal">
+                    <div class="studio-section-card">
+                      <div class="studio-section-title">
+                        <span>📜</span> البيانات الضريبية والترخيص
+                      </div>
+                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px;">
+                        <div>
+                          <label class="form-label">رقم السجل التجاري (CR Number) *</label>
+                          <input type="text" id="form-tenant-cr" class="form-input" placeholder="e.g. EG-284910, 104821" required>
+                        </div>
+                        <div>
+                          <label class="form-label">رقم البطاقة الضريبية (Tax Registration) *</label>
+                          <input type="text" id="form-tenant-tax" class="form-input" placeholder="e.g. EG-284-910-112" required>
+                        </div>
+                      </div>
+                      <div style="background: rgba(2, 132, 199, 0.06); border: 1px solid rgba(2, 132, 199, 0.2); border-radius: 8px; padding: 10px 12px; font-size: 11.5px; color: var(--text-muted); line-height: 1.4;">
+                        ℹ️ تُطبع هذه المعرفات القانونية تلقائياً على قسائم رواتب الموظفين (Payslips)، خطابات HR المعتمدة، وشهادات الخبرة كترويس رسمي للشركة.
+                      </div>
                     </div>
                   </div>
-                  <small style="color: var(--text-muted); font-size: 11px;">These official legal identifiers are printed on corporate payslips, leaves, and official employee certificates.</small>
+
+                  <!-- Tab 4: Complexes & Geofence -->
+                  <div class="studio-panel" id="studio-panel-geofence">
+                    <div class="studio-section-card">
+                      <div class="studio-section-title">
+                        <span>📍</span> المجمعات الصناعية والنطاقات الجغرافية
+                      </div>
+                      <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr auto; gap: 8px; margin-bottom: 10px;">
+                        <input type="text" id="new-factory-name" class="form-input" placeholder="اسم المجمع (مثال: قويسنا الصناعي)">
+                        <input type="number" step="0.0001" id="new-factory-lat" class="form-input" placeholder="خط العرض (30.45)">
+                        <input type="number" step="0.0001" id="new-factory-lng" class="form-input" placeholder="خط الطول (31.14)">
+                        <button type="button" class="btn btn-secondary btn-sm" id="btn-add-factory" style="white-space: nowrap;">+ إضافة مجمع</button>
+                      </div>
+                      <div class="factory-chip-container" id="factory-chips-list">
+                        <!-- Dynamic chips -->
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Tab 5: Module Subscriptions -->
+                  <div class="studio-panel" id="studio-panel-modules">
+                    <div class="studio-section-card">
+                      <div class="studio-section-title">
+                        <span>⚡</span> موديولات وبوابات النظام المفعلة
+                      </div>
+                      <div class="studio-modules-grid">
+                        <label class="studio-module-item">
+                          <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">💵 قسائم الرواتب (Payroll)</span>
+                          <input type="checkbox" id="feat-payroll" checked>
+                        </label>
+                        <label class="studio-module-item">
+                          <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">🏖️ الإجازات والغياب (Leaves)</span>
+                          <input type="checkbox" id="feat-vacations" checked>
+                        </label>
+                        <label class="studio-module-item">
+                          <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">⏱️ جداول الورديات (Rosters)</span>
+                          <input type="checkbox" id="feat-shifts" checked>
+                        </label>
+                        <label class="studio-module-item">
+                          <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">🚌 حافلات النقل (Fleet)</span>
+                          <input type="checkbox" id="feat-buses" checked>
+                        </label>
+                        <label class="studio-module-item">
+                          <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">🛡️ صندوق الشكاوى (Concerns)</span>
+                          <input type="checkbox" id="feat-concerns" checked>
+                        </label>
+                        <label class="studio-module-item">
+                          <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">📊 استطلاعات النبض (Surveys)</span>
+                          <input type="checkbox" id="feat-surveys" checked>
+                        </label>
+                        <label class="studio-module-item">
+                          <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">🏖️ المصايف والرحلات (Trips)</span>
+                          <input type="checkbox" id="feat-trips" checked>
+                        </label>
+                        <label class="studio-module-item">
+                          <span style="font-size: 12px; font-weight: 700; color: var(--text-main);">🏥 الشبكة الطبية (Medical)</span>
+                          <input type="checkbox" id="feat-medical" checked>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
 
-                <!-- 4. Operational Zones & Geofencing -->
-                <div style="background: var(--bg-subtle); padding: 14px 16px; border-radius: 12px; margin-bottom: 16px; border: 1px solid var(--border-color);">
-                  <div style="font-size: 13px; font-weight: 800; color: var(--navy-900); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-                    <span>📍</span> Industrial Complexes & Geofencing
+                <!-- Right Column: Live Reactive Smartphone Mockup Canvas -->
+                <div class="brand-studio-preview-col">
+                  <div class="mockup-mode-switcher">
+                    <button type="button" class="mockup-mode-btn active" data-mode="welcome">📱 ترحيب</button>
+                    <button type="button" class="mockup-mode-btn" data-mode="home">🏠 الرئيسية</button>
+                    <button type="button" class="mockup-mode-btn" data-mode="payslip">📄 الراتب</button>
                   </div>
-                  <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr auto; gap: 8px; margin-bottom: 10px;">
-                    <input type="text" id="new-factory-name" class="form-input" placeholder="Complex Name (e.g. 10th of Ramadan)">
-                    <input type="number" step="0.0001" id="new-factory-lat" class="form-input" placeholder="GPS Lat (30.2981)">
-                    <input type="number" step="0.0001" id="new-factory-lng" class="form-input" placeholder="GPS Lng (31.7428)">
-                    <button type="button" class="btn btn-secondary btn-sm" id="btn-add-factory" style="white-space: nowrap;">+ Add Zone</button>
+
+                  <!-- Smartphone Chassis -->
+                  <div class="phone-chassis">
+                    <div class="phone-notch">
+                      <div class="phone-camera-lens"></div>
+                    </div>
+                    
+                    <div class="phone-status-bar">
+                      <span>9:41</span>
+                      <div style="display: flex; gap: 4px; align-items: center;">
+                        <span style="font-size: 9px; font-weight: 700;">5G</span>
+                        <span style="font-size: 10px;">📶</span>
+                        <span style="font-size: 10px;">🔋</span>
+                      </div>
+                    </div>
+
+                    <div class="phone-screen" id="mockup-screen-content">
+                      <!-- Rendered dynamically by updatePhoneMockup() -->
+                    </div>
+
+                    <div class="phone-home-indicator"></div>
                   </div>
-                  <div class="factory-chip-container" id="factory-chips-list">
-                    <!-- Dynamic chips -->
+
+                  <div style="margin-top: 8px; font-size: 10.5px; font-weight: 600; color: var(--text-muted); text-align: center;">
+                    ✨ معاينة حية فورية لتطبيق الهاتف
                   </div>
                 </div>
-
-                <!-- 5. Module Subscriptions -->
-                <div style="margin-bottom: 20px;">
-                  <label class="form-label" style="margin-bottom: 8px; display: block; font-weight: 800;">
-                    Functional Module Gates
-                  </label>
-                  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; background: var(--bg-subtle); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">
-                      <input type="checkbox" id="feat-payroll" checked> Payroll Slips
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">
-                      <input type="checkbox" id="feat-vacations" checked> Leave & Vacations
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">
-                      <input type="checkbox" id="feat-shifts" checked> Shift Schedules
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">
-                      <input type="checkbox" id="feat-buses" checked> Fleet Buses
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">
-                      <input type="checkbox" id="feat-concerns" checked> Whistleblower
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">
-                      <input type="checkbox" id="feat-surveys" checked> Pulse Surveys
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">
-                      <input type="checkbox" id="feat-trips" checked> Summer Trips
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">
-                      <input type="checkbox" id="feat-medical" checked> Medical Network
-                    </label>
-                  </div>
-                </div>
-
-                <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid var(--border-color); padding-top: 16px;">
-                  <button type="button" class="btn btn-secondary" id="btn-cancel-tenant-modal">Cancel</button>
-                  <button type="submit" class="btn btn-primary" id="btn-save-tenant">Save & Broadcast Live</button>
-                </div>
-              </form>
-            </div>
-
-            <!-- Right Column: Live Reactive Smartphone Mockup Canvas -->
-            <div class="brand-studio-preview-col">
-              <div class="mockup-mode-switcher">
-                <button type="button" class="mockup-mode-btn active" data-mode="welcome">📱 Welcome</button>
-                <button type="button" class="mockup-mode-btn" data-mode="home">🏠 Home</button>
-                <button type="button" class="mockup-mode-btn" data-mode="payslip">📄 Payslip</button>
               </div>
 
-              <!-- Smartphone Chassis -->
-              <div class="phone-chassis">
-                <div class="phone-notch">
-                  <div class="phone-camera-lens"></div>
-                </div>
-                
-                <div class="phone-status-bar">
-                  <span>9:41</span>
-                  <div style="display: flex; gap: 4px; align-items: center;">
-                    <span style="font-size: 9px;">5G</span>
-                    <span style="font-size: 10px;">📶</span>
-                    <span style="font-size: 10px;">🔋</span>
-                  </div>
-                </div>
-
-                <div class="phone-screen" id="mockup-screen-content">
-                  <!-- Rendered dynamically by updatePhoneMockup() -->
-                </div>
-
-                <div class="phone-home-indicator"></div>
+              <!-- Modal Footer -->
+              <div class="studio-modal-footer">
+                <button type="button" class="btn btn-secondary" id="btn-cancel-tenant-modal">إلغاء</button>
+                <button type="submit" class="btn btn-primary" id="btn-save-tenant" style="padding: 8px 20px; font-weight: 700;">
+                  حفظ وتطبيق فوري على الشبكة
+                </button>
               </div>
-
-              <div style="margin-top: 10px; font-size: 11px; color: var(--text-muted); text-align: center;">
-                ✨ Live Real-time Sync Preview
-              </div>
-            </div>
+            </form>
           </div>
         </div>
       </div>
@@ -380,24 +441,34 @@ export class TenantsView {
 
     // Modal controls
     const openBtn = this.container.querySelector('#btn-open-provision-modal');
-    const modalOverlay = this.container.querySelector('#tenant-modal-overlay');
     const closeBtn = this.container.querySelector('#btn-close-tenant-modal');
     const cancelBtn = this.container.querySelector('#btn-cancel-tenant-modal');
 
-    const openModal = (mode = 'create', tenantData = null) => {
-      this.populateModal(mode, tenantData);
-      modalOverlay.style.display = 'flex';
-      this.updatePhoneMockup();
-    };
+    if (openBtn) openBtn.onclick = () => this.openModal('create');
+    if (closeBtn) closeBtn.onclick = () => this.closeModal();
+    if (cancelBtn) cancelBtn.onclick = () => this.closeModal();
 
-    const closeModal = () => {
-      modalOverlay.style.display = 'none';
-      this.uploadedLogoFile = null;
-    };
+    // Studio Segmented Tab Switching
+    const studioPills = this.container.querySelectorAll('.studio-nav-pill');
+    studioPills.forEach((pill) => {
+      pill.onclick = () => {
+        const target = pill.dataset.studioTab;
+        this.activateStudioTab(target);
+      };
+    });
 
-    if (openBtn) openBtn.onclick = () => openModal('create');
-    if (closeBtn) closeBtn.onclick = closeModal;
-    if (cancelBtn) cancelBtn.onclick = closeModal;
+    // Preset Quick Swatches
+    const swatches = this.container.querySelectorAll('.studio-swatch');
+    swatches.forEach((sw) => {
+      sw.onclick = () => {
+        const col = sw.dataset.color;
+        const colorPicker = this.container.querySelector('#form-tenant-color-picker');
+        const colorHex = this.container.querySelector('#form-tenant-color-hex');
+        if (colorPicker) colorPicker.value = col;
+        if (colorHex) colorHex.value = col;
+        this.updatePhoneMockup();
+      };
+    });
 
     // Color picker synchronization
     const colorPicker = this.container.querySelector('#form-tenant-color-picker');
@@ -511,9 +582,43 @@ export class TenantsView {
     if (form) {
       form.onsubmit = (e) => {
         e.preventDefault();
-        this.handleSubmit(() => closeModal());
+        this.handleSubmit(() => this.closeModal());
       };
     }
+  }
+
+  openModal(mode = 'create', tenant = null) {
+    const modalOverlay = this.container.querySelector('#tenant-modal-overlay');
+    if (!modalOverlay) return;
+    this.populateModal(mode, tenant);
+    modalOverlay.style.display = 'flex';
+    this.activateStudioTab('branding');
+    this.updatePhoneMockup();
+  }
+
+  closeModal() {
+    const modalOverlay = this.container.querySelector('#tenant-modal-overlay');
+    if (modalOverlay) modalOverlay.style.display = 'none';
+    this.uploadedLogoFile = null;
+  }
+
+  activateStudioTab(tabId) {
+    const studioPills = this.container.querySelectorAll('.studio-nav-pill');
+    const studioPanels = this.container.querySelectorAll('.studio-panel');
+    studioPills.forEach((p) => {
+      if (p.dataset.studioTab === tabId) {
+        p.classList.add('active');
+      } else {
+        p.classList.remove('active');
+      }
+    });
+    studioPanels.forEach((pan) => {
+      if (pan.id === `studio-panel-${tabId}`) {
+        pan.classList.add('active');
+      } else {
+        pan.classList.remove('active');
+      }
+    });
   }
 
   handleLogoFile(file) {
@@ -633,7 +738,7 @@ export class TenantsView {
             `}
             <h3 style="margin: 0 0 4px 0; font-size: 17px; font-weight: 800; color: #0F172A;">${escapeHtml(name)}</h3>
             <div style="font-size: 13px; color: #64748B; font-weight: 600; margin-bottom: 6px;">${escapeHtml(nameAr)}</div>
-            <p style="font-size: 11px; color: #94A3B8; margin: 0; line-height: 1.4;">${escapeHtml(subtitle)}</p>
+            <p style="font-size: 11px; color: #94A3B8; margin: 0 auto; max-width: 220px; word-break: break-word; line-height: 1.4;">${escapeHtml(subtitle)}</p>
           </div>
 
           <!-- Actions -->
@@ -1040,8 +1145,7 @@ export class TenantsView {
         const slug = btn.dataset.slug;
         const tenant = this.tenants.find((t) => (t.slug || t.id) === slug);
         if (tenant) {
-          this.populateModal('edit', tenant);
-          this.container.querySelector('#tenant-modal-overlay').style.display = 'flex';
+          this.openModal('edit', tenant);
         }
       };
     });
