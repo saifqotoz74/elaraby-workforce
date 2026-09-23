@@ -49,352 +49,394 @@ export class DashboardView {
       <!-- Subscription Lifecycle Alert Banner -->
       <div id="subscription-alert-container"></div>
 
-      <!-- Top Title & Action Controls -->
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; flex-wrap: wrap; gap: 16px;">
-        <div>
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <h2 style="font-size: 24px; font-weight: 800; color: var(--text-main); letter-spacing: -0.02em;">Executive Workforce Analytics</h2>
-            <span class="realtime-indicator" style="font-size: 11.5px; padding: 2px 10px;">
-              <span class="realtime-dot animate-pulse"></span>
-              Live Sync
-            </span>
-          </div>
-          <p style="font-size: 13.5px; color: var(--text-muted); margin-top: 4px;">
-            Real-time enterprise overview, factory distributions, payroll commitments, and active credentials.
-          </p>
-        </div>
-
-        <!-- Executive Quick Action Bar -->
-        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-          <button type="button" class="btn btn-secondary btn-sm" id="dash-refresh-btn" title="Refresh Latest Metrics">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-            <span>Refresh</span>
-          </button>
-          <a href="#/employees" class="btn btn-secondary btn-sm" id="dash-act-add-emp" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            <span>New Employee</span>
-          </a>
-          <a href="#/announcements" class="btn btn-secondary btn-sm" id="dash-act-broadcast" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            <span>Broadcast</span>
-          </a>
-          <a href="#/loans" class="btn btn-secondary btn-sm" id="dash-act-loans" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-            <span>Review Loans</span>
-          </a>
-          <a href="#/attendance" class="btn btn-secondary btn-sm" id="dash-act-attendance" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
-            <span>Live Attendance</span>
-          </a>
-          <a href="#/reports" class="btn btn-secondary btn-sm" id="dash-act-reports" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
-            <span>Executive Reports</span>
-          </a>
-          <a href="#/leave" class="btn btn-primary btn-sm" id="dash-goto-requests" style="text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <span>Review Leaves</span>
-          </a>
-        </div>
-      </div>
-
-      <!-- Quick Metrics Ribbon -->
-      <div style="display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap;" id="quick-metrics-ribbon">
-        <div class="metric-chip">
-          <span style="color: var(--status-green);">●</span>
-          <span>Active Workforce: <b id="ribbon-active-rate">—%</b></span>
-        </div>
-        <div class="metric-chip">
-          <span style="color: var(--primary);">●</span>
-          <span>Approval Rate: <b id="ribbon-approval-rate">—%</b></span>
-        </div>
-        <div class="metric-chip">
-          <span style="color: var(--status-purple);">●</span>
-          <span>Net Payroll Pool: <b id="ribbon-payroll-pool">—</b></span>
-        </div>
-        <div class="metric-chip">
-          <span style="color: var(--status-amber);">●</span>
-          <span>Active OTPs: <b id="ribbon-active-otps">—</b></span>
-        </div>
-      </div>
-
-      <!-- 8-Card Executive KPI Stats Grid -->
-      <div class="stats-grid" id="stats-container">
-        <!-- 1. Total Workforce -->
-        <div class="stat-card">
-          <div class="stat-card-header">
-            <div class="stat-card-icon blue">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            </div>
-            <span class="stat-trend up" id="stat-active-emp-trend">Active</span>
-          </div>
-          <div class="stat-value" id="stat-active-emp">—</div>
-          <div class="stat-label">Total Workforce</div>
-          <div class="stat-meta" id="stat-active-emp-meta">Active Staff Rate: —</div>
-        </div>
-
-        <!-- 2. Pending Requests -->
-        <div class="stat-card">
-          <div class="stat-card-header">
-            <div class="stat-card-icon amber">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            </div>
-            <span class="stat-trend neutral" id="stat-pending-req-trend">Action Req</span>
-          </div>
-          <div class="stat-value" id="stat-pending-req">—</div>
-          <div class="stat-label">Pending Leave Requests</div>
-          <div class="stat-meta" id="stat-pending-req-meta">Requires HR Review</div>
-        </div>
-
-        <!-- 3. Approved Requests -->
-        <div class="stat-card">
-          <div class="stat-card-header">
-            <div class="stat-card-icon green">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            </div>
-            <span class="stat-trend up" id="stat-approved-req-trend">Optimal</span>
-          </div>
-          <div class="stat-value" id="stat-approved-req">—</div>
-          <div class="stat-label">Approved Requests</div>
-          <div class="stat-meta" id="stat-approved-req-meta">Approval Rate: —</div>
-        </div>
-
-        <!-- 4. Vacation Days Taken -->
-        <div class="stat-card">
-          <div class="stat-card-header">
-            <div class="stat-card-icon red">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            </div>
-            <span class="stat-trend neutral">Balances</span>
-          </div>
-          <div class="stat-value" id="stat-vacation-days">—</div>
-          <div class="stat-label">Vacation Days Taken</div>
-          <div class="stat-meta" id="stat-vacation-days-meta">Avg Balance: — days/emp</div>
-        </div>
-
-        <!-- 5. Monthly Net Payroll Pool -->
-        <div class="stat-card">
-          <div class="stat-card-header">
-            <div class="stat-card-icon purple">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-            </div>
-            <span class="stat-trend up">Disbursed</span>
-          </div>
-          <div class="stat-value" id="stat-payroll-net">—</div>
-          <div class="stat-label">Monthly Net Payroll</div>
-          <div class="stat-meta" id="stat-payroll-net-meta">Avg Salary: —</div>
-        </div>
-
-        <!-- 6. Rostered Shifts & Working Hours -->
-        <div class="stat-card">
-          <div class="stat-card-header">
-            <div class="stat-card-icon teal">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
-            </div>
-            <span class="stat-trend up">Covered</span>
-          </div>
-          <div class="stat-value" id="stat-shifts-rostered">—</div>
-          <div class="stat-label">Rostered Personnel</div>
-          <div class="stat-meta" id="stat-shifts-meta">Weekly Hours: — hrs</div>
-        </div>
-
-        <!-- 7. Welfare & Trip Bookings -->
-        <div class="stat-card">
-          <div class="stat-card-header">
-            <div class="stat-card-icon orange">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-            </div>
-            <span class="stat-trend neutral">Welfare</span>
-          </div>
-          <div class="stat-value" id="stat-trips-booked">—</div>
-          <div class="stat-label">Trip Seats Booked</div>
-          <div class="stat-meta" id="stat-trips-meta">Capacity Fill: —%</div>
-        </div>
-
-        <!-- 8. Broadcasts & Engagement -->
-        <div class="stat-card">
-          <div class="stat-card-header">
-            <div class="stat-card-icon indigo">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            </div>
-            <span class="stat-trend up">Live</span>
-          </div>
-          <div class="stat-value" id="stat-broadcasts">—</div>
-          <div class="stat-label">Broadcasts & Comms</div>
-          <div class="stat-meta" id="stat-broadcasts-meta">Announcements & News</div>
-        </div>
-      </div>
-
-      <!-- Live Verification Codes (OTP / SMS Fallback Monitor) -->
-      <div class="analytics-card" style="margin-top: 24px; border-left: 4px solid var(--primary);">
-        <div class="analytics-card-header" style="flex-wrap: wrap; gap: 14px;">
-          <div>
-            <h3 class="analytics-card-title">
-              <span>🔐 Live Verification Codes (OTP / SMS Fallback)</span>
-              <span class="badge badge-primary" style="font-size: 11px; padding: 2px 8px;">Realtime Stream</span>
-            </h3>
-            <p style="font-size: 12.5px; color: var(--text-muted); margin: 3px 0 0 0;">
-              Temporary 4-6 digit authorization codes generated for employee mobile login & PIN reset (valid 5 min).
+      <!-- Executive Hero & Command Header -->
+      <div class="dash-hero-container">
+        <div class="dash-header-row">
+          <div class="dash-title-group">
+            <h2>
+              <span>Executive Workforce Analytics</span>
+              <span class="realtime-indicator" style="font-size: 11px; padding: 2px 10px; font-weight: 700;">
+                <span class="realtime-dot animate-pulse"></span>
+                Live Sync
+              </span>
+            </h2>
+            <p>
+              <span>Enterprise operations, factory rosters, payroll commitments & live security stream.</span>
             </p>
           </div>
-          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-            <input type="text" class="form-input" id="otp-live-search" placeholder="Filter codes by name, phone..." style="width: 220px; padding: 6px 12px; font-size: 12px;" />
-            <div id="otp-stats-badge" style="font-size: 12px; font-weight: 600; color: var(--text-muted);">
-              Active in memory: <b style="color: var(--status-green);" id="otp-active-counter">0</b>
+
+          <!-- Executive Quick Action Bar -->
+          <div class="dash-action-hub">
+            <button type="button" class="dash-refresh-circle" id="dash-refresh-btn" title="Refresh Latest Metrics">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </button>
+            <a href="#/employees" class="dash-action-btn-primary" id="dash-act-add-emp">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span>+ New Employee</span>
+            </a>
+            <a href="#/leave" class="dash-action-btn-accent" id="dash-goto-requests">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span>Review Leaves</span>
+            </a>
+            <a href="#/attendance" class="dash-action-btn-subtle" id="dash-act-attendance">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+              <span>Attendance</span>
+            </a>
+            <a href="#/loans" class="dash-action-btn-subtle" id="dash-act-loans">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+              <span>Loans</span>
+            </a>
+            <a href="#/reports" class="dash-action-btn-subtle" id="dash-act-reports">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+              <span>Reports</span>
+            </a>
+            <a href="#/announcements" class="dash-action-btn-subtle" id="dash-act-broadcast">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              <span>Broadcast</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Executive Segmented Nav Tabs -->
+      <div class="dash-nav-segmented" id="dash-nav-tabs">
+        <button type="button" class="dash-nav-pill active" data-dash-tab="overview">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          <span>العمليات والمؤشرات (Overview)</span>
+        </button>
+        <button type="button" class="dash-nav-pill" data-dash-tab="payroll">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+          <span>الرواتب والمزايا (Payroll & Welfare)</span>
+        </button>
+        <button type="button" class="dash-nav-pill" data-dash-tab="facilities">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span>المصانع وتوزيع العمل (Facilities)</span>
+        </button>
+        <button type="button" class="dash-nav-pill" data-dash-tab="security">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>أكواد التحقق والأمان (Security & OTP)</span>
+          <span class="pill-badge" id="tab-otp-badge">0</span>
+        </button>
+        <button type="button" class="dash-nav-pill" data-dash-tab="apm">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span>صحة النظام والخوادم (APM Health)</span>
+        </button>
+      </div>
+
+      <!-- ================= TAB 1: OVERVIEW & OPERATIONS ================= -->
+      <div class="dash-panel active" id="panel-overview">
+        <!-- 4-Card Hero KPI Grid -->
+        <div class="kpi-grid-4">
+          <!-- 1. Total Workforce -->
+          <div class="kpi-card-v2 kpi-blue">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="kpi-icon-bubble blue">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <span class="stat-trend up" id="stat-active-emp-trend">Active</span>
+            </div>
+            <div class="kpi-num-large" id="stat-active-emp">—</div>
+            <div class="kpi-title-sub">Total Workforce</div>
+            <div class="kpi-meta-footer">
+              <span id="stat-active-emp-meta">Active Staff Rate: —</span>
+              <span style="color: var(--primary); font-weight: 600;">● Live</span>
+            </div>
+          </div>
+
+          <!-- 2. Pending Requests -->
+          <div class="kpi-card-v2 kpi-amber">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="kpi-icon-bubble amber">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <span class="stat-trend neutral" id="stat-pending-req-trend">Action Req</span>
+            </div>
+            <div class="kpi-num-large" id="stat-pending-req">—</div>
+            <div class="kpi-title-sub">Pending Leaves & Requests</div>
+            <div class="kpi-meta-footer">
+              <span id="stat-pending-req-meta">Requires Review</span>
+              <span style="color: var(--status-amber); font-weight: 600;">● Pending</span>
+            </div>
+          </div>
+
+          <!-- 3. Approved Requests -->
+          <div class="kpi-card-v2 kpi-green">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="kpi-icon-bubble green">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              </div>
+              <span class="stat-trend up" id="stat-approved-req-trend">Optimal</span>
+            </div>
+            <div class="kpi-num-large" id="stat-approved-req">—</div>
+            <div class="kpi-title-sub">Approved Submissions</div>
+            <div class="kpi-meta-footer">
+              <span id="stat-approved-req-meta">Approval Rate: —</span>
+              <span style="color: var(--status-green); font-weight: 600;">● Confirmed</span>
+            </div>
+          </div>
+
+          <!-- 4. Monthly Net Payroll Pool -->
+          <div class="kpi-card-v2 kpi-purple">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="kpi-icon-bubble purple">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+              </div>
+              <span class="stat-trend up">Disbursed</span>
+            </div>
+            <div class="kpi-num-large" id="stat-payroll-net">—</div>
+            <div class="kpi-title-sub">Monthly Net Payroll Pool</div>
+            <div class="kpi-meta-footer">
+              <span id="stat-payroll-net-meta">Published: —</span>
+              <span style="color: var(--status-purple); font-weight: 600;">● CBE WPS</span>
             </div>
           </div>
         </div>
-        <div id="live-otp-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px;">
-          <div style="color: var(--text-muted); font-size: 13px;">No recent OTP requests.</div>
-        </div>
-      </div>
 
-      <!-- Section 1: Request Trends & Category Breakdown -->
-      <div class="analytics-grid-2">
-        <!-- 7-Day Request Volume SVG Chart -->
-        <div class="analytics-card">
-          <div class="analytics-card-header">
-            <h3 class="analytics-card-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-              <span>Daily Request Submissions (Last 7 Days)</span>
-            </h3>
-            <span class="badge badge-primary" style="font-size: 11px;">7-Day Velocity</span>
-          </div>
-          <div id="requests-chart-bars" style="height: 190px; padding: 6px 0; border-bottom: 1px solid var(--border-light); margin-bottom: 14px;">
-            <!-- Dynamic SVG Chart populated by JS -->
-          </div>
-          <div style="display: flex; justify-content: space-around; font-size: 11.5px; color: var(--text-muted); padding-top: 4px;">
-            <span><span style="color: var(--primary);">■</span> Total Submissions</span>
-            <span><span style="color: var(--status-green);">■</span> Approved</span>
-            <span><span style="color: var(--status-red);">■</span> Rejected</span>
-          </div>
-        </div>
-
-        <!-- Requests by Category Breakdown -->
-        <div class="analytics-card">
-          <div class="analytics-card-header">
-            <h3 class="analytics-card-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
-              <span>Requests by Category & Purpose</span>
-            </h3>
-            <span class="badge" style="background: var(--surface-bg); color: var(--text-muted); font-size: 11px;">Breakdown</span>
-          </div>
-          <div id="requests-by-type-list" style="display: flex; flex-direction: column; gap: 14px;">
-            <div style="color: var(--text-muted); font-size: 13px;">Loading category distributions...</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Section 2: Factory Allocations & Shift Coverage -->
-      <div class="analytics-grid-2">
-        <!-- Factory & Complex Allocation -->
-        <div class="analytics-card">
-          <div class="analytics-card-header">
-            <h3 class="analytics-card-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-              <span>Factory & Complex Headcount Distribution</span>
-            </h3>
-            <span class="badge badge-success" style="font-size: 11px;">Facilities</span>
-          </div>
-          <div id="factory-distribution-list" style="display: flex; flex-direction: column; gap: 14px;">
-            <div style="color: var(--text-muted); font-size: 13px;">Loading facility headcounts...</div>
-          </div>
-        </div>
-
-        <!-- Operational Shift Coverage -->
-        <div class="analytics-card">
-          <div class="analytics-card-header">
-            <h3 class="analytics-card-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
-              <span>Shift Roster & Operational Coverage</span>
-            </h3>
-            <span class="badge badge-primary" style="font-size: 11px;">Roster Health</span>
-          </div>
-          <div id="shift-distribution-content">
-            <!-- Shift Progress Multi-Bars & Summary -->
-            <div style="display: flex; gap: 10px; margin-bottom: 16px;" id="shift-summary-badges">
-              <!-- Dynamically populated -->
+        <!-- 2-Column Analytics Grid -->
+        <div class="analytics-grid-2">
+          <!-- 7-Day Request Volume SVG Chart -->
+          <div class="analytics-card">
+            <div class="analytics-card-header">
+              <h3 class="analytics-card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+                <span>حركة الطلبات اليومية (Daily Request Submissions - 7 Days)</span>
+              </h3>
+              <span class="badge badge-primary" style="font-size: 11px;">7-Day Velocity</span>
             </div>
-            <div id="shift-breakdown-rows" style="display: flex; flex-direction: column; gap: 12px;">
-              <!-- Dynamically populated -->
+            <div id="requests-chart-bars" style="height: 190px; padding: 6px 0; border-bottom: 1px solid var(--border-light); margin-bottom: 14px;">
+              <!-- Dynamic SVG Chart populated by JS -->
+            </div>
+            <div style="display: flex; justify-content: space-around; font-size: 11.5px; color: var(--text-muted); padding-top: 4px;">
+              <span><span style="color: var(--primary);">■</span> إجمالي الطلبات</span>
+              <span><span style="color: var(--status-green);">■</span> معتمدة (Approved)</span>
+              <span><span style="color: var(--status-red);">■</span> مرفوضة (Rejected)</span>
+            </div>
+          </div>
+
+          <!-- Operational Shift Coverage -->
+          <div class="analytics-card">
+            <div class="analytics-card-header">
+              <h3 class="analytics-card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+                <span>تغطية الورديات والمناوبات (Operational Shift Roster)</span>
+              </h3>
+              <span class="badge badge-primary" style="font-size: 11px;">Roster Health</span>
+            </div>
+            <div id="shift-distribution-content">
+              <div style="display: flex; gap: 10px; margin-bottom: 16px;" id="shift-summary-badges"></div>
+              <div id="shift-breakdown-rows" style="display: flex; flex-direction: column; gap: 12px;"></div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Section 3: Payroll Financials & Welfare Trips -->
-      <div class="analytics-grid-2">
-        <!-- Payroll Financial Commitment -->
-        <div class="analytics-card">
+        <!-- Recent Operational Activity Stream -->
+        <div class="analytics-card" style="margin-top: 24px;">
           <div class="analytics-card-header">
             <h3 class="analytics-card-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-              <span>Payroll Financial Commitment & Compensation</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              <span>سجل الأنشطة الإدارية الحديثة (Recent Operational Stream)</span>
             </h3>
-            <span class="badge badge-primary" style="font-size: 11px;">Monthly Pool</span>
+            <a href="#/leave" class="btn btn-secondary btn-sm" id="dash-view-all-activity" style="text-decoration: none;">View All Leaves →</a>
           </div>
-          <div id="payroll-financials-container" style="display: flex; flex-direction: column; gap: 12px;">
-            <!-- Dynamically populated -->
+          <div id="recent-activity-list" style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="color: var(--text-muted); font-size: 13px;">Loading operational stream...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= TAB 2: PAYROLL & WELFARE ================= -->
+      <div class="dash-panel" id="panel-payroll">
+        <div style="display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap;" id="quick-metrics-ribbon">
+          <div class="metric-chip">
+            <span style="color: var(--status-green);">●</span>
+            <span>نسبة القوى العاملة النشطة: <b id="ribbon-active-rate">—%</b></span>
+          </div>
+          <div class="metric-chip">
+            <span style="color: var(--primary);">●</span>
+            <span>نسبة اعتماد الإجازات: <b id="ribbon-approval-rate">—%</b></span>
+          </div>
+          <div class="metric-chip">
+            <span style="color: var(--status-purple);">●</span>
+            <span>صافي محفظة الأجور: <b id="ribbon-payroll-pool">—</b></span>
+          </div>
+          <div class="metric-chip">
+            <span style="color: var(--status-amber);">●</span>
+            <span>أكواد التحقق النشطة: <b id="ribbon-active-otps">—</b></span>
           </div>
         </div>
 
-        <!-- Employee Welfare & Popular Trips -->
-        <div class="analytics-card">
+        <div class="analytics-grid-2">
+          <!-- Payroll Financial Commitment -->
+          <div class="analytics-card">
+            <div class="analytics-card-header">
+              <h3 class="analytics-card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                <span>التزامات الأجور والبدلات (Payroll Financial Commitments)</span>
+              </h3>
+              <span class="badge badge-primary" style="font-size: 11px;">Monthly Pool</span>
+            </div>
+            <div id="payroll-financials-container" style="display: flex; flex-direction: column; gap: 12px;"></div>
+          </div>
+
+          <!-- Employee Welfare & Popular Trips -->
+          <div class="analytics-card">
+            <div class="analytics-card-header">
+              <h3 class="analytics-card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                <span>الرعاية الاجتماعية والرحلات (Corporate Trips & Welfare)</span>
+              </h3>
+              <span class="badge badge-success" style="font-size: 11px;">Social Engagement</span>
+            </div>
+            <div id="trips-welfare-container" style="display: flex; flex-direction: column; gap: 12px;"></div>
+          </div>
+        </div>
+
+        <!-- Vacation Balances Summary Card -->
+        <div class="analytics-card" style="margin-top: 24px;">
           <div class="analytics-card-header">
             <h3 class="analytics-card-title">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-              <span>Corporate Trips & Employee Welfare</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span>أرصدة الإجازات المستهلكة (Vacation Days Consumed)</span>
             </h3>
-            <span class="badge badge-success" style="font-size: 11px;">Social Engagement</span>
+            <span class="badge badge-secondary" style="font-size: 11px;">Workforce Balances</span>
           </div>
-          <div id="trips-welfare-container" style="display: flex; flex-direction: column; gap: 12px;">
-            <!-- Dynamically populated -->
+          <div style="display: flex; align-items: baseline; gap: 14px; padding: 8px 0;">
+            <div style="font-size: 32px; font-weight: 800; color: var(--text-main);" id="stat-vacation-days">—</div>
+            <div style="font-size: 13.5px; color: var(--text-muted);" id="stat-vacation-days-meta">Avg Balance: — days/emp</div>
           </div>
         </div>
       </div>
 
-      <!-- Section 4: Recent Operational Activity Stream -->
-      <div class="analytics-card" style="margin-top: 24px;">
-        <div class="analytics-card-header">
-          <h3 class="analytics-card-title">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-            <span>Recent Operational Activity Stream</span>
-          </h3>
-          <button class="btn btn-secondary btn-sm" id="dash-view-all-activity">View Leave Requests</button>
+      <!-- ================= TAB 3: FACILITIES & COVERAGE ================= -->
+      <div class="dash-panel" id="panel-facilities">
+        <div class="analytics-grid-2">
+          <!-- Factory & Complex Allocation -->
+          <div class="analytics-card">
+            <div class="analytics-card-header">
+              <h3 class="analytics-card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span>توزيع العمالة بالمجمعات والمصانع (Headcount Distribution)</span>
+              </h3>
+              <span class="badge badge-success" style="font-size: 11px;">Facilities</span>
+            </div>
+            <div id="factory-distribution-list" style="display: flex; flex-direction: column; gap: 14px;"></div>
+          </div>
+
+          <!-- Requests by Category Breakdown -->
+          <div class="analytics-card">
+            <div class="analytics-card-header">
+              <h3 class="analytics-card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+                <span>تصنيفات الطلبات والإجازات (Requests by Category)</span>
+              </h3>
+              <span class="badge" style="background: var(--surface-bg); color: var(--text-muted); font-size: 11px;">Breakdown</span>
+            </div>
+            <div id="requests-by-type-list" style="display: flex; flex-direction: column; gap: 14px;"></div>
+          </div>
         </div>
-        <div id="recent-activity-list" style="display: flex; flex-direction: column; gap: 8px;">
-          <div style="color: var(--text-muted); font-size: 13px;">Loading recent operational events...</div>
+
+        <!-- Shifts & Broadcasts Meta Footer Cards -->
+        <div class="analytics-grid-2" style="margin-top: 24px;">
+          <div class="analytics-card">
+            <div class="analytics-card-header">
+              <h3 class="analytics-card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 14 14"/></svg>
+                <span>إجمالي العمالة المجدولة (Rostered Personnel)</span>
+              </h3>
+            </div>
+            <div style="font-size: 28px; font-weight: 800; color: var(--text-main);" id="stat-shifts-rostered">—</div>
+            <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;" id="stat-shifts-meta">Weekly Hours: —</div>
+          </div>
+          <div class="analytics-card">
+            <div class="analytics-card-header">
+              <h3 class="analytics-card-title">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span>التعميمات والأخبار النشطة (Active Broadcasts)</span>
+              </h3>
+            </div>
+            <div style="font-size: 28px; font-weight: 800; color: var(--text-main);" id="stat-broadcasts">—</div>
+            <div style="font-size: 13px; color: var(--text-muted); margin-top: 4px;" id="stat-broadcasts-meta">Announcements & News</div>
+          </div>
         </div>
       </div>
 
-      <!-- Section 5: Enterprise APM & System Health Diagnostics -->
-      <div class="analytics-card" style="margin-top: 24px; border-left: 4px solid var(--status-green);">
-        <div class="analytics-card-header">
-          <h3 class="analytics-card-title">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
-            <span>Enterprise System Diagnostics & APM Health</span>
-          </h3>
-          <span class="badge badge-success" id="apm-health-badge">🟢 HEALTHY (Optimal)</span>
+      <!-- ================= TAB 4: SECURITY & LIVE OTPS ================= -->
+      <div class="dash-panel" id="panel-security">
+        <div class="analytics-card" style="border-left: 4px solid var(--primary);">
+          <div class="analytics-card-header" style="flex-wrap: wrap; gap: 14px;">
+            <div>
+              <h3 class="analytics-card-title">
+                <span>🔐 مركز مراقبة أكواد التحقق (Live OTP / SMS Fallback Monitor)</span>
+                <span class="badge badge-primary" style="font-size: 11px; padding: 2px 8px;">Realtime Stream</span>
+              </h3>
+              <p style="font-size: 13px; color: var(--text-muted); margin: 3px 0 0 0;">
+                أكواد التحقق المؤقتة لتسجيل دخول وتعيين الرقم السري للموظفين عبر تطبيق الموبايل (صلاحية الكود 5 دقائق).
+              </p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <input type="text" class="form-input" id="otp-live-search" placeholder="بحث بالاسم أو الهاتف..." style="width: 240px; padding: 7px 14px; font-size: 12.5px; border-radius: var(--radius-pill);" />
+              <div id="otp-stats-badge" style="font-size: 12.5px; font-weight: 700; color: var(--text-muted); background: var(--surface-subtle); padding: 6px 12px; border-radius: var(--radius-pill);">
+                النشطة حالياً: <b style="color: var(--status-green);" id="otp-active-counter">0</b>
+              </div>
+            </div>
+          </div>
+          <div id="live-otp-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; margin-top: 16px;">
+            <div style="color: var(--text-muted); font-size: 13px;">No recent OTP requests.</div>
+          </div>
         </div>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;" id="apm-metrics-grid">
-          <div style="background: var(--surface-subtle); padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
-            <small style="color: var(--text-muted); display: block; font-size: 11px;">Server Uptime</small>
-            <b id="apm-uptime" style="font-size: 14px; color: var(--text-main);">Loading...</b>
+      </div>
+
+      <!-- ================= TAB 5: APM & SYSTEM DIAGNOSTICS ================= -->
+      <div class="dash-panel" id="panel-apm">
+        <div class="analytics-card" style="border-left: 4px solid var(--status-green);">
+          <div class="analytics-card-header">
+            <h3 class="analytics-card-title">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+              <span>تشخيص الخوادم وأداء النظام (Enterprise APM & Server Health)</span>
+            </h3>
+            <span class="badge badge-success" id="apm-health-badge">🟢 HEALTHY (Optimal)</span>
           </div>
-          <div style="background: var(--surface-subtle); padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
-            <small style="color: var(--text-muted); display: block; font-size: 11px;">Node.js Heap Memory</small>
-            <b id="apm-memory" style="font-size: 14px; color: var(--text-main);">Loading...</b>
-          </div>
-          <div style="background: var(--surface-subtle); padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
-            <small style="color: var(--text-muted); display: block; font-size: 11px;">Active Realtime SSE Clients</small>
-            <b id="apm-sse" style="font-size: 14px; color: var(--primary);">Loading...</b>
-          </div>
-          <div style="background: var(--surface-subtle); padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
-            <small style="color: var(--text-muted); display: block; font-size: 11px;">Cluster Architecture Mode</small>
-            <b id="apm-cluster" style="font-size: 14px; color: var(--text-main);">Standalone</b>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 14px;" id="apm-metrics-grid">
+            <div style="background: var(--surface-subtle); padding: 14px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+              <small style="color: var(--text-muted); display: block; font-size: 11.5px; margin-bottom: 4px;">وقت تشغيل الخادم (Uptime)</small>
+              <b id="apm-uptime" style="font-size: 15px; color: var(--text-main);">Loading...</b>
+            </div>
+            <div style="background: var(--surface-subtle); padding: 14px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+              <small style="color: var(--text-muted); display: block; font-size: 11.5px; margin-bottom: 4px;">ذاكرة الخادم (Node.js Heap)</small>
+              <b id="apm-memory" style="font-size: 15px; color: var(--text-main);">Loading...</b>
+            </div>
+            <div style="background: var(--surface-subtle); padding: 14px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+              <small style="color: var(--text-muted); display: block; font-size: 11.5px; margin-bottom: 4px;">المتصلين بالبث الحي (Active SSE)</small>
+              <b id="apm-sse" style="font-size: 15px; color: var(--primary);">Loading...</b>
+            </div>
+            <div style="background: var(--surface-subtle); padding: 14px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-light);">
+              <small style="color: var(--text-muted); display: block; font-size: 11.5px; margin-bottom: 4px;">وضع المعمارية (Cluster Mode)</small>
+              <b id="apm-cluster" style="font-size: 15px; color: var(--text-main);">Standalone</b>
+            </div>
           </div>
         </div>
       </div>
     `;
+
+    // Tab switching event handlers
+    const tabBtns = this.element.querySelectorAll('.dash-nav-pill');
+    const panels = this.element.querySelectorAll('.dash-panel');
+    tabBtns.forEach((btn) => {
+      btn.onclick = () => {
+        const target = btn.dataset.dashTab;
+        tabBtns.forEach((b) => b.classList.remove('active'));
+        panels.forEach((p) => p.classList.remove('active'));
+        btn.classList.add('active');
+        const panel = this.element.querySelector(`#panel-${target}`);
+        if (panel) panel.classList.add('active');
+        sessionStorage.setItem('admin_dash_tab', target);
+      };
+    });
+    const savedTab = sessionStorage.getItem('admin_dash_tab');
+    if (savedTab) {
+      const activeBtn = this.element.querySelector(`[data-dash-tab="${savedTab}"]`);
+      if (activeBtn) activeBtn.click();
+    }
 
     // Event handlers
     const refreshBtn = this.element.querySelector('#dash-refresh-btn');
