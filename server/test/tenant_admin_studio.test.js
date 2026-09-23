@@ -185,8 +185,8 @@ test('=== ENTERPRISE TENANT BRAND STUDIO & LIVE CUSTOMIZER SUITE ===', async (t)
 
     const res = await request(
       'POST',
-      '/api/super-admin/tenants/ghabbour/logo',
-      { logoUrl: 'https://cdn.example.com/ghabbour_brand_logo.png' },
+      '/api/super-admin/tenants/elsewedy/logo',
+      { logoUrl: 'https://cdn.example.com/elsewedy_brand_logo.png' },
       { Authorization: `Bearer ${superAdminToken}` }
     );
 
@@ -194,10 +194,10 @@ test('=== ENTERPRISE TENANT BRAND STUDIO & LIVE CUSTOMIZER SUITE ===', async (t)
 
     assert.strictEqual(res.status, 200);
     assert.strictEqual(res.body.success, true);
-    assert.strictEqual(res.body.logoUrl, 'https://cdn.example.com/ghabbour_brand_logo.png');
+    assert.strictEqual(res.body.logoUrl, 'https://cdn.example.com/elsewedy_brand_logo.png');
 
     // Verify broadcast occurred
     assert.ok(broadcastPayload != null);
-    assert.strictEqual(broadcastPayload.brand.logoUrl, 'https://cdn.example.com/ghabbour_brand_logo.png');
+    assert.strictEqual(broadcastPayload.brand.logoUrl, 'https://cdn.example.com/elsewedy_brand_logo.png');
   });
 });

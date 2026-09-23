@@ -130,10 +130,6 @@ export class Topbar {
             <option value="all">🌐 All Organizations</option>
             <option value="elaraby">🏢 Elaraby Group</option>
             <option value="elsewedy">🏢 Elsewedy Electric</option>
-            <option value="ghabbour">🏢 GB Corp (Ghabbour)</option>
-            <option value="tmg">🏢 Talaat Moustafa Group</option>
-            <option value="gulf_industrial">🏢 Gulf Industrial Corp</option>
-            <option value="generic">🏢 PR Connect (Neutral)</option>
           </select>
         </div>
 

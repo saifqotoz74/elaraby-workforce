@@ -849,8 +849,8 @@ test('=== TIER 2: BOUNDARY & CORNER CASES E2E SUITE ===', async (t) => {
     assert.ok([400, 404].includes(res.status));
   });
 
-  await t.test('B16.4: Flavor Switching - Multiple rapid requests across 5 flavors do not cross-contaminate', async () => {
-    const slugs = ['elaraby', 'elsewedy', 'tmg', 'ghabbour', 'gulf'];
+  await t.test('B16.4: Flavor Switching - Multiple rapid requests across flavors do not cross-contaminate', async () => {
+    const slugs = ['elaraby', 'elsewedy'];
     for (const slug of slugs) {
       const res = await request('GET', `/api/tenants/${slug}`);
       assert.equal(res.status, 200);

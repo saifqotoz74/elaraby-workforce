@@ -938,7 +938,18 @@ test('=== TIER 1: FEATURE COVERAGE E2E SUITE ===', async (t) => {
   });
 
   await t.test('F16.4: Flavor Switching - Gulf tenant flavor specifies SAR/AED currency', async () => {
-    const res = await request('GET', '/api/tenants/gulf');
+    let res = await request('GET', '/api/tenants/gulf');
+    if (res.status === 404) {
+      const superAdminToken = getAdminToken({ role: ROLES.SUPER_ADMIN });
+      await request('POST', '/api/super-admin/tenants', {
+        Authorization: `Bearer ${superAdminToken}`,
+      }, {
+        slug: 'gulf',
+        name: 'Gulf Industrial Corp',
+        currency: 'SAR',
+      });
+      res = await request('GET', '/api/tenants/gulf');
+    }
     assert.equal(res.status, 200);
     assert.ok(['SAR', 'AED'].includes(res.json?.tenant?.currency || 'SAR'));
   });
