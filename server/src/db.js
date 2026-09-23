@@ -115,8 +115,8 @@ function data() {
   // Clean up any stale orphaned temporary files on startup
   cleanupOrphanedTmpFiles();
 
-  // On Vercel, if /tmp/db.json doesn't exist yet, seed it from bundled data
-  if (isVercel && !fs.existsSync(DB_FILE) && fs.existsSync(SEED_FILE)) {
+  // On Vercel, sync /tmp/db.json from bundled clean SEED_FILE
+  if (isVercel && fs.existsSync(SEED_FILE)) {
     try {
       fs.copyFileSync(SEED_FILE, DB_FILE);
     } catch (_) {}
@@ -130,6 +130,11 @@ function data() {
         ...parsed,
         alerts: Array.isArray(parsed.alerts) ? parsed.alerts : [],
       };
+      if (Array.isArray(_data.tenants)) {
+        _data.tenants = _data.tenants.filter(
+          (t) => t && t.id && !t.id.startsWith('test_corp_') && !t.id.startsWith('tenant_test_') && !t.id.startsWith('capped_') && !['ghabbour', 'tmg', 'gulf_industrial', 'generic', 'pr_connect'].includes(t.id)
+        );
+      }
       if (Array.isArray(_data.employees)) {
         for (const emp of _data.employees) {
           if (typeof emp.tokenVersion === 'number' && emp.tokenVersion < 1) {
