@@ -33,3 +33,16 @@ These rules are permanent operational invariants for Workforce OS across the Exp
 - Riverpod state notifiers in Flutter MUST use the sealed `UiState<T>` class (`lib/core/state/ui_state.dart`).
 - All screen controllers MUST exhaustively handle all 6 UI states: `loading`, `success`, `error`, `empty`, `refreshing`, and `offline`.
 - NEVER treat `null` as an error state or let unhandled UI states trigger blank screens.
+
+---
+
+## 6. Zero Ephemeral Secrets in Production
+- In production environments (including Serverless, Vercel, and auto-scaled container clusters), `JWT_SECRET` MUST be set explicitly (minimum 32 characters).
+- NEVER fall back to runtime-generated ephemeral secrets in memory (`crypto.randomBytes`), which cause random `401 Unauthorized` logouts across serverless container instances.
+
+---
+
+## 7. Zero Residual Ghost Identities in Client Storage
+- Client storage models (such as `EmployeeProfile` in Flutter) MUST initialize with empty uninitialized defaults (`''`), NEVER hardcoded mock employee identities.
+- Logging out, clearing sessions, or switching enterprise organizations MUST completely wipe employee state so that client devices never render residual identities from other tenants under network latency.
+
